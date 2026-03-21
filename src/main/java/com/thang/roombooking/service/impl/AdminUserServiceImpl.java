@@ -4,10 +4,8 @@ import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.AuthErrorCode;
-import com.thang.roombooking.common.exception.CommonErrorCode;
 import com.thang.roombooking.entity.Role;
 import com.thang.roombooking.entity.UserAccount;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.RoleRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.service.AdminUserService;
@@ -16,7 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,10 +28,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UserBasicResponse> getAllUsers() {
-        return userAccountRepository.findAll().stream()
-                .map(UserBasicResponse::fromEntity)
-                .toList();
+    public Page<UserBasicResponse> getAllUsers(Pageable pageable) {
+        return userAccountRepository.findAll(pageable)
+                .map(UserBasicResponse::fromEntity);
     }
 
     @Override
