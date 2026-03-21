@@ -1,0 +1,115 @@
+app:
+  base-url: ${BACKEND_APP_BASE_URL}
+  frontend-url: ${FRONTEND_APP_BASE_URL}
+  name: room-booking
+  tagline: Luxury Fashion
+  support:
+    email: concierge@room-booking.com
+  url: https://room-booking.com
+
+  import:
+    temp-dir: ${java.io.tmpdir}/product-imports
+
+jwt:
+  signerKey: ${REGISTRATION_KEY}
+
+  key:
+    id: "room-booking-key-2025"
+    private-path: classpath:certs/private.pem
+    public-path: classpath:certs/public.pem
+  refresh:
+    expiration: 2592000000 # 30 days in milliseconds
+
+cloudinary:
+  cloudName: ${CLOUDINARY_CLOUD_NAME}
+  apiKey: ${CLOUDINARY_API_KEY}
+  apiSecret: ${CLOUDINARY_API_SECRET}
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+  web:
+    resources:
+      add-mappings: false
+
+  datasource:
+    url: ${DATABASE_URL:}
+    username: ${POSTGRES_USER:}
+    password: ${POSTGRES_PASSWORD:}
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+    show_sql: false
+    hibernate:
+      ddl-auto: none
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      repositories:
+        enabled: false
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid, profile, email
+            redirect-uri: ${FRONTEND_APP_BASE_URL_PROD}/auth/google-callback
+            authorization-grant-type: authorization_code
+            client-name: Google
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+            user-name-attribute: sub
+
+open:
+  api:
+    serverUrl: ${BACKEND_APP_BASE_URL_PROD}
+    title: room-booking API (Production)
+    version: v1.0.0
+    serverName: room-booking Backend API
+    description: API documentation for room-booking fashion store project.
+
+logging:
+  level:
+    org.hibernate.orm.jdbc.bind: trace
+
+# Swagger (springdoc-openapi)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+server:
+  port: 80
