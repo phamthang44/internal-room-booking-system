@@ -1,5 +1,6 @@
 package com.thang.roombooking.entity;
 
+import com.thang.roombooking.common.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -7,37 +8,28 @@ import java.time.Instant;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "refresh_tokens", indexes = {
-        @Index(name = "idx_refresh_token_expiry", columnList = "expiry_date")
-})
-public class RefreshToken {
+@Table(name = "refresh_tokens")
+public class RefreshToken extends BaseCreatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "token", nullable = false, unique = true)
+    @Column(name = "token", nullable = false, unique = true, length = 255)
     private String token;
-
-    @Column(name = "expiry_date", nullable = false)
-    private Instant expiryDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Column(name = "expiry_date", nullable = false)
+    private Instant expiryDate;
 
-    @Column(name = "revoked", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private boolean revoked;
-
-    @PrePersist
-    public void prePersist() {
-        this.createdAt = Instant.now();
-    }
+    @Column(name = "revoked", nullable = false)
+    @Builder.Default
+    private Boolean revoked = false;
 }

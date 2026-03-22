@@ -1,8 +1,13 @@
 package com.thang.roombooking.entity;
 
-
+import com.thang.roombooking.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -11,7 +16,8 @@ import lombok.*;
 @Builder
 @Entity
 @Table(name = "roles")
-public class Role {
+@EntityListeners(AuditingEntityListener.class)
+public class Role extends BaseEntity<Long> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,4 +28,17 @@ public class Role {
 
     @Column(name = "description")
     private String description;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Override
+    public Long getId() {
+        return id;
+    }
 }

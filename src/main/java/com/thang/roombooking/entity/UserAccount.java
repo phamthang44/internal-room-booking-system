@@ -1,7 +1,7 @@
 package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.constant.CommonConfig;
-import com.thang.roombooking.common.entity.BaseAuditEntity;
+import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
 import com.thang.roombooking.common.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,7 +13,7 @@ import lombok.*;
 @Builder
 @Entity
 @Table(name = "users")
-public class UserAccount extends BaseAuditEntity<Long> {
+public class UserAccount extends BaseSoftDeleteEntity<Long> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,10 +25,10 @@ public class UserAccount extends BaseAuditEntity<Long> {
     @Column(name = "full_name", nullable = false, length = CommonConfig.MAX_LENGTH_FULLNAME)
     private String fullName;
 
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password", nullable = false)
+    @Column(name = "password", nullable = false, length = 255)
     private String password;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -36,8 +36,12 @@ public class UserAccount extends BaseAuditEntity<Long> {
     private Role role;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = CommonConfig.MAX_LENGTH_ENUMS_STRING)
+    @Column(name = "status", nullable = false, length = 20)
     private UserStatus status;
+
+    @Version
+    @Column(name = "version")
+    private Integer version;
 
     @Override
     public Long getId() {
