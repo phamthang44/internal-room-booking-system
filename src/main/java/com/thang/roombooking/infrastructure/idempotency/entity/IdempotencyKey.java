@@ -9,7 +9,9 @@ import java.time.Instant;
 
 
 @Entity
-@Table(name = "idempotency_keys", schema = "public")
+@Table(name = "idempotency_keys", schema = "public", indexes = {
+        @Index(name = "idx_idempotency_expiry", columnList = "expires_at")
+})
 @Getter
 @Setter
 @Builder
@@ -25,8 +27,14 @@ public class IdempotencyKey extends BaseAuditEntity<Integer> {
     @Column(name = "key_hash", nullable = false, unique = true, length = 128)
     private String keyHash;
 
-    @Column(name = "reference", length = 128)
-    private String reference;
+    @Column(name = "resoure_path")
+    private String resourcePath;
+
+    @Column(name = "response_code")
+    private int responseCode;
+
+    @Column(name = "response_body")
+    private String responseBody;
 
     @Column(name = "request_fingerprint")
     private String requestFingerprint;

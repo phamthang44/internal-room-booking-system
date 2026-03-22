@@ -5,6 +5,7 @@ import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.exception.AuthErrorCode;
 import com.thang.roombooking.common.exception.BaseErrorCode;
 import com.thang.roombooking.common.exception.TokenExpiredException;
+import com.thang.roombooking.service.TokenBlacklistService;
 import com.thang.roombooking.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,6 +30,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final UserDetailsService userDetailsService;
     private final ObjectMapper objectMapper;
 
@@ -48,7 +50,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         token = authHeader.substring(7);
-
+        // 1. CHECK BLACKLIST
+        if (tokenBlacklistService.isTokenBlacklisted(token)) {
+            log.warn("Blacklisted token attempt: {}", token);
+            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_INVALID);
+            return;
+        }
         try {
             username = tokenService.extractUsername(token);
         } catch (TokenExpiredException ex) {

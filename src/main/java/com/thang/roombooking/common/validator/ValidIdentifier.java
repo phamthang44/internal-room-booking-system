@@ -11,7 +11,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidIdentifier {
 
-    String message() default "Invalid Email or Username";
+    String message() default "{validation.auth.identifier.invalid}";
 
     Class<?>[] groups() default {};
 

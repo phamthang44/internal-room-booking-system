@@ -7,6 +7,7 @@ import com.thang.roombooking.common.enums.UserRole;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.AuthErrorCode;
+import com.thang.roombooking.common.exception.CommonErrorCode;
 import com.thang.roombooking.entity.RefreshToken;
 import com.thang.roombooking.entity.Role;
 import com.thang.roombooking.entity.UserAccount;
@@ -49,19 +50,24 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())
             );
 
-            SecurityUserDetails userDetails = (SecurityUserDetails) authentication.getPrincipal();
-            UserAccount user = userDetails.getUser();
+            UserAccount user = null;
+
+            if (authentication.isAuthenticated() && authentication.getPrincipal() instanceof SecurityUserDetails userDetails) {
+                user = userDetails.getUser();
+            }
 
             String accessToken = tokenService.generateAccessToken(user);
             String refreshToken = tokenService.generateRefreshToken();
             refreshTokenService.saveRefreshToken(user, refreshToken);
-
+            if (user == null) {
+                throw new AppException(CommonErrorCode.INTERNAL_ERROR, "User not found in authentication context");
+            }
             return buildAuthResponse(accessToken, refreshToken, user);
-        } catch (DisabledException e) {
+        } catch (DisabledException _) {
             throw new AppException(AuthErrorCode.ACCOUNT_DISABLED);
-        } catch (LockedException e) {
+        } catch (LockedException _) {
             throw new AppException(AuthErrorCode.ACCOUNT_LOCKED);
-        } catch (BadCredentialsException e) {
+        } catch (BadCredentialsException _) {
             throw new AppException(AuthErrorCode.INVALID_CREDENTIALS);
         }
     }
