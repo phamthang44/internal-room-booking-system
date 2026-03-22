@@ -7,16 +7,15 @@ import com.thang.roombooking.common.enums.UserRole;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.AuthErrorCode;
-import com.thang.roombooking.common.exception.CommonErrorCode;
 import com.thang.roombooking.entity.RefreshToken;
 import com.thang.roombooking.entity.Role;
 import com.thang.roombooking.entity.UserAccount;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.repository.RoleRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.service.AuthService;
 import com.thang.roombooking.service.RefreshTokenService;
+import com.thang.roombooking.service.TokenBlacklistService;
 import com.thang.roombooking.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
 
@@ -131,6 +131,21 @@ public class AuthServiceImpl implements AuthService {
         if (refreshToken == null || refreshToken.isBlank()) {
             log.warn("Logout requested with empty refresh token");
             return;
+        }
+        refreshTokenService.revokeRefreshToken(refreshToken);
+    }
+
+    @Override
+    @Transactional
+    public void logout(String accessToken, String refreshToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            log.warn("Access token is null or blank during logout. Skipping blacklist.");
+            return;
+        } else {
+            long remainingSeconds = tokenService.getRemainingTimeInSeconds(accessToken);
+            if (remainingSeconds > 0) {
+                tokenBlacklistService.blacklistToken(accessToken, remainingSeconds);
+            }
         }
         refreshTokenService.revokeRefreshToken(refreshToken);
     }

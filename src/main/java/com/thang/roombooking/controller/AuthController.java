@@ -68,12 +68,20 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         String rawRefreshToken = CookieUtils.getCookieValue(request, REFRESH_TOKEN_COOKIE);
-        authService.logout(rawRefreshToken);
+
+        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        String accessToken = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            accessToken = authHeader.substring(7);
+            // You can add logic to revoke the access token if needed
+        }
+
+        authService.logout(accessToken, rawRefreshToken);
 
         // Clear cookie
         ResponseCookie cleared = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(false)  //dev env
                 .path("/")
                 .maxAge(0)
                 .sameSite("Strict")

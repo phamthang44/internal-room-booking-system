@@ -42,7 +42,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         RefreshToken token = refreshTokenRepository.findByToken(rawToken)
                 .orElseThrow(() -> new TokenRefreshException(rawToken, I18nUtils.get("error.token_invalid")));
 
-        if (token.isRevoked()) {
+        if (token.getRevoked().equals(true)) {
             log.warn("Attempt to use revoked refresh token: {}", rawToken);
             throw new TokenRefreshException(rawToken, I18nUtils.get("error.token_revoked"));
         }
