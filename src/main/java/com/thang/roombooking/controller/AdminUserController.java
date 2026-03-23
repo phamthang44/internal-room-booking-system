@@ -1,9 +1,11 @@
 package com.thang.roombooking.controller;
 
+import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.service.AdminUserService;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,13 @@ public class AdminUserController {
     public ResponseEntity<ApiResult<Page<UserBasicResponse>>> getAllUsers(Pageable pageable) {
         Page<UserBasicResponse> users = adminUserService.getAllUsers(pageable);
         return ResponseEntity.ok(ApiResult.success(users, I18nUtils.get("user.profile.retrieve.success")));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResult<?>> createAnAccount(@Valid @RequestBody RegisterRequest req) {
+        log.info("Received request to register user {}", req);
+        return ResponseEntity.ok(ApiResult.success(null, I18nUtils.get("user.account.created.success")));
     }
 
     @PutMapping("/{userId}/ban")

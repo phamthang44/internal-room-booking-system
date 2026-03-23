@@ -147,10 +147,12 @@ public class ApiResult<T> {
     public static ApiResult<?> error(BaseErrorCode errorCode, Object... args) {
         String message = errorCode != null ? errorCode.format(args) : "Unknown error";
         String code = errorCode != null ? errorCode.getCode() : "UNKNOWN_ERROR";
+        String traceId = java.util.UUID.randomUUID().toString();
         return ApiResult.builder()
                 .error(ErrorDetail.builder()
                         .code(code)
                         .message(message)
+                        .traceId(traceId)
                         .build())
                 .build();
     }

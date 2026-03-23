@@ -2,6 +2,7 @@ package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.constant.CommonConfig;
 import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
+import com.thang.roombooking.common.enums.IdentityProvider;
 import com.thang.roombooking.common.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,6 +39,13 @@ public class UserAccount extends BaseSoftDeleteEntity<Long> {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider", length = 20, nullable = true)
+    private IdentityProvider provider;
+
+    @Column(name = "provider_id", nullable = true)
+    private String providerId;
 
     @Version
     @Column(name = "version")

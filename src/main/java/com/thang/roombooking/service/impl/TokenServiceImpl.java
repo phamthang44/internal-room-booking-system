@@ -40,7 +40,7 @@ public class TokenServiceImpl implements TokenService {
                 .build();
 
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .subject(String.valueOf(userAccount.getId()))
+                .subject(userAccount.getUsername())
                 .claim("userId", userAccount.getId())
                 .claim("role", userAccount.getRole().getName())
                 .issuer("room-booking-service")
@@ -73,7 +73,7 @@ public class TokenServiceImpl implements TokenService {
             }
 
             return claims.getSubject();
-        } catch (TokenExpiredException e) {
+        } catch (TokenExpiredException | TokenErrorException e) {
             throw e;
         } catch (Exception e) {
             throw new TokenErrorException(I18nUtils.get("error.unexpected_error_occurred"));

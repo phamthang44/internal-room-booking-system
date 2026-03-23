@@ -2,7 +2,7 @@ app:
   base-url: ${BACKEND_APP_BASE_URL}
   frontend-url: ${FRONTEND_APP_BASE_URL}
   name: room-booking
-  tagline: Luxury Fashion
+  tagline: Room Booking System
   support:
     email: concierge@room-booking.com
   url: https://room-booking.com
@@ -98,7 +98,7 @@ open:
     title: room-booking API (Production)
     version: v1.0.0
     serverName: room-booking Backend API
-    description: API documentation for room-booking fashion store project.
+    description: API documentation for room-booking project.
 
 logging:
   level:

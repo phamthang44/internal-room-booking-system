@@ -3,11 +3,13 @@ package com.thang.roombooking.service.impl;
 import com.thang.roombooking.common.dto.request.LoginRequest;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.AuthResponse;
+import com.thang.roombooking.common.enums.AuthStatus;
 import com.thang.roombooking.common.enums.UserRole;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.AuthErrorCode;
 import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.entity.ExternalIdentity;
 import com.thang.roombooking.entity.RefreshToken;
 import com.thang.roombooking.entity.Role;
 import com.thang.roombooking.entity.UserAccount;
@@ -41,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
+    private final GoogleOAuth2AuthenticationService googleOAuth2AuthenticationService;
 
     @Override
     @Transactional
@@ -161,6 +164,37 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .role(user.getRole().getName())
+                .status(AuthStatus.LOGIN_SUCCESS)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse loginWithGoogle(String idToken) {
+        log.info("Starting Google login flow with ID Token.");
+
+        try {
+            ExternalIdentity identity = googleOAuth2AuthenticationService.getUserInfo(idToken);
+            String email = identity.email();
+            log.info("Google identity verified. Email: {}", email);
+
+            UserAccount user = userAccountRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.ACCOUNT_DOES_NOT_EXISTS));
+
+            if (user.getStatus() == UserStatus.BANNED) {
+                throw new AppException(AuthErrorCode.ACCOUNT_DISABLED);
+            }
+
+            String accessToken = tokenService.generateAccessToken(user);
+            String refreshToken = tokenService.generateRefreshToken();
+            refreshTokenService.saveRefreshToken(user, refreshToken);
+
+            return buildAuthResponse(accessToken, refreshToken, user);
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error in loginWithGoogle: ", e);
+            throw new AppException(CommonErrorCode.INTERNAL_ERROR, "Google login failed");
+        }
     }
 }

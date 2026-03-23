@@ -1,5 +1,6 @@
 package com.thang.roombooking.controller;
 
+import com.thang.roombooking.common.dto.request.GoogleLoginRequest;
 import com.thang.roombooking.common.dto.request.LoginRequest;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
@@ -99,5 +100,24 @@ public class AuthController {
                 .sameSite("Strict")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    @PostMapping("/google-login")
+    public ResponseEntity<ApiResult<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request, HttpServletResponse httpResponse) {
+        log.info("Google login request received with ID Token.");
+        try {
+            AuthResponse response = authService.loginWithGoogle(request.idToken());
+            log.info("Google login successful. Status: {}", response.status());
+
+            // Set refresh token cookie if present
+            if (response.refreshToken() != null) {
+                setRefreshTokenCookie(httpResponse, response.refreshToken());
+            }
+
+            return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("message.logged_in")));
+        } catch (Exception e) {
+            log.error("Google login failed: ", e);
+            throw e;
+        }
     }
 }

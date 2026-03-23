@@ -12,6 +12,7 @@ import java.util.Map;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ClassroomMapper {
 
+    @Mapping(target = "classroomId", source = "id")
     @Mapping(target = "buildingName", source = "building.nameKey")
     @Mapping(target = "equipments", source = "classroomEquipments")
     @Mapping(target = "roomType", source = "roomType.nameKey")
