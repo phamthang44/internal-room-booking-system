@@ -55,7 +55,7 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid, profile, email
-            redirect-uri: http://localhost:5173/auth/google-callback
+            redirect-uri: http://localhost:5173
             authorization-grant-type: authorization_code
             client-name: Google
         provider:
