@@ -9,7 +9,8 @@ import lombok.Setter;
 @Setter
 public class LoginRequest {
 
-    @ValidIdentifier(message = "{validation.auth.identifier.required}")
+    @NotBlank(message = "{validation.auth.identifier.required}")
+    @ValidIdentifier(message = "{validation.auth.identifier.invalid}")
     private String identifier;
 
     @NotBlank(message = "{validation.auth.password.required}")

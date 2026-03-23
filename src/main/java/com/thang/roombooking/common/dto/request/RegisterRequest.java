@@ -1,5 +1,6 @@
 package com.thang.roombooking.common.dto.request;
 
+import com.thang.roombooking.common.validator.ValidIdentifier;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,7 +16,7 @@ public class RegisterRequest {
     private String username;
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @ValidIdentifier(message = "{validation.auth.identifier.invalid}")
     private String email;
 
     @NotBlank(message = "Password is required")
