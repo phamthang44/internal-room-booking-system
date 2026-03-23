@@ -2,10 +2,15 @@ package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
 import com.thang.roombooking.common.dto.response.BasicClassroomResponse;
+import com.thang.roombooking.common.enums.RoomSort;
 import com.thang.roombooking.common.enums.RoomStatus;
+import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.mapper.ClassroomMapper;
+import com.thang.roombooking.common.search.ClassroomFields;
 import com.thang.roombooking.common.search.GenericSpecificationBuilder;
+import com.thang.roombooking.common.search.SearchOperation;
 import com.thang.roombooking.entity.Classroom;
+import com.thang.roombooking.entity.Translation;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.repository.TimeSlotRepository;
 import com.thang.roombooking.repository.TranslationRepository;
@@ -80,10 +85,14 @@ public class ClassroomQueryQueryServiceImpl implements ClassroomQueryService {
             String locale = LocaleContextHolder.getLocale().getLanguage();
             if (locale.isEmpty()) locale = "en";
 
-            List<com.thang.roombooking.entity.Translation> tl = translationRepository.findByEntityTypeInAndEntityIdInAndLocale(
-                    List.of("BUILDING", "EQUIPMENT"), new ArrayList<>(entityIds), locale);
+            List<Translation> tl = translationRepository.findByEntityTypeInAndEntityIdInAndLocale(
+                    TranslatableEntityType.names(
+                            TranslatableEntityType.BUILDING,
+                            TranslatableEntityType.EQUIPMENT,
+                            TranslatableEntityType.ROOM_TYPE
+                    ), new ArrayList<>(entityIds), locale);
 
-            for (com.thang.roombooking.entity.Translation t : tl) {
+            for (Translation t : tl) {
                 translations.put(t.getEntityType() + "_" + t.getEntityId() + "_" + t.getFieldName(), t.getContent());
             }
         }
@@ -100,23 +109,23 @@ public class ClassroomQueryQueryServiceImpl implements ClassroomQueryService {
 
         // Keyword search (roomNumber contains)
         if (StringUtils.hasText(req.getKeyword())) {
-            builder.with("roomNumber", ":", req.getKeyword(), "*", "*");
+            builder.with(ClassroomFields.ROOM_NAME, SearchOperation.CONTAINS, req.getKeyword(), null, null);
         }
 
         // Status filter
         if (req.getRoomStatus() != null) {
-            builder.with("status", ":", req.getRoomStatus(), null, null);
+            builder.with(ClassroomFields.STATUS, SearchOperation.EQUALITY, req.getRoomStatus(), null, null);
         }
 
         if (req.getCapacity() > 0) {
-            builder.with("capacity", "≥", req.getCapacity(), null, null);
+            builder.with(ClassroomFields.CAPACITY, SearchOperation.GREATER_THAN_OR_EQUAL, req.getCapacity(), null, null);
         }
 
         // Equipment filter (requires JOIN on classroomEquipments)
         if (req.getEquipmentId() > 0) {
             builder.addSpecification((root, query, criteriaBuilder) -> {
-                Join<Object, Object> join = root.join("classroomEquipments", JoinType.INNER);
-                return criteriaBuilder.equal(join.get("equipment").get("id"), req.getEquipmentId());
+                Join<Object, Object> join = root.join(ClassroomFields.CLASSROOM_EQUIPMENTS, JoinType.INNER);
+                return criteriaBuilder.equal(join.get(ClassroomFields.EQUIPMENT).get(ClassroomFields.ID), req.getEquipmentId());
             });
         }
 
@@ -171,12 +180,12 @@ public class ClassroomQueryQueryServiceImpl implements ClassroomQueryService {
      * Maps sort string to Sort object
      */
     private Sort buildSort(String sortParam) {
-        return switch (sortParam != null ? sortParam : "newest") {
-            case "capacity_asc" -> Sort.by("capacity").ascending();
-            case "capacity_desc" -> Sort.by("capacity").descending();
-            case "room_number_asc" -> Sort.by("roomNumber").ascending();
-            case "room_number_desc" -> Sort.by("roomNumber").descending();
-            default -> Sort.by("createdAt").descending(); // newest
+        return switch (sortParam != null ? sortParam : RoomSort.NEWEST.getValue()) {
+            case "capacity_asc" -> Sort.by(ClassroomFields.CAPACITY).ascending();
+            case "capacity_desc" -> Sort.by(ClassroomFields.CAPACITY).descending();
+            case "room_name_asc" -> Sort.by(ClassroomFields.ROOM_NAME).ascending();
+            case "room_name_desc" -> Sort.by(ClassroomFields.ROOM_NAME).descending();
+            default -> Sort.by(ClassroomFields.CREATED_AT).descending(); // newest
         };
     }
 }
