@@ -1,6 +1,6 @@
 package com.thang.roombooking.infrastructure.redis.service.impl;
 
-import com.thang.aurea.infrastructure.redis.service.RedisService;
+import com.thang.roombooking.infrastructure.redis.service.RedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;

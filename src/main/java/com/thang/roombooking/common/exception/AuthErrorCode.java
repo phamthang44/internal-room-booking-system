@@ -34,12 +34,13 @@ public enum AuthErrorCode implements BaseErrorCode {
     CANNOT_BAN_ADMIN(HttpStatus.CONFLICT, "AUTH_012", "error.cannot_ban_admin"),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH_013", "error.role_not_found"),
 
+    USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_005", "error.username_already_exists"),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_006", "error.email_already_exists"),
+    PASSWORDS_DO_NOT_MATCH(HttpStatus.BAD_REQUEST, "USER_007", "error.passwords_do_not_match"),
+    INVALID_FULLNAME_FORMAT(HttpStatus.BAD_REQUEST, "USER_008", "error.invalid_fullname_format"),
+    INVALID_EMAIL_FORMAT(HttpStatus.BAD_REQUEST, "USER_009", "error.invalid_email_format"),
+    ACCOUNT_DOES_NOT_EXISTS(HttpStatus.NOT_FOUND, "AUTH_014", "error.account_does_not_exists"),;
 
-
-
-
-
-    ;
     private final HttpStatus httpStatus;
     private final String code;
     private final String messageKey;

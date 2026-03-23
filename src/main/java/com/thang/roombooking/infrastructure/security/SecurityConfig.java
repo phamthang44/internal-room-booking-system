@@ -34,7 +34,8 @@ public class SecurityConfig {
     protected static final String[] PUBLIC_LIST = {
             "/api/v1/auth/login",
             "/api/v1/auth/register",
-            "/api/v1/auth/refresh"
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/google-login"
     };
 
     protected static final String[] SWAGGER_LIST = {

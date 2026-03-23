@@ -13,7 +13,8 @@ public enum CommonErrorCode implements BaseErrorCode {
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "SYS_005", "error.invalid_request"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "SYS_006", "error.method_not_allowed"),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "SYS_404", "error.resource_not_found"),
-    RESOURCE_CONFLICT(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", "error.resource_conflict");
+    RESOURCE_CONFLICT(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", "error.resource_conflict"),
+    OAUTH_ERROR(HttpStatus.BAD_REQUEST, "SYS_006", "error.oauth_error"),;
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -31,9 +31,10 @@ public class AdminUserController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResult<?>> createAnAccount(@Valid @RequestBody RegisterRequest req) {
-        log.info("Received request to register user {}", req);
-        return ResponseEntity.ok(ApiResult.success(null, I18nUtils.get("user.account.created.success")));
+    public ResponseEntity<ApiResult<UserBasicResponse>> createAnAccount(@Valid @RequestBody RegisterRequest req) {
+        log.info("Received request to register user {}", req.getUsername());
+        UserBasicResponse response = adminUserService.createAnAccount(req);
+        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.account.created.success")));
     }
 
     @PutMapping("/{userId}/ban")

@@ -43,9 +43,9 @@ public class OpenApiConfig {
     }
 
     @Bean
-    public GroupedOpenApi groupedAuthApi() {
+    public GroupedOpenApi groupedRoomBookingApi() {
         return GroupedOpenApi.builder()
-                .group("api-auth")
+                .group("api-room-booking")
                 .packagesToScan("com.thang.roombooking.controller")
                 .build();
     }

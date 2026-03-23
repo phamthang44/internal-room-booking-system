@@ -74,13 +74,12 @@ public class GlobalHandlerError {
             errorDetails = errors;
             message = (firstErrorMessage != null) ? firstErrorMessage : I18nUtils.get("error.invalid_input_data");
         } else if (e instanceof ConstraintViolationException ex) {
-            Map<String, String> errors = ex.getConstraintViolations().stream()
+            errorDetails = ex.getConstraintViolations().stream()
                     .collect(Collectors.toMap(
                             violation -> violation.getPropertyPath().toString(),
                             violation -> resolveValidationMessage(violation.getMessage()),
                             (msg1, msg2) -> msg1
                     ));
-            errorDetails = errors;
             message = I18nUtils.get("error.invalid_parameters");
         } else if (e instanceof MissingServletRequestParameterException ex) {
             message = I18nUtils.get("error.missing_required_parameter", ex.getParameterName());
@@ -181,6 +180,13 @@ public class GlobalHandlerError {
             String key = message.substring(1, message.length() - 1);
             try {
                 return I18nUtils.get(key);
+            } catch (Exception e) {
+                return message;
+            }
+        }
+        if (!message.contains(" ") && message.contains(".")) {
+            try {
+                return I18nUtils.get(message);
             } catch (Exception e) {
                 return message;
             }

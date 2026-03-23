@@ -36,4 +36,12 @@ public class LocalResolver extends AcceptHeaderLocaleResolver implements WebMvcC
         messageSource.setCacheSeconds(3600); // cache messages for 1 hour
         return messageSource;
     }
+
+    @Override
+    @Bean
+    public org.springframework.validation.Validator getValidator() {
+        org.springframework.validation.beanvalidation.LocalValidatorFactoryBean bean = new org.springframework.validation.beanvalidation.LocalValidatorFactoryBean();
+        bean.setValidationMessageSource(messageSource());
+        return bean;
+    }
 }
