@@ -1,4 +1,4 @@
-package com.thang.roombooking.common.exception;
+package com.thang.roombooking.common.exception.errorcode;
 
 import org.springframework.http.HttpStatus;
 

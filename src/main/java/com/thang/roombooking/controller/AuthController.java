@@ -6,7 +6,7 @@ import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.AuthResponse;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import com.thang.roombooking.common.utils.CookieUtils;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.service.AuthService;

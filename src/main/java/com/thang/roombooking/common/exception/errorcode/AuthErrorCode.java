@@ -1,4 +1,4 @@
-package com.thang.roombooking.common.exception;
+package com.thang.roombooking.common.exception.errorcode;
 
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import lombok.Getter;

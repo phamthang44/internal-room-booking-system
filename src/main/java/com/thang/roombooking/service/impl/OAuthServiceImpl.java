@@ -5,7 +5,7 @@ import com.thang.roombooking.common.enums.AuthStatus;
 import com.thang.roombooking.common.enums.IdentityProvider;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import com.thang.roombooking.entity.ExternalIdentity;
 import com.thang.roombooking.entity.UserAccount;
 import com.thang.roombooking.repository.UserAccountRepository;
@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor

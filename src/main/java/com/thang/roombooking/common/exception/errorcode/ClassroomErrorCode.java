@@ -7,14 +7,16 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
-public enum CommonErrorCode implements BaseErrorCode {
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_001", "error.internal_server_error"),
-    DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_002", "error.database_error"),
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "SYS_005", "error.invalid_request"),
-    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "SYS_006", "error.method_not_allowed"),
-    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "SYS_404", "error.resource_not_found"),
-    RESOURCE_CONFLICT(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", "error.resource_conflict"),
-    OAUTH_ERROR(HttpStatus.BAD_REQUEST, "SYS_006", "error.oauth_error"),;
+public enum ClassroomErrorCode implements BaseErrorCode {
+
+    ROOM_NAME_EXISTED(HttpStatus.BAD_REQUEST, "CR_001", "error.classroom.name.existed"),
+    // Gộp các lỗi về sức chứa vào đây
+    CAPACITY_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "CR_002", "validation.classroom.capacity.out_of_range"),
+    // Tách mã cho lỗi không tìm thấy Room Type
+    ROOM_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "CR_003", "validation.classroom.room_type.not_found"),
+    // Đánh mã mới cho các lỗi nghiệp vụ tiếp theo
+    BUILDING_NOT_ACTIVE(HttpStatus.FORBIDDEN, "CR_004", "error.classroom.building.not_active"),
+    EQUIPMENT_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "CR_005", "error.classroom.equipment.not_supported");
 
     private final HttpStatus httpStatus;
     private final String code;

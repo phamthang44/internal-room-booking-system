@@ -4,7 +4,7 @@ import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import com.thang.roombooking.common.validator.AccountAuthenticationValidator;
 import com.thang.roombooking.entity.Role;
 import com.thang.roombooking.entity.UserAccount;
@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor

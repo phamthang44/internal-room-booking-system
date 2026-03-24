@@ -3,7 +3,7 @@ package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.enums.IdentityProvider;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import lombok.Builder;
 
 
