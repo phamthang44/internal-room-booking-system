@@ -2,7 +2,7 @@ package com.thang.roombooking.infrastructure.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.dto.response.ApiResult;
-import com.thang.roombooking.common.exception.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

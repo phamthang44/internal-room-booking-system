@@ -33,3 +33,9 @@ build/
 .vscode/
 
 .env
+
+logs
+
+/src/main/resources/certs
+
+room-booking-collections/

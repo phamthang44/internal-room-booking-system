@@ -10,8 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
-public class DetailClassroomResponse {
-
+public class AdminDetailClassroomResponse {
     private BasicRoomTypeResponse building;
     private String roomName;
     private int capacity;
@@ -21,5 +20,4 @@ public class DetailClassroomResponse {
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;
-
 }

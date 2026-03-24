@@ -2,7 +2,7 @@ package com.thang.roombooking.common.utils;
 
 import com.nimbusds.jose.jwk.RSAKey;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;

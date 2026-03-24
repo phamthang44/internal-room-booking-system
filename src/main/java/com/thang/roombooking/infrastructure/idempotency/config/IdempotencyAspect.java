@@ -2,7 +2,7 @@ package com.thang.roombooking.infrastructure.idempotency.config;
 
 
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.infrastructure.idempotency.dto.IdempotencyResponseDTO;
 import com.thang.roombooking.infrastructure.idempotency.service.IdempotencyService;

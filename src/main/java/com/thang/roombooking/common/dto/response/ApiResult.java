@@ -1,7 +1,7 @@
 package com.thang.roombooking.common.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.thang.roombooking.common.exception.BaseErrorCode;
+import com.thang.roombooking.common.exception.errorcode.BaseErrorCode;
 import lombok.Builder;
 import lombok.Getter;
 

@@ -6,7 +6,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

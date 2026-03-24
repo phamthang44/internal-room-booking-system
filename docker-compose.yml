@@ -13,7 +13,7 @@ services:
     volumes:
       - room_booking_postgres_data:/var/lib/postgresql/data
       # Dòng dưới này OK, nhưng nhớ là nó chỉ chạy script khi DB trắng trơn lần đầu thôi nhé
-      #- ./init-scripts:/docker-entrypoint-initdb.d
+#      - ./init-scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -26,7 +26,7 @@ services:
     env_file:
       - .env
     image: rabbitmq:4.2.2-management-alpine # Bản management có giao diện Web Admin
-    container_name: rabbitmq
+    container_name: room_booking_rabbitmq
     restart: no
     ports:
       - "5672:5672"   # Port để code Java kết nối

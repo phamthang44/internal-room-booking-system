@@ -2,7 +2,7 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
-import com.thang.roombooking.common.dto.response.BasicClassroomResponse;
+import com.thang.roombooking.common.dto.response.ClassroomListResponse;
 import com.thang.roombooking.service.ClassroomQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +29,12 @@ public class RoomController {
     // - Returns ProductListingDto (lightweight)
     // ---------------------------------------------------------
     @GetMapping
-    public ResponseEntity<ApiResult<List<BasicClassroomResponse>>> searchPublic(
+    public ResponseEntity<ApiResult<List<ClassroomListResponse>>> searchPublic(
             @ModelAttribute RoomSearchRequest request) {
         log.info("Public search - keyword: {}, status: {}, capacity : {}, time slot id : {}, booking date : {}, filter by equipment : {}, sort: {}, page: {}, size: {}",
                 request.getKeyword(), request.getRoomStatus(), request.getCapacity(), request.getTimeSlotId(), request.getBookingDate(), request.getEquipmentId(), request.getSort(), request.getPage(), request.getSize());
 
-        Page<BasicClassroomResponse> roomPage = classroomService.searchPublic(request);
+        Page<ClassroomListResponse> roomPage = classroomService.searchPublic(request);
 
         return ResponseEntity.ok(ApiResult.success(
                 roomPage.getContent(),

@@ -8,6 +8,7 @@ import lombok.*;
 @Setter
 @Builder
 public class EquipmentResponse {
+    private int id;
     private String name;
     private String description;
 }

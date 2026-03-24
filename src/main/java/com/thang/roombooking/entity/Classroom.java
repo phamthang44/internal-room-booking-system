@@ -1,6 +1,7 @@
 package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
+import com.thang.roombooking.common.enums.AssetType;
 import com.thang.roombooking.common.enums.RoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +10,9 @@ import org.hibernate.annotations.SQLRestriction;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -70,6 +74,69 @@ public class Classroom extends BaseSoftDeleteEntity<Long> {
     public void removeAsset(RoomAsset asset) {
         roomAssets.remove(asset);
         asset.setClassroom(null);
+    }
+
+    public void updateDetails(Building building, RoomType roomType, Map<Equipment, Integer> equipmentMap, RoomStatus status, List<String> imageUrls) {
+        this.building = building;
+        this.roomType = roomType;
+        this.status = status;
+
+        // 1. Loại bỏ những thiết bị không còn nằm trong Map mới
+        this.classroomEquipments.removeIf(existing -> !equipmentMap.containsKey(existing.getEquipment()));
+
+        // 2. Thêm hoặc Cập nhật số lượng cho những thiết bị trong Map
+        updateEquipments(equipmentMap);
+
+        // Diff cho Room Assets (Ảnh)
+        this.updateAssets(imageUrls);
+    }
+
+    private void updateEquipments(Map<Equipment, Integer> equipmentMap) {
+        equipmentMap.forEach((equipment, quantity) -> {
+            // Tìm xem thiết bị này đã có trong phòng chưa
+            this.classroomEquipments.stream()
+                    .filter(ce -> ce.getEquipment().equals(equipment))
+                    .findFirst()
+                    .ifPresentOrElse(
+                            existing -> existing.setQuantity(quantity), // Nếu có rồi thì chỉ cập nhật số lượng
+                            () -> { // Nếu chưa có thì mới thêm mới
+                                ClassroomEquipment newCe = ClassroomEquipment.builder()
+                                        .id(new ClassroomEquipmentId(this.id, equipment.getId()))
+                                        .classroom(this)
+                                        .equipment(equipment)
+                                        .quantity(quantity)
+                                        .build();
+                                this.classroomEquipments.add(newCe);
+                            }
+                    );
+        });
+    }
+
+    public void updateAssets(List<String> newUrls) {
+        if (newUrls == null) {
+            this.roomAssets.clear();
+            return;
+        }
+
+        // 1. Xóa các ảnh cũ không còn nằm trong danh sách URL mới
+        this.roomAssets.removeIf(asset -> !newUrls.contains(asset.getUrl()));
+
+        // 2. Lấy danh sách các URL hiện đang có trong Entity để so sánh
+        Set<String> existingUrls = this.roomAssets.stream()
+                .map(RoomAsset::getUrl)
+                .collect(Collectors.toSet());
+
+        // 3. Chỉ thêm những URL mới chưa tồn tại
+        newUrls.stream()
+                .filter(url -> !existingUrls.contains(url))
+                .forEach(url -> {
+                    RoomAsset newAsset = RoomAsset.builder()
+                            .url(url)
+                            .assetType(AssetType.IMAGE)
+                            .isPrimary(false)
+                            .build();
+                    this.addAsset(newAsset); // Sử dụng helper method để sync 2 chiều
+                });
     }
 
 

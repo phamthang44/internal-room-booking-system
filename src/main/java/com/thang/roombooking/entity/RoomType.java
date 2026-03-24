@@ -22,4 +22,12 @@ public class RoomType extends BaseSoftDeleteEntity<Long> {
 
     @Column(name = "description_key")
     private String descriptionKey;
+
+    @Column(name = "min_capacity", nullable = false)
+    @Builder.Default
+    private Integer minCapacity = 0;
+
+    @Column(name = "max_capacity", nullable = false)
+    @Builder.Default
+    private Integer maxCapacity = 1000;
 }

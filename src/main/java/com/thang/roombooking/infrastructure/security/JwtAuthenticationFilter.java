@@ -2,8 +2,8 @@ package com.thang.roombooking.infrastructure.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.dto.response.ApiResult;
-import com.thang.roombooking.common.exception.AuthErrorCode;
-import com.thang.roombooking.common.exception.BaseErrorCode;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.BaseErrorCode;
 import com.thang.roombooking.common.exception.TokenExpiredException;
 import com.thang.roombooking.service.TokenBlacklistService;
 import com.thang.roombooking.service.TokenService;

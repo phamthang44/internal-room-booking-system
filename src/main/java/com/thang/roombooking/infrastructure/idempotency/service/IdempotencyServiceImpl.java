@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.CommonErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.infrastructure.idempotency.dto.IdempotencyResponseDTO;
 import com.thang.roombooking.infrastructure.idempotency.entity.IdempotencyKey;
 import com.thang.roombooking.infrastructure.idempotency.repository.IdempotencyRepository;
