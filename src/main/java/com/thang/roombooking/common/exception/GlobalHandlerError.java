@@ -1,11 +1,16 @@
 package com.thang.roombooking.common.exception;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.thang.roombooking.common.dto.response.ApiResult;
+import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,10 +23,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.exc.InputCoercionException;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpStatus.*;
@@ -166,6 +174,52 @@ public class GlobalHandlerError {
                         I18nUtils.get("error.unexpected_error_occurred"),
                         traceId
                 ));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResult<?>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        Throwable root = e.getMostSpecificCause();
+        String traceId = getTraceId();
+        String message = I18nUtils.get("error.invalid_format_request");
+        String field = "unknown";
+
+        // 1. Xử lý lỗi tràn số (Overflow) hoặc ép kiểu số
+        if (root instanceof InputCoercionException ice) {
+            field = extractFieldFromPath(ice);
+            message = I18nUtils.get("error.numeric.out.of.range", field);
+        }
+        // 2. Xử lý lỗi sai định dạng (ví dụ: nhập "abc" vào ô "capacity")
+        else if (root instanceof InvalidFormatException ife) {
+            field = ife.getPath().stream()
+                    .map(JsonMappingException.Reference::getFieldName)
+                    .collect(Collectors.joining("."));
+
+            if (Number.class.isAssignableFrom(ife.getTargetType()) || ife.getTargetType().isPrimitive()) {
+                message = I18nUtils.get("error.numeric.out.of.range", field);
+            } else {
+                message = I18nUtils.get("error.invalid_format_for_field", field);
+            }
+        }
+        // 3. JSON hỏng (thiếu dấu ngoặc, phẩy...)
+        else if (root instanceof com.fasterxml.jackson.core.JsonParseException) {
+            message = I18nUtils.get("error.malformed_json_request");
+        }
+
+        log.warn("JSON Reading Error [{}]: {} at field [{}]", traceId, root.getMessage(), field);
+
+        return ResponseEntity.status(BAD_REQUEST)
+                .body(ApiResult.error(CommonErrorCode.INVALID_REQUEST.getCode(), message, traceId));
+    }
+
+    private String extractFieldFromPath(Throwable ex) {
+        String msg = ex.getMessage();
+        if (msg == null) return null;
+
+        Pattern p = Pattern.compile("\\[\"(.*?)\"]");
+        Matcher m = p.matcher(msg);
+        if (m.find()) return m.group(1);
+
+        return null;
     }
 
     private String getTraceId() {

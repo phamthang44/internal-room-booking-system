@@ -1,5 +1,7 @@
 package com.thang.roombooking.common.exception;
 
+import com.thang.roombooking.common.exception.errorcode.BaseErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
