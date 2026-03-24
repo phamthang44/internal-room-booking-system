@@ -20,4 +20,7 @@ public class AdminDetailClassroomResponse {
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;
+
+    //audit
+    private AuditResponse auditResponse;
 }

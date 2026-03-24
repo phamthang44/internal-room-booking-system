@@ -2,11 +2,13 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.CreateClassroomRequest;
 import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
+import com.thang.roombooking.common.dto.response.AdminDetailClassroomResponse;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.CreateClassroomResponse;
 import com.thang.roombooking.common.dto.response.UpdateClassroomResponse;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.service.ClassroomCommandService;
+import com.thang.roombooking.service.ClassroomQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminRoomController {
 
     private final ClassroomCommandService classroomCommandService;
-
+    private final ClassroomQueryService classroomQueryService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -44,4 +46,12 @@ public class AdminRoomController {
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.updated.success", response.roomName())));
     }
 
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResult<AdminDetailClassroomResponse>> getClassRoomDetail(@Valid @PathVariable Long id) {
+        log.info("Received request to get information detail classroom {}", id);
+        var response = classroomQueryService.getClassroomDetail(id);
+        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.retrieved.success", response.getRoomName())));
+    }
 }

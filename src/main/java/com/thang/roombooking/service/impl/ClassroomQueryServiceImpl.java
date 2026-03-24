@@ -1,10 +1,15 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
+import com.thang.roombooking.common.dto.response.AdminDetailClassroomResponse;
+import com.thang.roombooking.common.dto.response.AuditResponse;
 import com.thang.roombooking.common.dto.response.ClassroomListResponse;
+import com.thang.roombooking.common.dto.response.TimeSlotResponse;
 import com.thang.roombooking.common.enums.RoomSort;
 import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
+import com.thang.roombooking.common.exception.AppException;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.mapper.ClassroomMapper;
 import com.thang.roombooking.common.search.ClassroomFields;
 import com.thang.roombooking.common.search.GenericSpecificationBuilder;
@@ -27,8 +32,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -96,6 +104,88 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         Map<String, String> translations = translationService.getTranslations(idsByType);
 
         return classrooms.map(c -> classroomMapper.toBasicResponse(c, translations));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminDetailClassroomResponse getClassroomDetail(Long id) {
+
+        Classroom classroom = classroomRepository.findById(id)
+                .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
+
+        Map<String, String> translations = buildTranslations(classroom);
+
+        return buildAdminDetailResponse(classroom, translations);
+    }
+
+    private Map<String, String> buildTranslations(Classroom classroom) {
+
+        Map<TranslatableEntityType, Set<Long>> ids = new HashMap<>();
+
+        // Building
+        if (classroom.getBuilding() != null) {
+            ids.computeIfAbsent(TranslatableEntityType.BUILDING, k -> new HashSet<>())
+                    .add(classroom.getBuilding().getId());
+        }
+
+        // RoomType
+        if (classroom.getRoomType() != null) {
+            ids.computeIfAbsent(TranslatableEntityType.ROOM_TYPE, k -> new HashSet<>())
+                    .add(classroom.getRoomType().getId());
+        }
+
+        // Equipments
+        if (classroom.getClassroomEquipments() != null) {
+            Set<?> equipmentIds = classroom.getClassroomEquipments().stream()
+                    .map(e -> e.getEquipment().getId())
+                    .collect(Collectors.toSet());
+
+            ids.put(TranslatableEntityType.EQUIPMENT, (Set<Long>) equipmentIds);
+        }
+
+        return translationService.getTranslations(ids);
+    }
+
+    private AdminDetailClassroomResponse buildAdminDetailResponse(
+            Classroom classroom,
+            Map<String, String> translations
+    ) {
+
+        return AdminDetailClassroomResponse.builder()
+                .building(classroomMapper.toBasicRoomTypeResponse(
+                        classroom.getBuilding(), translations))
+                .roomName(classroom.getRoomName())
+                .capacity(classroom.getCapacity())
+                .availableDates(getAvailableDates(classroom.getId()))
+                .month(Instant.now()) // hoặc param truyền vào
+                .timeSlots(getTimeSlots(classroom.getId()))
+                .equipments(classroom.getClassroomEquipments().stream()
+                        .map(e -> classroomMapper.toEquipmentResponse(e, translations))
+                        .toList())
+                .addressBuildingLocation(
+                        classroom.getBuilding() != null
+                                ? classroom.getBuilding().getAddress()
+                                : null
+                )
+                .roomType(classroomMapper.toBasicRoomTypeResponse(
+                        classroom.getRoomType(), translations))
+                .auditResponse(
+                        AuditResponse.builder()
+                                .createdAt(classroom.getCreatedAt())
+                                .updatedAt(classroom.getUpdatedAt())
+                                .createdBy(classroom.getCreatedBy())
+                                .updatedBy(classroom.getUpdatedBy())
+                                .build()
+                )
+                .build();
+    }
+
+    private List<Instant> getAvailableDates(Long classroomId) {
+        return List.of(); // TODO query booking / schedule
+    }
+
+    private List<TimeSlotResponse> getTimeSlots(Long classroomId) {
+        return List.of(); // TODO query schedule
     }
 
     /**

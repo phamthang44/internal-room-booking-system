@@ -3,17 +3,13 @@ package com.thang.roombooking.common.mapper;
 import com.thang.roombooking.common.dto.request.BaseClassroomRequest;
 import com.thang.roombooking.common.dto.request.CreateClassroomRequest;
 import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
-import com.thang.roombooking.common.dto.response.ClassroomListResponse;
-import com.thang.roombooking.common.dto.response.CreateClassroomResponse;
-import com.thang.roombooking.common.dto.response.UpdateClassroomResponse;
+import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.AssetType;
 import com.thang.roombooking.common.enums.RoomStatus;
-import com.thang.roombooking.entity.RoomAsset;
+import com.thang.roombooking.common.enums.TranslatableEntityType;
+import com.thang.roombooking.common.utils.TranslationKeyBuilder;
+import com.thang.roombooking.entity.*;
 import org.mapstruct.*;
-
-import com.thang.roombooking.common.dto.response.EquipmentResponse;
-import com.thang.roombooking.entity.Classroom;
-import com.thang.roombooking.entity.ClassroomEquipment;
 
 import java.util.Map;
 
@@ -47,20 +43,20 @@ public interface ClassroomMapper {
         }
     }
 
-    @AfterMapping
-    default void translateEquipmentResponse(@MappingTarget EquipmentResponse response, ClassroomEquipment classroomEquipment, @Context Map<String, String> translations) {
-        if (classroomEquipment.getEquipment() != null) {
-            String nameKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_name";
-            if (translations.containsKey(nameKey)) {
-                response.setName(translations.get(nameKey));
-            }
-
-            String descKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_description";
-            if (translations.containsKey(descKey)) {
-                response.setDescription(translations.get(descKey));
-            }
-        }
-    }
+//    @AfterMapping
+//    default void translateEquipmentResponse(@MappingTarget EquipmentResponse response, ClassroomEquipment classroomEquipment, @Context Map<String, String> translations) {
+//        if (classroomEquipment.getEquipment() != null) {
+//            String nameKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_name";
+//            if (translations.containsKey(nameKey)) {
+//                response.setName(translations.get(nameKey));
+//            }
+//
+//            String descKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_description";
+//            if (translations.containsKey(descKey)) {
+//                response.setDescription(translations.get(descKey));
+//            }
+//        }
+//    }
 
 
     @Mapping(target = "roomAssets", ignore = true)
@@ -79,7 +75,7 @@ public interface ClassroomMapper {
     @AfterMapping
     default void linkAssetsAndStatus(@MappingTarget Classroom classroom, CreateClassroomRequest request) {
         // 1. Map Status dựa trên isActive
-        classroom.setStatus(request.isActive() ? RoomStatus.AVAILABLE : RoomStatus.NOT_AVAILABLE);
+        classroom.setStatus(request.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE);
 
         // 2. Map RoomAssets từ imageUrls (Dùng method addAsset đã có trong Entity để sync 2 chiều)
         if (request.imageUrls() != null) {
@@ -91,6 +87,82 @@ public interface ClassroomMapper {
                         .build();
                 classroom.addAsset(asset); // Tận dụng method addAsset
             });
+        }
+    }
+
+    @Mapping(target = "id", source = "id")
+    @Mapping(target = "name", source = "nameKey")
+    BasicRoomTypeResponse toBasicRoomTypeResponse(RoomType roomType, @Context Map<String, String> translations);
+
+    @Mapping(target = "id", source = "id")
+    @Mapping(target = "name", source = "nameKey")
+    BasicRoomTypeResponse toBasicRoomTypeResponse(Building building, @Context Map<String, String> translations);
+
+    @AfterMapping
+    default void translateRoomType(
+            @MappingTarget BasicRoomTypeResponse response,
+            RoomType roomType,
+            @Context Map<String, String> translations
+    ) {
+        if (roomType != null) {
+            String key = TranslationKeyBuilder.build(
+                    TranslatableEntityType.ROOM_TYPE,
+                    roomType.getId(),
+                    "name"
+            );
+
+            if (translations.containsKey(key)) {
+                response.setName(translations.get(key));
+            }
+        }
+    }
+    @AfterMapping
+    default void translateBuilding(
+            @MappingTarget BasicRoomTypeResponse response,
+            Building building,
+            @Context Map<String, String> translations
+    ) {
+        if (building != null) {
+            String key = TranslationKeyBuilder.build(
+                    TranslatableEntityType.BUILDING,
+                    building.getId(),
+                    "name"
+            );
+
+            if (translations.containsKey(key)) {
+                response.setName(translations.get(key));
+            }
+        }
+    }
+    @AfterMapping
+    default void translateEquipmentResponse(
+            @MappingTarget EquipmentResponse response,
+            ClassroomEquipment classroomEquipment,
+            @Context Map<String, String> translations
+    ) {
+        if (classroomEquipment.getEquipment() != null) {
+
+            Long id = Long.valueOf(classroomEquipment.getEquipment().getId());
+
+            String nameKey = TranslationKeyBuilder.build(
+                    TranslatableEntityType.EQUIPMENT,
+                    id,
+                    "name"
+            );
+
+            if (translations.containsKey(nameKey)) {
+                response.setName(translations.get(nameKey));
+            }
+
+            String descKey = TranslationKeyBuilder.build(
+                    TranslatableEntityType.EQUIPMENT,
+                    id,
+                    "description"
+            );
+
+            if (translations.containsKey(descKey)) {
+                response.setDescription(translations.get(descKey));
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ import com.thang.roombooking.common.dto.request.EquipmentRequest;
 import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
 import com.thang.roombooking.common.dto.response.CreateClassroomResponse;
 import com.thang.roombooking.common.dto.response.UpdateClassroomResponse;
-import com.thang.roombooking.common.enums.AssetType;
+import com.thang.roombooking.common.enums.RoomAction;
 import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
@@ -16,13 +16,15 @@ import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.*;
 import com.thang.roombooking.service.ClassroomCommandService;
 import com.thang.roombooking.service.ClassroomValidatorService;
+import com.thang.roombooking.service.policy.RoomPolicy;
+import com.thang.roombooking.service.policy.RoomPolicyFactory;
+import com.thang.roombooking.service.policy.context.RoomContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,6 +39,8 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
     private final ClassroomMapper classroomMapper;
     private final EquipmentRepository equipmentRepository;
 
+    private final RoomPolicyFactory policyFactory;
+
     @Override
     @Transactional
     public CreateClassroomResponse createAnClassroom(CreateClassroomRequest req) {
@@ -49,7 +53,7 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
 
         // Lắp ráp quan hệ
         classroom.updateDetails(res.building(), res.roomType(), equipmentMap,
-                req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.NOT_AVAILABLE, req.imageUrls());
+                req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE, req.imageUrls());
 
         Classroom saved = classroomRepository.save(classroom);
         log.info("Created Classroom: {}", saved.getRoomName());
@@ -99,10 +103,49 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
         Map<Equipment, Integer> equipmentMap = processEquipmentRequest(req);
         // 4. Cập nhật lại các mối quan hệ (Building, RoomType, Equipments)
         existingClassroom.updateDetails(res.building(), res.roomType(), equipmentMap,
-                req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.NOT_AVAILABLE, req.imageUrls());
+                req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE, req.imageUrls());
 
         Classroom saved = classroomRepository.save(existingClassroom);
         log.info("Updated Classroom ID: {}", saved.getId());
+        return classroomMapper.toUpdateClassroomResponse(saved);
+    }
+
+    @Override
+    public void removeClassroom(Long id) {
+        Classroom existingClassroom = classroomRepository.findById(id)
+                .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
+
+        RoomPolicy policy = policyFactory.getPolicy(RoomAction.DELETE);
+
+        policy.validate(
+                new RoomContext(
+                        id,
+                        existingClassroom.getStatus(),
+                        RoomStatus.DELETED,
+                        RoomAction.DELETE)
+        );
+
+        log.info("Deleted Classroom ID: {}", existingClassroom.getId());
+        classroomRepository.delete(existingClassroom);
+    }
+
+    @Override
+    public UpdateClassroomResponse updateStatusClassroom(Long id, RoomStatus status) {
+        Classroom existingClassroom = classroomRepository.findById(id)
+                .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
+
+        RoomPolicy policy = policyFactory.getPolicy(RoomAction.CHANGE_STATUS);
+        policy.validate(RoomContext.builder()
+                        .currentStatus(existingClassroom.getStatus())
+                        .newStatus(status)
+                        .action(RoomAction.CHANGE_STATUS)
+                        .roomId(existingClassroom.getId())
+                .build());
+
+        existingClassroom.setStatus(status);
+        Classroom saved = classroomRepository.save(existingClassroom);
+        log.info("Updated Classroom ID: {} with new Status: {}", saved.getId(), saved.getStatus());
+
         return classroomMapper.toUpdateClassroomResponse(saved);
     }
 
