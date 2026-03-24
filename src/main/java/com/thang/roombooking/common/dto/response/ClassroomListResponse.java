@@ -10,7 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
-public class BasicClassroomResponse {
+public class ClassroomListResponse {
     private Long classroomId;
     private String buildingName;
     private String roomName;

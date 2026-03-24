@@ -1,7 +1,7 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
-import com.thang.roombooking.common.dto.response.BasicClassroomResponse;
+import com.thang.roombooking.common.dto.response.ClassroomListResponse;
 import com.thang.roombooking.common.enums.RoomSort;
 import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
@@ -10,11 +10,13 @@ import com.thang.roombooking.common.search.ClassroomFields;
 import com.thang.roombooking.common.search.GenericSpecificationBuilder;
 import com.thang.roombooking.common.search.SearchOperation;
 import com.thang.roombooking.entity.Classroom;
+import com.thang.roombooking.entity.ClassroomEquipment;
 import com.thang.roombooking.entity.Translation;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.repository.TimeSlotRepository;
 import com.thang.roombooking.repository.TranslationRepository;
 import com.thang.roombooking.service.ClassroomQueryService;
+import com.thang.roombooking.service.TranslationService;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,64 +40,60 @@ import java.util.Set;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ClassroomQueryQueryServiceImpl implements ClassroomQueryService {
+public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
     private final ClassroomRepository classroomRepository;
     private final TimeSlotRepository timeSlotRepository;
-    private final TranslationRepository translationRepository;
+    private final TranslationService translationService;
     private final ClassroomMapper classroomMapper;
 
 
-    private Set<Long> handleEntityIds(Page<Classroom> classrooms) {
-        Set<Long> entityIds = new HashSet<>();
+    private Map<TranslatableEntityType, Set<Long>> handleEntityIdsByType(Page<Classroom> classrooms) {
+        Map<TranslatableEntityType, Set<Long>> idsByType = new HashMap<>();
+
         for (Classroom c : classrooms.getContent()) {
-            if (c.getBuilding() != null) entityIds.add(c.getBuilding().getId());
+            // Building ID
+            if (c.getBuilding() != null) {
+                idsByType.computeIfAbsent(TranslatableEntityType.BUILDING, k -> new HashSet<>())
+                        .add(c.getBuilding().getId());
+            }
+
+            // RoomType ID - Cái này giúp sửa lỗi "room_type.standard_classroom" không dịch được
+            if (c.getRoomType() != null) {
+                idsByType.computeIfAbsent(TranslatableEntityType.ROOM_TYPE, k -> new HashSet<>())
+                        .add(c.getRoomType().getId());
+            }
+
+            // Equipment IDs
             if (c.getClassroomEquipments() != null) {
-                for (com.thang.roombooking.entity.ClassroomEquipment ce : c.getClassroomEquipments()) {
-                    if (ce.getEquipment() != null) entityIds.add(ce.getEquipment().getId().longValue());
+                for (ClassroomEquipment ce : c.getClassroomEquipments()) {
+                    if (ce.getEquipment() != null) {
+                        idsByType.computeIfAbsent(TranslatableEntityType.EQUIPMENT, k -> new HashSet<>())
+                                .add(Long.valueOf(ce.getEquipment().getId()));
+                    }
                 }
             }
         }
-        return entityIds;
+        return idsByType;
     }
 
     @Override
-    public Page<BasicClassroomResponse> searchPublic(RoomSearchRequest req) {
-        req.setRoomStatus(RoomStatus.AVAILABLE); //default available for the first time load data
+    public Page<ClassroomListResponse> searchPublic(RoomSearchRequest req) {
+        req.setRoomStatus(RoomStatus.AVAILABLE);
 
-        // 1. Handle defaults for bookingDate
-        if (req.getBookingDate() == null) {
-            req.setBookingDate(LocalDate.now());
-        }
-
-        // 2. Handle defaults for timeSlotId
-        if (req.getTimeSlotId() == null) {
-            req.setTimeSlotId(4); // Default to time slot ID 4 based on fixed 4 records
-        }
+        if (req.getBookingDate() == null) req.setBookingDate(LocalDate.now());
+        if (req.getTimeSlotId() == null) req.setTimeSlotId(4);
 
         Specification<Classroom> spec = buildSpecification(req);
         Pageable pageable = buildPageable(req);
 
         Page<Classroom> classrooms = classroomRepository.findAll(spec, pageable);
 
-        Set<Long> entityIds = handleEntityIds(classrooms);
+        // 1. Thu thập ID đã phân loại theo Type
+        Map<TranslatableEntityType, Set<Long>> idsByType = handleEntityIdsByType(classrooms);
 
-        Map<String, String> translations = new HashMap<>();
-        if (!entityIds.isEmpty()) {
-            String locale = LocaleContextHolder.getLocale().getLanguage();
-            if (locale.isEmpty()) locale = "en";
-
-            List<Translation> tl = translationRepository.findByEntityTypeInAndEntityIdInAndLocale(
-                    TranslatableEntityType.names(
-                            TranslatableEntityType.BUILDING,
-                            TranslatableEntityType.EQUIPMENT,
-                            TranslatableEntityType.ROOM_TYPE
-                    ), new ArrayList<>(entityIds), locale);
-
-            for (Translation t : tl) {
-                translations.put(t.getEntityType() + "_" + t.getEntityId() + "_" + t.getFieldName(), t.getContent());
-            }
-        }
+        // 2. Gọi service dịch dựa trên Map phân loại (Giải quyết triệt để lỗi trùng ID=7)
+        Map<String, String> translations = translationService.getTranslations(idsByType);
 
         return classrooms.map(c -> classroomMapper.toBasicResponse(c, translations));
     }
