@@ -11,4 +11,5 @@ public interface ClassroomQueryService {
 
     AdminDetailClassroomResponse getClassroomDetail(Long id);
 
+
 }

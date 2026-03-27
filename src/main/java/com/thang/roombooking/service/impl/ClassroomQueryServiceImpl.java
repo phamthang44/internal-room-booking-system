@@ -118,6 +118,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         return buildAdminDetailResponse(classroom, translations);
     }
 
+
+
     private Map<String, String> buildTranslations(Classroom classroom) {
 
         Map<TranslatableEntityType, Set<Long>> ids = new HashMap<>();
