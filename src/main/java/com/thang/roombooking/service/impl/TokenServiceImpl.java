@@ -118,7 +118,7 @@ public class TokenServiceImpl implements TokenService {
             Date expiration = signedJWT.getJWTClaimsSet().getExpirationTime();
             long diff = expiration.getTime() - System.currentTimeMillis();
             return Math.max(0, diff / 1000);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return 0;
         }
     }

@@ -6,7 +6,8 @@ import java.util.List;
 public enum TranslatableEntityType {
     BUILDING,
     EQUIPMENT,
-    ROOM_TYPE;
+    ROOM_TYPE,
+    TIME_SLOT;
 
     public static List<String> names(TranslatableEntityType... types) {
         return Arrays.stream(types)

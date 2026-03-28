@@ -1,5 +1,6 @@
 package com.thang.roombooking.service.impl;
 
+import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.request.LoginRequest;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.AuthResponse;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        log.info("{} | Login request: {}", LogConstant.ACTION_START, request);
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())
@@ -65,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
             if (user == null) {
                 throw new AppException(CommonErrorCode.INTERNAL_ERROR, "User not found in authentication context");
             }
+            log.info("{} | Login successful: {}", LogConstant.ACTION_SUCCESS, request);
             return buildAuthResponse(accessToken, refreshToken, user);
         } catch (DisabledException _) {
             throw new AppException(AuthErrorCode.ACCOUNT_DISABLED);
@@ -110,28 +113,37 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse refreshToken(String rawRefreshToken) {
-        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-            throw new AppException(AuthErrorCode.TOKEN_INVALID);
+        log.info("{} | Refresh token : {}", LogConstant.ACTION_START, rawRefreshToken);
+        try {
+            if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+                throw new AppException(AuthErrorCode.TOKEN_INVALID);
+            }
+
+            RefreshToken currentToken = refreshTokenService.verifyRefreshToken(rawRefreshToken);
+            UserAccount user = currentToken.getUser();
+
+            // Always generate a new access token
+            String newAccessToken = tokenService.generateAccessToken(user);
+
+            // Rotate refresh token if it's close to expiry (< 3 days remaining)
+            String finalRefreshToken = rawRefreshToken;
+            long daysUntilExpiry = Duration.between(Instant.now(), currentToken.getExpiryDate()).toDays();
+
+            if (daysUntilExpiry <= 3) {
+                String newRefreshToken = tokenService.generateRefreshToken();
+                refreshTokenService.revokeRefreshToken(rawRefreshToken);
+                refreshTokenService.saveRefreshToken(user, newRefreshToken);
+                finalRefreshToken = newRefreshToken;
+            }
+
+            return buildAuthResponse(newAccessToken, finalRefreshToken, user);
+        } catch (AppException e) {
+            log.warn("{} | Refresh token failed | Error : {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Refresh token failed | System Error.", LogConstant.BIZ_ERROR, e);
+            throw e;
         }
-
-        RefreshToken currentToken = refreshTokenService.verifyRefreshToken(rawRefreshToken);
-        UserAccount user = currentToken.getUser();
-
-        // Always generate a new access token
-        String newAccessToken = tokenService.generateAccessToken(user);
-
-        // Rotate refresh token if it's close to expiry (< 3 days remaining)
-        String finalRefreshToken = rawRefreshToken;
-        long daysUntilExpiry = Duration.between(Instant.now(), currentToken.getExpiryDate()).toDays();
-
-        if (daysUntilExpiry <= 3) {
-            String newRefreshToken = tokenService.generateRefreshToken();
-            refreshTokenService.revokeRefreshToken(rawRefreshToken);
-            refreshTokenService.saveRefreshToken(user, newRefreshToken);
-            finalRefreshToken = newRefreshToken;
-        }
-
-        return buildAuthResponse(newAccessToken, finalRefreshToken, user);
     }
 
     @Override
@@ -147,16 +159,23 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String accessToken, String refreshToken) {
-        if (accessToken == null || accessToken.isBlank()) {
-            log.warn("Access token is null or blank during logout. Skipping blacklist.");
-            return;
-        } else {
-            long remainingSeconds = tokenService.getRemainingTimeInSeconds(accessToken);
-            if (remainingSeconds > 0) {
-                tokenBlacklistService.blacklistToken(accessToken, remainingSeconds);
+        log.info("{} | Logout requested.", LogConstant.ACTION_START);
+        try {
+            if (accessToken == null || accessToken.isBlank()) {
+                log.warn("Access token is null or blank during logout. Skipping blacklist.");
+                return;
+            } else {
+                long remainingSeconds = tokenService.getRemainingTimeInSeconds(accessToken);
+                if (remainingSeconds > 0) {
+                    tokenBlacklistService.blacklistToken(accessToken, remainingSeconds);
+                }
             }
+            refreshTokenService.revokeRefreshToken(refreshToken);
+        } catch (AppException e) {
+            log.warn("{} | Logout failed: {}", LogConstant.ACTION_FAILED, e.getMessage());
+        } catch (Exception e) {
+            log.error("{} | Logout failed | System Error.", LogConstant.SYS_ERROR, e);
         }
-        refreshTokenService.revokeRefreshToken(refreshToken);
     }
 
     private AuthResponse buildAuthResponse(String accessToken, String refreshToken, UserAccount user) {
@@ -171,8 +190,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse loginWithGoogle(String idToken) {
-        log.info("Starting Google login flow with ID Token.");
-
+        log.info("{} | Google login", LogConstant.ACTION_START);
         try {
             ExternalIdentity identity = googleOAuth2AuthenticationService.getUserInfo(idToken);
             String email = identity.email();
@@ -188,12 +206,13 @@ public class AuthServiceImpl implements AuthService {
             String accessToken = tokenService.generateAccessToken(user);
             String refreshToken = tokenService.generateRefreshToken();
             refreshTokenService.saveRefreshToken(user, refreshToken);
-
+            log.info("{} | Google identity verified.", LogConstant.ACTION_SUCCESS);
             return buildAuthResponse(accessToken, refreshToken, user);
         } catch (AppException e) {
+            log.warn("{} | Google login failed: | Error : {}", LogConstant.ACTION_FAILED, e.getErrorCode());
             throw e;
         } catch (Exception e) {
-            log.error("Error in loginWithGoogle: ", e);
+            log.error("{} | Error in login with google | System Error. ", LogConstant.SYS_ERROR, e);
             throw new AppException(CommonErrorCode.INTERNAL_ERROR, "Google login failed");
         }
     }

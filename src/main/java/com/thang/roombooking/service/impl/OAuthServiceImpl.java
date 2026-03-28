@@ -1,5 +1,6 @@
 package com.thang.roombooking.service.impl;
 
+import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.response.AuthResponse;
 import com.thang.roombooking.common.enums.AuthStatus;
 import com.thang.roombooking.common.enums.IdentityProvider;
@@ -43,7 +44,8 @@ public class OAuthServiceImpl implements OAuthService {
                 user.setStatus(UserStatus.ACTIVE);
             }
             if (user.getStatus() == UserStatus.BANNED) {
-                throw new AppException(AuthErrorCode.ACCOUNT_DISABLED, "Account is disabled. Please contact administrator.");
+                log.warn("{} | Login attempt for email failed: {}", LogConstant.ACTION_FAILED, email);
+                throw new AppException(AuthErrorCode.ACCOUNT_DISABLED);
             }
             
             // Có thể update provider nếu muốn đánh dấu user này đã link Google
@@ -55,8 +57,8 @@ public class OAuthServiceImpl implements OAuthService {
 
         } else {
             // --- CASE DO NOT EXIST ---
-            log.warn("Unauthorized Google login attempt for email: {}", email);
-            throw new AppException(AuthErrorCode.USER_NOT_FOUND, "User not found or not allowed. Please contact administrator.");
+            log.warn("{} | Unauthorized Google login attempt for email: {}", LogConstant.ACTION_FAILED, email);
+            throw new AppException(AuthErrorCode.ACCOUNT_DOES_NOT_EXISTS);
         }
         // 2. Tạo Token (Tái sử dụng TokenService)
         String accessToken = tokenService.generateAccessToken(user);

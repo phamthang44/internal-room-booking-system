@@ -1,5 +1,6 @@
 package com.thang.roombooking.service.impl;
 
+import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.common.enums.UserStatus;
@@ -40,132 +41,193 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public void banUser(Long userId) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+        log.info("{} | Banning account User | {}", LogConstant.ACTION_START, userId);
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
 
-        if (user.getStatus() == UserStatus.BANNED) {
-            throw new AppException(AuthErrorCode.USER_ALREADY_BANNED, userId);
+            if (user.getStatus() == UserStatus.BANNED) {
+                throw new AppException(AuthErrorCode.USER_ALREADY_BANNED, userId);
+            }
+
+            if (user.getRole().getName().equalsIgnoreCase("ADMIN")) {
+                throw new AppException(AuthErrorCode.CANNOT_BAN_ADMIN, userId);
+            }
+
+            user.setStatus(UserStatus.BANNED);
+            userAccountRepository.save(user);
+            log.info("{} | Ban success userId: {}", LogConstant.ACTION_SUCCESS, userId);
+        } catch (AppException e) {
+            log.warn("{} | Banning account User | ID: {}, Error: {}", LogConstant.BIZ_ERROR, userId, e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Banning account User | ID: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
         }
-
-        if (user.getRole().getName().equalsIgnoreCase("ADMIN")) {
-            throw new AppException(AuthErrorCode.CANNOT_BAN_ADMIN, userId);
-        }
-
-        user.setStatus(UserStatus.BANNED);
-        userAccountRepository.save(user);
         log.info("User {} has been banned", userId);
     }
 
     @Override
     @Transactional
     public UserBasicResponse updateUserRole(Long userId, String roleName) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
-                
-        Role role = roleRepository.findByName(roleName.toUpperCase())
-                .orElseThrow(() -> new AppException(AuthErrorCode.ROLE_NOT_FOUND, roleName));
-                
-        user.setRole(role);
-        userAccountRepository.save(user);
-        log.info("User {} role updated to {}", userId, roleName);
-        
-        return UserBasicResponse.fromEntity(user);
+        log.info("{} | Update user role for userId: {}, role: {}", LogConstant.ACTION_START, userId, roleName);
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+
+            Role role = roleRepository.findByName(roleName.toUpperCase())
+                    .orElseThrow(() -> new AppException(AuthErrorCode.ROLE_NOT_FOUND, roleName));
+
+            user.setRole(role);
+            userAccountRepository.save(user);
+            log.info("{} | Update success | userId: {} | role: {}", LogConstant.ACTION_SUCCESS, userId, roleName);
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Update Role | Error {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Update Role | User id: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
+        }
     }
 
     @Override
     @Transactional
     public UserBasicResponse updateUserStatus(Long userId, UserStatus userStatus) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
-        
-        user.setStatus(userStatus);
-        userAccountRepository.save(user);
-        log.info("User {} status updated to {}", userId, userStatus);
-        
-        return UserBasicResponse.fromEntity(user);
+        log.info("{} | Update user status for userId: {}, status: {}", LogConstant.ACTION_START, userId, userStatus.toString());
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+
+            user.setStatus(userStatus);
+            userAccountRepository.save(user);
+            log.info("{} | Update user status for userId: {}, status: {}", LogConstant.ACTION_START, userId, userStatus);
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Update Status | Error {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Update Status | User id: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
+        }
     }
 
     @Override
     @Transactional
     public UserBasicResponse updateUserEmail(Long userId, String email) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+        log.info("{} | Update Email for userId: {}, email: {}", LogConstant.ACTION_START, userId, email );
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
 
-        if (!AccountAuthenticationValidator.isValidEmail(email)) {
-            throw new AppException(AuthErrorCode.INVALID_EMAIL_FORMAT);
+            if (!AccountAuthenticationValidator.isValidEmail(email)) {
+                throw new AppException(AuthErrorCode.INVALID_EMAIL_FORMAT);
+            }
+
+            if (userAccountRepository.existsByEmail(email) && !user.getEmail().equalsIgnoreCase(email)) {
+                throw new AppException(AuthErrorCode.EMAIL_ALREADY_EXISTS, email);
+            }
+
+            user.setEmail(email.trim().toLowerCase());
+            userAccountRepository.save(user);
+
+            log.info("{} | Update user email successfully | user id : {}", LogConstant.ACTION_SUCCESS, userId);
+
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Update Email | User id: {}", LogConstant.BIZ_ERROR, userId, e);
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Update Email | User id: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
         }
-
-        if (userAccountRepository.existsByEmail(email) && !user.getEmail().equalsIgnoreCase(email)) {
-            throw new AppException(AuthErrorCode.EMAIL_ALREADY_EXISTS, email);
-        }
-
-        user.setEmail(email.trim().toLowerCase());
-        userAccountRepository.save(user);
-        log.info("User {} email updated to {}", userId, email);
-
-        return UserBasicResponse.fromEntity(user);
     }
 
     @Override
     @Transactional
     public UserBasicResponse updateFullName(Long userId, String fullName) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+        log.info("{} | Update user full name  for userId: {}, fullName: {}", LogConstant.ACTION_START, userId, fullName);
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
 
-        if (!AccountAuthenticationValidator.isValidFullName(fullName)) {
-            throw new AppException(AuthErrorCode.INVALID_FULLNAME_FORMAT);
+            if (!AccountAuthenticationValidator.isValidFullName(fullName)) {
+                throw new AppException(AuthErrorCode.INVALID_FULLNAME_FORMAT);
+            }
+
+            user.setFullName(fullName.trim());
+            userAccountRepository.save(user);
+
+            log.info("{} | Update user full name successfully | userId: {}, fullName: {}", LogConstant.ACTION_SUCCESS, userId, fullName);
+
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Update full name | User id: {}", LogConstant.BIZ_ERROR, userId, e);
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Update full name | User id: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
         }
 
-        user.setFullName(fullName.trim());
-        userAccountRepository.save(user);
-        log.info("User {} full name updated to {}", userId, fullName);
-
-        return UserBasicResponse.fromEntity(user);
     }
 
     @Override
     @Transactional
     public UserBasicResponse updatePassword(Long userId, String password) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
+        log.info("{} | Update password for userId: {}, password: {}", LogConstant.ACTION_START, userId, password);
+        try {
+            UserAccount user = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, userId));
 
-        if (!AccountAuthenticationValidator.isValidPassword(password)) {
-            throw new AppException(AuthErrorCode.INVALID_PASSWORD_FORMAT);
+            if (!AccountAuthenticationValidator.isValidPassword(password)) {
+                throw new AppException(AuthErrorCode.INVALID_PASSWORD_FORMAT);
+            }
+
+            user.setPassword(passwordEncoder.encode(password));
+            userAccountRepository.save(user);
+            log.info("{} | Update password successfully | userId: {}", LogConstant.ACTION_SUCCESS, userId);
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Update password | User id: {}", LogConstant.BIZ_ERROR, userId, e);
+            throw e;
+        }  catch (Exception e) {
+            log.error("{} | Update password | User id: {}", LogConstant.SYS_ERROR, userId, e);
+            throw e;
         }
-
-        user.setPassword(passwordEncoder.encode(password));
-        userAccountRepository.save(user);
-        log.info("User {} password updated", userId);
-
-        return UserBasicResponse.fromEntity(user);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserBasicResponse createAnAccount(RegisterRequest req) {
-        log.info("Admin creating new account with username: {}, email: {}", req.getUsername(), req.getEmail());
+        log.info("{} | Create an user account: {}", LogConstant.ACTION_START, req);
+        try {
+            validateAccountDetails(req);
 
-        validateAccountDetails(req);
+            checkAccountExistence(req);
 
-        checkAccountExistence(req);
+            Role defaultRole = roleRepository.findByName("STUDENT")
+                    .orElseThrow(() -> new AppException(AuthErrorCode.ROLE_NOT_FOUND, "STUDENT"));
 
-        Role defaultRole = roleRepository.findByName("STUDENT")
-                .orElseThrow(() -> new AppException(AuthErrorCode.ROLE_NOT_FOUND, "STUDENT"));
+            UserAccount user = UserAccount.builder()
+                    .username(req.getUsername().trim().toLowerCase())
+                    .fullName(req.getFullName().trim())
+                    .password(passwordEncoder.encode(req.getPassword()))
+                    .email(req.getEmail().trim().toLowerCase())
+                    .role(defaultRole)
+                    .status(UserStatus.ACTIVE)
+                    .provider(IdentityProvider.LOCAL)
+                    .build();
 
-        UserAccount user = UserAccount.builder()
-                .username(req.getUsername().trim().toLowerCase())
-                .fullName(req.getFullName().trim())
-                .password(passwordEncoder.encode(req.getPassword()))
-                .email(req.getEmail().trim().toLowerCase())
-                .role(defaultRole)
-                .status(UserStatus.ACTIVE)
-                .provider(IdentityProvider.LOCAL)
-                .build();
-
-        userAccountRepository.save(user);
-        log.info("Successfully created account for user ID: {}", user.getId());
-
-        return UserBasicResponse.fromEntity(user);
+            UserAccount savedUser = userAccountRepository.save(user);
+            log.info("{} | Create account successfully | user id: {}", LogConstant.ACTION_SUCCESS, savedUser.getId());
+            return UserBasicResponse.fromEntity(user);
+        } catch (AppException e) {
+            log.warn("{} | Create account | Error : {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Create account | Error : {}", LogConstant.SYS_ERROR, e.getMessage());
+            throw e;
+        }
     }
 
     private void validateAccountDetails(RegisterRequest req) {

@@ -14,4 +14,6 @@ public interface TranslationService {
     // Dịch cho danh sách (Dùng cho Search/List)
     Map<String, String> getTranslations(Map<TranslatableEntityType, Set<Long>> idsByType);
 
+    Map<String, String> getAllTimeSlotTranslations();
+
 }
