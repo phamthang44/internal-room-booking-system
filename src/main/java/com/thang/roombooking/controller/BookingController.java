@@ -8,6 +8,7 @@ import com.thang.roombooking.infrastructure.idempotency.config.Idempotent;
 import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.BookingCommandService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -15,10 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @Slf4j
@@ -44,6 +44,68 @@ public class BookingController {
                 ApiResult.success(response, I18nUtils.get("booking.created.success", response.getBookingId()))
         );
     }
+
+    @PostMapping("/checkin")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResult<CreateBookingResponse>> checkIn(
+            @Valid @RequestBody CheckInRequest req,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Received request to checkin booking id {}, student id {}",
+                req.bookingId(), userDetails.getUser().getEmail());
+
+        var response = bookingCommandService.createBooking(req, userDetails.getUser());
+
+        return  ResponseEntity.status(HttpStatus.OK).body(
+                ApiResult.success(response, I18nUtils.get("booking.checkin.success", response.getBookingId()))
+        );
+    }
+
+    @PostMapping("/cancel")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResult<CreateBookingResponse>> cancelBooking(
+            @Valid @RequestBody CancelBookingRequest req,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Received request to cancel booking id {}, student id {}",
+                req.bookingId(), userDetails.getUser().getEmail());
+
+        var response = bookingCommandService.cancelBooking(req, userDetails.getUser());
+
+        return  ResponseEntity.status(HttpStatus.OK).body(
+                ApiResult.success(response, I18nUtils.get("booking.cancel.success", response.getBookingId()))
+        );
+    }
+
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResult<CreateBookingResponse>> getBookingDetailInformation(
+            @Min(value = 1, message = "{validation.booking.id.min}") @PathVariable Long id,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Received request to checkin booking id {}, student id {}",
+                id, userDetails.getUser().getEmail());
+
+        var response = bookingQueryService.getBooking(id, userDetails.getUser());
+
+        return  ResponseEntity.status(HttpStatus.OK).body(
+                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
+        );
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResult<CreateBookingResponse>> searchBookingPublic(
+            @ModelAttribute BookingSearchRequest request,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Public search - keyword: {}, status: {}, capacity : {}, time slot id : {}, booking date : {}, filter by equipment : {}, sort: {}, page: {}, size: {}",
+
+        var response = bookingQueryService.searchPublic(id, userDetails.getUser());
+
+        return  ResponseEntity.status(HttpStatus.OK).body(
+                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
+        );
+    }
+
+
 
 
 }
