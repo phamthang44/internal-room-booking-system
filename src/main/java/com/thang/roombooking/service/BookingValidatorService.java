@@ -18,4 +18,6 @@ public interface BookingValidatorService {
 
     void validateTimeSlots(LocalDate bookingDate, List<TimeSlot> selectedSlots);
 
+    TimeSlot validateAndGetTargetSlot(List<TimeSlot> slots, LocalDate bookingDate, LocalTime now);
+
 }

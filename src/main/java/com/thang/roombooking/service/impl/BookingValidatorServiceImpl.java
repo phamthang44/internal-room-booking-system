@@ -5,6 +5,7 @@ import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.utils.TextValidationUtils;
 import com.thang.roombooking.entity.TimeSlot;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.service.BookingValidatorService;
 import com.thang.roombooking.service.ClassroomValidatorService;
@@ -14,8 +15,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -84,5 +88,37 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
                 }
             }
         }
+    }
+
+    @Override
+    public TimeSlot validateAndGetTargetSlot(List<TimeSlot> slots, LocalDate bookingDate, LocalTime now) {
+        LocalDate today = LocalDate.now();
+
+        // 1. Chặn nếu không phải ngày hôm nay
+        if (bookingDate.isAfter(today)) {
+            long daysDiff = ChronoUnit.DAYS.between(today, bookingDate);
+            throw new AppException(BookingErrorCode.BOOKING_CHECK_IN_TOO_EARLY_DAYS, daysDiff);
+        }
+        if (bookingDate.isBefore(today)) {
+            throw new AppException(BookingErrorCode.BOOKING_CHECK_IN_EXPIRED_DAYS);
+        }
+
+        // 2. Nếu đã đúng là ngày hôm nay, mới thực hiện logic tìm Slot và so sánh Giờ
+        TimeSlot closestSlot = slots.stream()
+                .min(Comparator.comparingLong(s ->
+                        Math.abs(Duration.between(s.getStartTime(), now).toMinutes())))
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        long diffMinutes = Duration.between(closestSlot.getStartTime(), now).toMinutes();
+
+        if (diffMinutes < -15) {
+            throw new AppException(BookingErrorCode.BOOKING_CHECK_IN_TOO_EARLY, diffMinutes);
+        }
+
+        if (diffMinutes > 15) {
+            throw new AppException(BookingErrorCode.BOOKING_CHECK_IN_EXPIRED, Math.abs(diffMinutes));
+        }
+
+        return closestSlot;
     }
 }

@@ -4,10 +4,14 @@ import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
 import jakarta.persistence.*;
 
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Builder
 @Getter
 @Setter
+@SQLRestriction("deleted_at IS NULL")
+@SQLDelete(sql = "UPDATE public.building SET deleted_at = NOW(), name_key = CONCAT(name_key, '-deleted-', id) WHERE id = ?")
 @Entity
 @Table(name = "buildings")
 @NoArgsConstructor
@@ -28,8 +32,4 @@ public class Building extends BaseSoftDeleteEntity<Long> {
     @Builder.Default
     private Boolean isActive = false;
 
-    @Override
-    public Long getId() {
-        return id;
-    }
 }

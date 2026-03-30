@@ -1,5 +1,6 @@
 package com.thang.roombooking.controller;
 
+import com.thang.roombooking.common.dto.request.CheckInRequest;
 import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
@@ -31,7 +32,7 @@ public class BookingController {
 
     @Idempotent(keyPrefix = "booking-create")
     @PostMapping
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<CreateBookingResponse>> createBooking(
             @Valid @RequestBody CreateBookingRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
@@ -45,65 +46,66 @@ public class BookingController {
         );
     }
 
+    @Idempotent(keyPrefix = "booking-checkin")
     @PostMapping("/checkin")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<ApiResult<CreateBookingResponse>> checkIn(
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResult<String>> checkIn(
             @Valid @RequestBody CheckInRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to checkin booking id {}, student id {}",
                 req.bookingId(), userDetails.getUser().getEmail());
 
-        var response = bookingCommandService.createBooking(req, userDetails.getUser());
+        bookingCommandService.checkIn(req, userDetails.getUser());
 
         return  ResponseEntity.status(HttpStatus.OK).body(
-                ApiResult.success(response, I18nUtils.get("booking.checkin.success", response.getBookingId()))
+                ApiResult.success(I18nUtils.get("booking.checkin.success"))
         );
     }
 
-    @PostMapping("/cancel")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<ApiResult<CreateBookingResponse>> cancelBooking(
-            @Valid @RequestBody CancelBookingRequest req,
-            @AuthenticationPrincipal SecurityUserDetails userDetails) {
-        log.info("Received request to cancel booking id {}, student id {}",
-                req.bookingId(), userDetails.getUser().getEmail());
+//    @PostMapping("/cancel")
+//    @PreAuthorize("hasRole('STUDENT')")
+//    public ResponseEntity<ApiResult<CreateBookingResponse>> cancelBooking(
+//            @Valid @RequestBody CancelBookingRequest req,
+//            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+//        log.info("Received request to cancel booking id {}, student id {}",
+//                req.bookingId(), userDetails.getUser().getEmail());
+//
+//        var response = bookingCommandService.cancelBooking(req, userDetails.getUser());
+//
+//        return  ResponseEntity.status(HttpStatus.OK).body(
+//                ApiResult.success(response, I18nUtils.get("booking.cancel.success", response.getBookingId()))
+//        );
+//    }
 
-        var response = bookingCommandService.cancelBooking(req, userDetails.getUser());
 
-        return  ResponseEntity.status(HttpStatus.OK).body(
-                ApiResult.success(response, I18nUtils.get("booking.cancel.success", response.getBookingId()))
-        );
-    }
+//    @GetMapping("/{id}")
+//    @PreAuthorize("hasRole('STUDENT')")
+//    public ResponseEntity<ApiResult<CreateBookingResponse>> getBookingDetailInformation(
+//            @Min(value = 1, message = "{validation.booking.id.min}") @PathVariable Long id,
+//            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+//        log.info("Received request to get detail booking id {}, student id {}",
+//                id, userDetails.getUser().getEmail());
+//
+//        var response = bookingQueryService.getBooking(id, userDetails.getUser());
+//
+//        return  ResponseEntity.status(HttpStatus.OK).body(
+//                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
+//        );
+//    }
 
-
-    @GetMapping("/{id}")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<ApiResult<CreateBookingResponse>> getBookingDetailInformation(
-            @Min(value = 1, message = "{validation.booking.id.min}") @PathVariable Long id,
-            @AuthenticationPrincipal SecurityUserDetails userDetails) {
-        log.info("Received request to checkin booking id {}, student id {}",
-                id, userDetails.getUser().getEmail());
-
-        var response = bookingQueryService.getBooking(id, userDetails.getUser());
-
-        return  ResponseEntity.status(HttpStatus.OK).body(
-                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
-        );
-    }
-
-    @GetMapping
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<ApiResult<CreateBookingResponse>> searchBookingPublic(
-            @ModelAttribute BookingSearchRequest request,
-            @AuthenticationPrincipal SecurityUserDetails userDetails) {
-        log.info("Public search - keyword: {}, status: {}, capacity : {}, time slot id : {}, booking date : {}, filter by equipment : {}, sort: {}, page: {}, size: {}",
-
-        var response = bookingQueryService.searchPublic(id, userDetails.getUser());
-
-        return  ResponseEntity.status(HttpStatus.OK).body(
-                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
-        );
-    }
+//    @GetMapping
+//    @PreAuthorize("hasRole('STUDENT')")
+//    public ResponseEntity<ApiResult<CreateBookingResponse>> searchBookingPublic(
+//            @ModelAttribute BookingSearchRequest request,
+//            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+//        log.info("Public search - keyword: {}, status: {}, capacity : {}, time slot id : {}, booking date : {}, filter by equipment : {}, sort: {}, page: {}, size: {}",
+//
+//        var response = bookingQueryService.searchPublic(id, userDetails.getUser());
+//
+//        return  ResponseEntity.status(HttpStatus.OK).body(
+//                ApiResult.success(response, I18nUtils.get("booking.retrieved.success", response.getBookingId()))
+//        );
+//    }
 
 
 

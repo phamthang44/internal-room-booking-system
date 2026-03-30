@@ -18,4 +18,6 @@ public interface TranslationRepository extends JpaRepository<Translation, Long> 
             String locale,
             String fieldName
     );
+
+    List<Translation> findByEntityTypeAndLocale(String name, String finalLocale);
 }

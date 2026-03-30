@@ -2,15 +2,20 @@ package com.thang.roombooking.common.exception;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
+import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -176,6 +181,17 @@ public class GlobalHandlerError {
                 ));
     }
 
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResult<?>> handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
+        log.error("Conflict detected: Another admin has already processed this booking.");
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResult.error(
+                        BookingErrorCode.BOOKING_ALREADY_PROCESSED.getCode(),
+                        I18nUtils.get(BookingErrorCode.BOOKING_ALREADY_PROCESSED.getMessage()),
+                        getTraceId()
+                ));
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResult<?>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         Throwable root = e.getMostSpecificCause();
@@ -209,6 +225,23 @@ public class GlobalHandlerError {
 
         return ResponseEntity.status(BAD_REQUEST)
                 .body(ApiResult.error(CommonErrorCode.INVALID_REQUEST.getCode(), message, traceId));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResult<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String rootMsg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : "";
+
+        // Kiểm tra xem có đúng là vi phạm cái Constraint "exclude_booking_overlap" không
+        if (rootMsg.contains("exclude_booking_overlap")) {
+            log.warn("{} | Overlap detected by DB Constraint |", LogConstant.BIZ_ERROR);
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResult.error(BookingErrorCode.BOOKING_SLOT_OVERLAP));
+        }
+
+        // Các lỗi Integrity khác (ví dụ Foreign Key, Unique...)
+        log.error("{} | Data Integrity Error: {}", LogConstant.SYS_ERROR, rootMsg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResult.error(CommonErrorCode.DATA_INTEGRITY_ERROR, ex.getMessage()));
     }
 
     private String extractFieldFromPath(Throwable ex) {
