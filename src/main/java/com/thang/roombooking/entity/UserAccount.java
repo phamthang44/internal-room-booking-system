@@ -32,6 +32,12 @@ public class UserAccount extends BaseSoftDeleteEntity<Long> {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
+    @Column(name = "phone", length = 25)
+    private String phoneNumber;
+
+    @Column(name = "student_code", nullable = false, unique = true, length = 10)
+    private String studentCode;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;

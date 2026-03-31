@@ -7,12 +7,14 @@ import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
+import com.thang.roombooking.common.enums.ViolationType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
 import com.thang.roombooking.repository.BookingApprovalRepository;
 import com.thang.roombooking.repository.BookingRepository;
+import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.service.*;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
@@ -22,9 +24,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.*;
 import java.util.*;
 
 @Service
@@ -40,6 +40,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     private final TranslationService translationService;
     private final BookingMapper bookingMapper;
     private final BookingApprovalCommandService bookingApprovalCommandService;
+    private final BookingViolationRepository violationRepository;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -68,6 +69,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .bookingDate(request.bookingDate())
                     .startTime(null)
                     .endTime(null)
+                    .attendees(request.attendees())
                     .purpose(request.purpose())
                     .status(BookingStatus.PENDING)
                     .build();
@@ -169,7 +171,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
-            bookingApprovalCommandService.saveApprovalBooking(booking, currentUser);
+            Booking savedBooking = bookingRepository.findById(request.bookingId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+            bookingApprovalCommandService.saveApprovalBooking(savedBooking, currentUser);
 
             // TODO: Gửi RabbitMQ/WebSocket tại đây
 
@@ -185,6 +189,31 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             throw e;
         }
         //notificationService.sendBookingApproveSuccess(booking, targetSlot); TODO: future feature notification service
+    }
+
+    @Transactional
+    @Override
+    public void cancelExpiredBooking(Booking booking) {
+        // Atomic Update: Chỉ hủy nếu status vẫn đang là APPROVED
+        int updatedRows = bookingRepository.atomicCancel(
+                booking.getId(),
+                BookingStatus.CANCELLED,
+                booking.getVersion()
+        );
+
+        if (updatedRows > 0) {
+            // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
+            BookingViolation violation = BookingViolation.builder()
+                    .booking(booking)
+                    .reason("No-show: Quá 15 phút không check-in")
+                    .user(booking.getUser())
+                    .type(ViolationType.NO_SHOW)
+                    .resolvedAt(Instant.now())
+                    .build();
+            violationRepository.save(violation);
+
+            // TODO: Bắn notification báo cho sinh viên là đơn đã bị hủy do đi muộn
+        }
     }
 
     private Map<TranslatableEntityType, Set<Long>> getBuildingTranslationIds(Building building) {
