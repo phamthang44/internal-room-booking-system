@@ -41,7 +41,7 @@ public class BookingPolicyImpl implements BookingPolicy {
         int maxQuota = 2;
         // Quy tắc: tối đa 2 slots (tương đương 4 tiếng) mỗi ngày
         if (bookedToday + requestedSlots > maxQuota) {
-            throw new AppException(BookingErrorCode.BOOKING_QUOTA_EXCEEDED);
+            throw new AppException(BookingErrorCode.BOOKING_QUOTA_EXCEEDED, maxQuota, 1);
         }
     }
 

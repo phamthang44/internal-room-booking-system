@@ -15,10 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -29,7 +26,7 @@ public class AdminBookingController {
 
     private final BookingCommandService bookingCommandService;
 
-    @PostMapping("/approve")
+    @PatchMapping("/approve")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> approveBooking(
             @Valid @RequestBody BookingApprovalRequest req,
@@ -37,10 +34,10 @@ public class AdminBookingController {
         log.info("Received request to approve booking id {}, staff/admin id {}",
                 req.bookingId(), userDetails.getUser().getEmail());
 
-        bookingCommandService.approveBooking(req, userDetails.getUser());
+        var bookingId = bookingCommandService.approveBooking(req, userDetails.getUser());
 
         return  ResponseEntity.status(HttpStatus.OK).body(
-                ApiResult.success(I18nUtils.get("booking.approved.success"))
+                ApiResult.success(I18nUtils.get("booking.approved.success", bookingId))
         );
     }
 

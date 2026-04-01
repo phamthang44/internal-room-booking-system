@@ -3,6 +3,7 @@ package com.thang.roombooking.repository;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.entity.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,10 +11,12 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Repository
-public interface BookingRepository extends JpaRepository<Booking, Long> {
+public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
     boolean existsByClassroomIdAndEndTimeAfter(Long roomId, Instant now);
 
     boolean existsByClassroomIdAndStatusInAndStartTimeAfter(
@@ -42,4 +45,28 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "AND b.version = :version")    // Chống duplicate/conflict request
     int atomicCheckIn(Long id, Integer version);
 
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.bookingTimeSlots bts " +
+            "JOIN bts.timeSlot ts " +
+            "WHERE b.status = :status " +
+            "AND b.bookingDate = :today " +
+            "GROUP BY b.id " +
+            "HAVING MIN(ts.startTime) < :thresholdTime")
+    List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
+                                      @Param("today") LocalDate today,
+                                      @Param("thresholdTime") LocalTime thresholdTime);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
+            "WHERE b.id = :id AND b.status = 'APPROVED' AND b.version = :expectedVersion")
+    int atomicCancel(@Param("id") Long id,
+                     @Param("newStatus") BookingStatus newStatus,
+                     @Param("expectedVersion") Integer expectedVersion);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
+            "WHERE b.id = :id AND b.version = :expectedVersion AND b.status != 'CANCELLED'")
+    int atomicCancelByStudent(@Param("id") Long id,
+                              @Param("newStatus") BookingStatus newStatus,
+                              @Param("expectedVersion") Integer expectedVersion);
 }

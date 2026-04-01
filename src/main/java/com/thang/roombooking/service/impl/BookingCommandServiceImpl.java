@@ -12,6 +12,7 @@ import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingApprovalRepository;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.repository.BookingViolationRepository;
@@ -109,9 +110,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         log.info("{} | Check in Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
         try {
+            bookingPolicyManager.validateCheckInTimePolicy(request.checkInTime());
             // lấy booking và time slots
             Booking booking = bookingRepository.findById(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            bookingPolicyManager.validateCheckInStatus(booking.getStatus());
 
             // Check quyền sở hữu
             if (!booking.getUser().getId().equals(currentUser.getId())) {
@@ -149,15 +153,15 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void approveBooking(BookingApprovalRequest request, UserAccount currentUser) {
+    public Long approveBooking(BookingApprovalRequest request, UserAccount currentUser) {
         log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_SUCCESS, request.bookingId(), currentUser.getId());
         try {
             // lấy booking
             Booking booking = bookingRepository.findById(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-            if (booking.getStatus() != BookingStatus.PENDING) {
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
-            }
+
+            bookingPolicyManager.validateApproveStatus(booking.getStatus());
+
             // 3. Thực hiện Atomic Update (Kết hợp Optimistic Locking)
             // Truyền booking.getVersion() vào để DB đối chiếu
             int updatedRows = bookingRepository.atomicApprove(
@@ -176,7 +180,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             bookingApprovalCommandService.saveApprovalBooking(savedBooking, currentUser);
 
             // TODO: Gửi RabbitMQ/WebSocket tại đây
-
+            return booking.getId();
         } catch (AppException e) {
             log.warn("{}: Failed to approve | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
             throw e;
@@ -213,6 +217,52 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             violationRepository.save(violation);
 
             // TODO: Bắn notification báo cho sinh viên là đơn đã bị hủy do đi muộn
+        }
+    }
+
+    @Override
+    @Transactional
+    public void cancelBooking(Long bookingId, UserAccount userAccount) {
+        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, bookingId);
+        try {
+            // lấy booking
+            Booking booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            // 1. Check quyền sở hữu
+            if (!booking.getUser().getId().equals(userAccount.getId())) {
+                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+            }
+
+            // 2. Lấy Slot bắt đầu sớm nhất
+            TimeSlot firstSlot = booking.getBookingTimeSlots().stream()
+                    .map(BookingTimeSlot::getTimeSlot)
+                    .min(Comparator.comparing(TimeSlot::getStartTime))
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+            // 3. Gộp thành LocalDateTime để so sánh toàn diện (Ngày + Giờ)
+            LocalDateTime startDateTime = booking.getBookingDate().atTime(firstSlot.getStartTime());
+
+            bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startDateTime);
+
+            int updatedRows = bookingRepository.atomicCancelByStudent(
+                    booking.getId(),
+                    BookingStatus.CANCELLED,
+                    booking.getVersion()
+            );
+
+            if (updatedRows == 0) {
+                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+            }
+            log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
+
+            //TODO: bắn message với message "booking.status.cancelled"
+        } catch (AppException e) {
+            log.warn("{} | cancelBooking | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        }
+        catch (Exception e) {
+            log.error("{} | cancelBooking | Unexpected Error System", LogConstant.SYS_ERROR, e);
+            throw e;
         }
     }
 

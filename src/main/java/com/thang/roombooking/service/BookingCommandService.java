@@ -12,8 +12,9 @@ public interface BookingCommandService {
     CreateBookingResponse createBooking(CreateBookingRequest request, UserAccount currentUser);
     void checkIn(CheckInRequest request, UserAccount currentUser);
 
-    void approveBooking(BookingApprovalRequest request, UserAccount currentUser);
+    Long approveBooking(BookingApprovalRequest request, UserAccount currentUser);
 
     void cancelExpiredBooking(Booking booking);
 
+    void cancelBooking(Long bookingId, UserAccount userAccount);
 }

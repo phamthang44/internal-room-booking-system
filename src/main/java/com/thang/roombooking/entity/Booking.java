@@ -41,6 +41,9 @@ public class Booking extends BaseSoftDeleteEntity<Long> {
     @Column(name = "end_time")
     private LocalTime endTime;
 
+    @Column(name = "attendees", nullable = false)
+    private Integer attendees;
+
     @OneToMany(mappedBy = "booking", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private List<BookingTimeSlot> bookingTimeSlots = new ArrayList<>();
 

@@ -1,13 +1,20 @@
 package com.thang.roombooking.service.policy;
 
+import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.entity.UserAccount;
+
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 public interface BookingFlowPolicy {
 
     void validateCheckInTimePolicy(Instant bookingTime); // check 15 phút đầu + là ca đầu tiên trong ngày 7h sáng
 
-    void validateCancelConditionPolicy(Long bookingId); //check hủy phải đc thực hiện trước 30p sau khi đặt
+    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
 
     void validatePenaltyPolicy();
 
+    void validateCheckInStatus(BookingStatus bookingStatus);
+
+    void validateApproveStatus(BookingStatus bookingStatus);
 }

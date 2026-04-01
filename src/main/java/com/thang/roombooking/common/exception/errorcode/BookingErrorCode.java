@@ -48,7 +48,9 @@ public enum BookingErrorCode implements BaseErrorCode {
     TIMESLOT_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "BK_010", "error.booking.timeslot_already_ended"),
 
     BOOKING_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "BK_016", "error.booking.rejection_reason_required"),
-    BOOKING_ALREADY_PROCESSED(HttpStatus.CONFLICT, "BK_017", "error.booking.already_processed_by_another_admin");
+    BOOKING_ALREADY_PROCESSED(HttpStatus.CONFLICT, "BK_017", "error.booking.already_processed_by_another_admin"),
+    BOOKING_STATUS_ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "BK_018", "error.booking.status.cancelled"),
+    BOOKING_CANNOT_CANCEL_AFTER_CHECKED_IN(HttpStatus.BAD_REQUEST, "BK_019", "error.booking.status.cannot_cancel_after_checkin"),BOOKING_CANNOT_CANCEL_AFTER_APPROVAL(HttpStatus.BAD_REQUEST, "BK_020",  "error.booking.status.cannot_cancel_after_approval"), BOOKING_CANCEL_TOO_LATE(HttpStatus.BAD_REQUEST, "BK_021", "error.booking.cancel.too_late");
     ;
 
     private final HttpStatus httpStatus;

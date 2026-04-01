@@ -3,9 +3,11 @@ package com.thang.roombooking.common.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
+import lombok.Getter;
 
 import java.time.Instant;
 
+@Getter
 @MappedSuperclass
 public abstract class BaseCreatedEntity {
 

@@ -1,8 +1,12 @@
 package com.thang.roombooking.service.policy;
 
+import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.entity.UserAccount;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
 
 public interface BookingPolicyManager {
 
@@ -16,9 +20,11 @@ public interface BookingPolicyManager {
 
     void validateBookingTimeWorkingHours(Instant bookingTime);
 
+    void validateCheckInStatus(BookingStatus bookingStatus);
 
+    void validateApproveStatus(BookingStatus bookingStatus);
 
-    void validateCancelConditionPolicy(Long bookingId);
+    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
 
     void validatePenaltyPolicy();
 }
