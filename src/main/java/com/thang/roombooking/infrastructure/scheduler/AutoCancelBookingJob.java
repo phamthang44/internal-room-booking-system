@@ -25,7 +25,6 @@ public class AutoCancelBookingJob {
     private final BookingCommandService bookingCommandService;
 
     @Scheduled(cron = "0 */5 * * * *") // Chạy mỗi 5 phút/lần cho nhẹ máy
-    @Transactional
     public void autoCancelBooking() {
         log.info("{} | Quét đơn quá hạn check-in", LogConstant.ACTION_START);
 
