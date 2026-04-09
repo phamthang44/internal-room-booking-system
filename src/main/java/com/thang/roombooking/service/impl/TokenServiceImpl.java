@@ -6,6 +6,7 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.exception.TokenErrorException;
 import com.thang.roombooking.common.exception.TokenExpiredException;
 import com.thang.roombooking.common.utils.KeyUtils;
@@ -45,7 +46,7 @@ public class TokenServiceImpl implements TokenService {
                 .claim("role", userAccount.getRole().getName())
                 .issuer("room-booking-service")
                 .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plus(1, ChronoUnit.HOURS)))
+                .expirationTime(Date.from(now.plus(15, ChronoUnit.MINUTES)))
                 .build();
 
         return signJwt(rsaKey, header, claims);
@@ -75,7 +76,8 @@ public class TokenServiceImpl implements TokenService {
             return claims.getSubject();
         } catch (TokenExpiredException | TokenErrorException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (Exception ex) {
+            log.error("{} | Unexpected error", LogConstant.SYS_ERROR, ex);
             throw new TokenErrorException(I18nUtils.get("error.unexpected_error_occurred"));
         }
     }

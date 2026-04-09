@@ -7,6 +7,7 @@ public enum TranslatableEntityType {
     BUILDING,
     EQUIPMENT,
     ROOM_TYPE,
+    CLASSROOM,
     TIME_SLOT;
 
     public static List<String> names(TranslatableEntityType... types) {

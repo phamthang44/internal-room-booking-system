@@ -1,8 +1,6 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.enums.TranslatableEntityType;
-import com.thang.roombooking.entity.Booking;
-import com.thang.roombooking.entity.TimeSlot;
 import com.thang.roombooking.entity.Translation;
 import com.thang.roombooking.repository.TranslationRepository;
 import com.thang.roombooking.service.TranslationService;

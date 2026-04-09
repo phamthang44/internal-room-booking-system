@@ -3,6 +3,7 @@ package com.thang.roombooking.service;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.BookingDetailResponse;
+import com.thang.roombooking.common.dto.response.StudentDashboardResponse;
 import com.thang.roombooking.entity.UserAccount;
 
 import java.util.List;
@@ -26,4 +27,6 @@ public interface BookingQueryService {
      * @param currentUser authenticated user (bookings are scoped to this user)
      */
     ApiResult<List<BookingDetailResponse>> searchPublic(BookingSearchRequest request, UserAccount currentUser);
+
+    StudentDashboardResponse getStudentDashboard(Long userId);
 }

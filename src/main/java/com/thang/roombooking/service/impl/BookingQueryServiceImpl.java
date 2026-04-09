@@ -1,20 +1,19 @@
 package com.thang.roombooking.service.impl;
 
+import com.thang.roombooking.common.constant.BookingMessageKeys;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
-import com.thang.roombooking.common.dto.response.ApiResult;
-import com.thang.roombooking.common.dto.response.BookingApprovalResponse;
-import com.thang.roombooking.common.dto.response.BookingDetailResponse;
-import com.thang.roombooking.common.dto.response.TimeSlotResponse;
+import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.BookingSort;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
-import com.thang.roombooking.entity.Booking;
-import com.thang.roombooking.entity.Building;
-import com.thang.roombooking.entity.UserAccount;
+import com.thang.roombooking.entity.*;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingApprovalRepository;
+import com.thang.roombooking.repository.BookingHistoryRepository;
 import com.thang.roombooking.repository.BookingRepository;
+import com.thang.roombooking.service.BookingHistoryQueryService;
 import com.thang.roombooking.service.BookingQueryService;
 import com.thang.roombooking.service.TranslationService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +26,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +39,7 @@ import java.util.Set;
 public class BookingQueryServiceImpl implements BookingQueryService {
 
     private final BookingRepository bookingRepository;
+    private final BookingHistoryRepository bookingHistoryRepository;
     private final BookingApprovalRepository bookingApprovalRepository;
     private final TranslationService translationService;
     private final BookingMapper bookingMapper;
@@ -127,6 +128,137 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 bookingsPage.getSize(),
                 bookingsPage.getTotalElements()
         );
+    }
+
+    @Override
+    public StudentDashboardResponse getStudentDashboard(Long userId) {
+        LocalDate today = LocalDate.now();
+        Pageable top5 = PageRequest.of(0, 5);
+
+        // 1. Lấy dữ liệu Entity (đã được JOIN FETCH ở Repo)
+        List<Booking> upcomingEntities = bookingRepository.findUpcomingBookings(userId, today, top5);
+        List<Booking> recentActivities = bookingRepository.findRecentBookings(userId, today, top5);
+
+        // 2. Trả về Dashboard DTO
+        return StudentDashboardResponse.builder()
+                .totalBookings(bookingRepository.countTotalByUser(userId))
+                .upcomingBookings(bookingRepository.countUpcomingByUser(userId, today))
+                .pendingBookings(bookingRepository.countPendingByUser(userId))
+                .upcomingList(upcomingEntities.stream().map(this::mapToSummary).toList())
+                .historyList(recentActivities.stream().map(this::mapToHistorySummary).toList())
+                .build();
+    }
+
+    // Map đơn sắp tới
+    private BookingSummaryResponse mapToSummary(Booking b) {
+        return new BookingSummaryResponse(
+                b.getId(),
+                getTranslatedRoomName(b),
+                getTranslatedBuilding(b),
+                b.getBookingDate(),
+                formatTimeRange(b),
+                b.getStatus()
+        );
+    }
+
+    private String getTranslatedBuilding(Booking b) {
+        if (b == null || b.getClassroom().getBuilding() == null) {
+            return null;
+        }
+
+        Long buildingId = b.getClassroom().getBuilding().getId();
+        String translated = translationService.getTranslation(
+                TranslatableEntityType.BUILDING,
+                buildingId,
+                "name");
+
+        if (translated == null) {
+            translated = translationService.getTranslation(
+                    TranslatableEntityType.CLASSROOM,
+                    buildingId,
+                    "buildingName");
+        }
+
+        return translated != null ? translated : b.getClassroom().getRoomName();
+    }
+
+    private String getTranslatedRoomName(Booking b) {
+        if (b == null || b.getClassroom() == null) {
+            return null;
+        }
+
+        Long classroomId = b.getClassroom().getId();
+        String translated = translationService.getTranslation(
+                TranslatableEntityType.CLASSROOM,
+                classroomId,
+                "name");
+
+        if (translated == null) {
+            translated = translationService.getTranslation(
+                    TranslatableEntityType.CLASSROOM,
+                    classroomId,
+                    "roomName");
+        }
+
+        return translated != null ? translated : b.getClassroom().getRoomName();
+    }
+
+    private BookingRecentSummaryResponse mapToHistorySummary(Booking b) {
+        // Vì lấy từ bảng Booking nên action sẽ tương ứng với status hiện tại
+
+        String message = resolveRecentHistoryMessage(b);
+
+        return new BookingRecentSummaryResponse(
+                b.getId(),
+                b.getClassroom().getRoomName(),
+                getTranslatedBuilding(b),
+                b.getStatus().name(),
+                b.getUpdatedAt(),
+                message
+        );
+    }
+
+    // Map lịch sử gần đây (Lấy trạng thái cuối từ bảng Booking)
+    private BookingHistorySummaryResponse mapToHistorySummary(BookingHistory b) {
+        // Vì lấy từ bảng Booking nên action sẽ tương ứng với status hiện tại
+        return new BookingHistorySummaryResponse(
+                b.getBooking().getId(),
+                getTranslatedRoomName(b.getBooking()),
+                b.getAction(),
+                b.getStatusAfter().name(),
+                b.getUpdatedAt(), // Mốc thời gian cuối cùng trạng thái thay đổi
+                hasText(b.getNote()) ? b.getNote() : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT)
+        );
+    }
+
+    private String resolveRecentHistoryMessage(Booking b) {
+        return switch (b.getStatus()) {
+            case REJECTED -> hasText(b.getRejectionReason())
+                    ? b.getRejectionReason()
+                    : I18nUtils.get(BookingMessageKeys.HISTORY_REJECTED_NO_REASON);
+            case PENDING -> I18nUtils.get(BookingMessageKeys.HISTORY_PENDING);
+            case CANCELLED -> I18nUtils.get(BookingMessageKeys.HISTORY_CANCELLED);
+            case APPROVED -> I18nUtils.get(BookingMessageKeys.HISTORY_APPROVED);
+            case CHECKED_IN -> I18nUtils.get(BookingMessageKeys.HISTORY_CHECKED_IN);
+            default -> I18nUtils.get(BookingMessageKeys.HISTORY_DEFAULT);
+        };
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    // Hàm format "07:00 - 09:00" từ danh sách TimeSlots
+    private String formatTimeRange(Booking b) {
+        if (b.getBookingTimeSlots() == null || b.getBookingTimeSlots().isEmpty()) return "";
+
+        var sortedSlots = b.getBookingTimeSlots().stream()
+                .map(BookingTimeSlot::getTimeSlot)
+                .sorted(java.util.Comparator.comparing(TimeSlot::getStartTime))
+                .toList();
+
+        return sortedSlots.getFirst().getStartTime() + " - " +
+                sortedSlots.getLast().getEndTime();
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────

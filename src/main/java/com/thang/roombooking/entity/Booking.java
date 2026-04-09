@@ -1,12 +1,14 @@
 package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
+import com.thang.roombooking.common.enums.AttendanceStatus;
 import com.thang.roombooking.common.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -62,6 +64,19 @@ public class Booking extends BaseSoftDeleteEntity<Long> {
 
     @Column(name = "cancelled_by")
     private String cancelledBy;
+
+    @Column(name = "checkin_time")
+    private Instant checkinTime;
+
+    @Column(name = "checkout_time")
+    private Instant checkoutTime;
+
+    @Column(name = "actual_attendees")
+    private Integer actualAttendees;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attendance_status", length = 30)
+    private AttendanceStatus attendanceStatus;
 
     @Version
     private Integer version;

@@ -5,9 +5,11 @@ import com.thang.roombooking.common.dto.request.BookingApprovalRequest;
 import com.thang.roombooking.common.dto.request.CheckInRequest;
 import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
+import com.thang.roombooking.common.enums.BookingAction;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.enums.ViolationType;
+import com.thang.roombooking.common.event.BookingStatusChangedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
@@ -21,6 +23,7 @@ import com.thang.roombooking.service.*;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     private final BookingMapper bookingMapper;
     private final BookingApprovalCommandService bookingApprovalCommandService;
     private final BookingViolationRepository violationRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -85,7 +89,15 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             booking.setBookingTimeSlots(bookingTimeSlots);
 
             // LOG SUCCESS: Xác nhận hoàn tất
-            bookingRepository.save(booking);
+            Booking savedBooking = bookingRepository.save(booking);
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    savedBooking,
+                    BookingStatus.PENDING,
+                    BookingAction.CREATE_BOOKING.name(),
+                    currentUser.getEmail(),
+                    "Khởi tạo đặt phòng"
+            ));
 
             log.info("{}: Booking created with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
             Map<String, String> timeSlotTranslations = translationService.getAllTimeSlotTranslations();
@@ -138,6 +150,18 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_IN);
             }
 
+            if (updatedRows > 0) {
+                syncBookingState(booking, BookingStatus.CHECKED_IN);
+
+                eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                        booking,
+                        BookingStatus.CHECKED_IN,
+                        BookingAction.CHECK_IN.name(),
+                        currentUser.getEmail(),
+                        "Sinh viên điểm danh thành công"
+                ));
+            }
+
             log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
             //notificationService.sendCheckInSuccess(booking, targetSlot); TODO: future feature notification service
         } catch (AppException e) {
@@ -174,13 +198,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
 
-            log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
-            Booking savedBooking = bookingRepository.findById(request.bookingId())
+            Booking approvedBooking = bookingRepository.findById(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-            bookingApprovalCommandService.saveApprovalBooking(savedBooking, currentUser);
 
+            log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
+            bookingApprovalCommandService.saveApprovalBooking(approvedBooking, currentUser);
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    approvedBooking,
+                    BookingStatus.APPROVED,
+                    BookingAction.APPROVE_BOOKING.name(),
+                    currentUser.getEmail(),
+                    "Staff/Admin đã chấp nhận đơn đặt phòng"
+            ));
             // TODO: Gửi RabbitMQ/WebSocket tại đây
-            return booking.getId();
+            return approvedBooking.getId();
         } catch (AppException e) {
             log.warn("{}: Failed to approve | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
             throw e;
@@ -206,6 +237,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         );
 
         if (updatedRows > 0) {
+            syncBookingState(booking, BookingStatus.CANCELLED);
+
             // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
             BookingViolation violation = BookingViolation.builder()
                     .booking(booking)
@@ -215,7 +248,13 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .resolvedAt(Instant.now())
                     .build();
             violationRepository.save(violation);
-
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    booking,
+                    BookingStatus.CANCELLED,
+                    BookingAction.CANCEL_BOOKING.name(),
+                    "SYSTEM",
+                    "No-show: Quá 15 phút không check-in"
+            ));
             // TODO: Bắn notification báo cho sinh viên là đơn đã bị hủy do đi muộn
         }
     }
@@ -254,7 +293,17 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
             log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
+            if (updatedRows > 0) {
+                syncBookingState(booking, BookingStatus.CANCELLED);
 
+                eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                        booking,
+                        BookingStatus.CANCELLED,
+                        BookingAction.CANCEL_BOOKING.name(),
+                        booking.getUser().getEmail(),
+                        booking.getCancelledBy() // này do lí do cancel chứ ta ?
+                ));
+            }
             //TODO: bắn message với message "booking.status.cancelled"
         } catch (AppException e) {
             log.warn("{} | cancelBooking | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
@@ -264,6 +313,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             log.error("{} | cancelBooking | Unexpected Error System", LogConstant.SYS_ERROR, e);
             throw e;
         }
+    }
+
+    private void syncBookingState(Booking booking, BookingStatus newStatus) {
+        booking.setStatus(newStatus);
+        booking.setVersion(booking.getVersion() + 1);
     }
 
     private Map<TranslatableEntityType, Set<Long>> getBuildingTranslationIds(Building building) {

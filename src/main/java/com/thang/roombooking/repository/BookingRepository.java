@@ -1,7 +1,9 @@
 package com.thang.roombooking.repository;
 
+import com.thang.roombooking.common.dto.response.BookingSummaryResponse;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.entity.Booking;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -45,13 +47,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             "AND b.version = :version")    // Chống duplicate/conflict request
     int atomicCheckIn(Long id, Integer version);
 
-    @Query("SELECT b FROM Booking b " +
-            "JOIN FETCH b.bookingTimeSlots bts " +
-            "JOIN bts.timeSlot ts " +
-            "WHERE b.status = :status " +
-            "AND b.bookingDate = :today " +
-            "GROUP BY b.id " +
-            "HAVING MIN(ts.startTime) < :thresholdTime")
+    @Query("""
+    SELECT b FROM Booking b\s
+    WHERE b.status = :status\s
+    AND b.bookingDate = :today\s
+    AND EXISTS (
+        SELECT 1 FROM BookingTimeSlot bts\s
+        JOIN bts.timeSlot ts\s
+        WHERE bts.booking = b\s
+        GROUP BY bts.booking\s
+        HAVING MIN(ts.startTime) < :thresholdTime
+    )
+   \s""")
     List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
                                       @Param("today") LocalDate today,
                                       @Param("thresholdTime") LocalTime thresholdTime);
@@ -69,4 +76,60 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     int atomicCancelByStudent(@Param("id") Long id,
                               @Param("newStatus") BookingStatus newStatus,
                               @Param("expectedVersion") Integer expectedVersion);
+
+    @Query("""
+    SELECT new com.thang.roombooking.common.dto.response.BookingSummaryResponse(
+        b.id, c.roomName, c.building.nameKey, b.bookingDate, '', b.status
+    )
+    FROM Booking b
+    JOIN b.classroom c
+    WHERE b.user.id = :userId
+    AND b.bookingDate >= :today
+    AND b.status IN ('APPROVED', 'PENDING')
+    ORDER BY b.bookingDate ASC
+    """)
+    List<BookingSummaryResponse> findUpcomingBookings(Long userId, LocalDate today);
+
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.user.id = :userId
+        AND b.status = 'PENDING'
+        """)
+    Long countPendingByUser(Long userId);
+
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.user.id = :userId
+        AND b.bookingDate >= :today
+        AND b.status IN ('APPROVED', 'PENDING')
+        """)
+    Long countUpcomingByUser(Long userId, LocalDate today);
+
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.user.id = :userId
+        """)
+    Long countTotalByUser(Long userId);
+
+    @Query("""
+    SELECT b FROM Booking b
+    JOIN FETCH b.classroom c
+    WHERE b.user.id = :userId
+    AND (b.bookingDate < :today OR b.status NOT IN ('PENDING', 'APPROVED'))
+    ORDER BY b.bookingDate DESC, b.id DESC
+    """)
+    List<Booking> findRecentBookings(Long userId, LocalDate today, Pageable pageable);
+
+    @Query("""
+    SELECT b FROM Booking b\s
+    JOIN FETCH b.classroom c\s
+    WHERE b.user.id = :userId\s
+    AND b.bookingDate >= :today\s
+    AND b.status IN ('APPROVED', 'PENDING')
+    ORDER BY b.bookingDate ASC
+   \s""")
+    List<Booking> findUpcomingBookings(@Param("userId") Long userId, @Param("today") LocalDate today, Pageable pageable);
 }
