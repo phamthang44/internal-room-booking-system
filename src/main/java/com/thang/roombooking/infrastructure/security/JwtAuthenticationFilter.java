@@ -41,33 +41,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String token;
-        final String username;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        token = authHeader.substring(7);
-        // 1. CHECK BLACKLIST
-        if (tokenBlacklistService.isTokenBlacklisted(token)) {
-            log.warn("Blacklisted token attempt: {}", token);
-            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_INVALID);
+        final String token = authHeader.substring(7);
+
+        // 0. GUARD: a valid JWT must have exactly 2 dots (header.payload.signature).
+        //    If it's malformed (e.g. a UUID refresh token sent by mistake), skip JWT
+        //    processing entirely and pass the request through. Public endpoints (permitAll)
+        //    will still be served; protected endpoints will be rejected by Spring Security
+        //    because no Authentication was set in the SecurityContext.
+        if (token.chars().filter(c -> c == '.').count() != 2) {
+            log.warn("Authorization header contains a non-JWT token (missing part delimiters). Skipping JWT auth.");
+            filterChain.doFilter(request, response);
             return;
         }
-        try {
-            username = tokenService.extractUsername(token);
-        } catch (TokenExpiredException ex) {
-            log.warn("JWT expired: {}", ex.getMessage());
-            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_EXPIRED);
-            return;
-        } catch (Exception ex) {
-            log.warn("Invalid JWT: {}", ex.getMessage());
+
+        // 1. CHECK BLACKLIST — only reached for structurally valid JWT strings
+        if (tokenBlacklistService.isTokenBlacklisted(token)) {
+            log.warn("Blacklisted token attempt detected.");
             sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_INVALID);
             return;
         }
 
+        // 2. EXTRACT USERNAME — parse & verify the JWT signature
+        final String username;
+        try {
+            username = tokenService.extractUsername(token);
+        } catch (TokenExpiredException ex) {
+            log.warn("JWT token expired: {}", ex.getMessage());
+            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_EXPIRED);
+            return;
+        } catch (Exception ex) {
+            log.warn("JWT token is invalid: {}", ex.getMessage());
+            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, AuthErrorCode.TOKEN_INVALID);
+            return;
+        }
+
+        // 3. SET AUTHENTICATION CONTEXT
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             SecurityUserDetails userDetails = (SecurityUserDetails) userDetailsService.loadUserByUsername(username);
 
