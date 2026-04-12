@@ -253,7 +253,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
             BookingViolation violation = BookingViolation.builder()
                     .booking(booking)
-                    .reason("No-show: Quá 15 phút không check-in")
+                    .reason("booking.cancel.reason.no_show")
                     .user(booking.getUser())
                     .type(ViolationType.NO_SHOW)
                     .resolvedAt(Instant.now())
@@ -264,7 +264,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.CANCELLED,
                     BookingAction.CANCEL_BOOKING.name(),
                     "SYSTEM",
-                    "No-show: Quá 15 phút không check-in"
+                    "booking.cancel.reason.no_show"
             ));
             // TODO: Bắn notification báo cho sinh viên là đơn đã bị hủy do đi muộn
         }
