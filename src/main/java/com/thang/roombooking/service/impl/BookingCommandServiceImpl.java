@@ -107,7 +107,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.PENDING,
                     BookingAction.CREATE_BOOKING.name(),
                     currentUser.getEmail(),
-                    "Khởi tạo đặt phòng"
+                    "booking.create.reason.pending"
             ));
 
             log.info("{}: Booking created with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
@@ -169,7 +169,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         BookingStatus.CHECKED_IN,
                         BookingAction.CHECK_IN.name(),
                         currentUser.getEmail(),
-                        "Sinh viên điểm danh thành công"
+                        "booking.checkin.reason.success"
                 ));
             }
 
@@ -219,7 +219,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.APPROVED,
                     BookingAction.APPROVE_BOOKING.name(),
                     currentUser.getEmail(),
-                    "Staff/Admin đã chấp nhận đơn đặt phòng"
+                    "booking.approve.reason.staff"
             ));
             // TODO: Gửi RabbitMQ/WebSocket tại đây
             return approvedBooking.getId();
