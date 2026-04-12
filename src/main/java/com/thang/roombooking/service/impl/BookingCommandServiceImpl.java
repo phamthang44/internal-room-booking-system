@@ -270,6 +270,30 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         }
     }
 
+    @Transactional
+    @Override
+    public void autoRejectOverduePendingBooking(Booking booking) {
+        // Atomic Update: Chỉ từ chối nếu status vẫn đang là PENDING
+        int updatedRows = bookingRepository.atomicRejectPending(
+                booking.getId(),
+                BookingStatus.REJECTED,
+                "booking.reject.reason.overtime",
+                booking.getVersion()
+        );
+
+        if (updatedRows > 0) {
+            syncBookingState(booking, BookingStatus.REJECTED);
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    booking,
+                    BookingStatus.REJECTED,
+                    BookingAction.SYSTEM_REJECT.name(),
+                    "SYSTEM",
+                    "booking.reject.reason.overtime"
+            ));
+        }
+    }
+
     @Override
     @Transactional
     public void cancelBooking(Long bookingId, UserAccount userAccount) {

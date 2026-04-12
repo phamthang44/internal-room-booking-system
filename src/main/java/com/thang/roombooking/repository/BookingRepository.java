@@ -41,6 +41,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                       @Param("expectedVersion") Integer expectedVersion);
 
     @Modifying
+    @Query("UPDATE Booking b SET b.status = :newStatus, b.rejectionReason = :reason, b.version = b.version + 1 " +
+            "WHERE b.id = :id AND b.status = 'PENDING' AND b.version = :expectedVersion")
+    int atomicRejectPending(@Param("id") Long id,
+                            @Param("newStatus") BookingStatus newStatus,
+                            @Param("reason") String reason,
+                            @Param("expectedVersion") Integer expectedVersion);
+
+    @Modifying
     @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'APPROVED' " + // Chỉ cho phép check-in khi đã được duyệt
