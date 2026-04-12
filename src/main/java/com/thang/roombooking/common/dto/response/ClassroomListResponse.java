@@ -18,4 +18,8 @@ public class ClassroomListResponse {
     private RoomStatus status;
     private List<EquipmentResponse> equipments;
     private String roomType;
+
+    // Added metrics for schedule checking directly in Public List queries
+    private boolean isAvailableForQuery;
+    private DateAvailability dailySchedule;
 }

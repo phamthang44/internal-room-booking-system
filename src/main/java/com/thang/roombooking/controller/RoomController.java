@@ -3,6 +3,8 @@ package com.thang.roombooking.controller;
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.ClassroomListResponse;
+import com.thang.roombooking.common.dto.response.DetailClassroomResponse;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.service.ClassroomQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,5 +46,14 @@ public class RoomController {
         ));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResult<DetailClassroomResponse>> retrieveRoomDetailById(
+            @PathVariable Long id) {
+        log.info("Received retrieve room detail - id: {}", id);
+
+        DetailClassroomResponse response = classroomService.getDetailClassroom(id);
+
+        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("rooms.detail.retrieve.success")));
+    }
 
 }

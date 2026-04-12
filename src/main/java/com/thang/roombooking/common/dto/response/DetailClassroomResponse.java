@@ -12,12 +12,11 @@ import java.util.List;
 @Builder
 public class DetailClassroomResponse {
 
-    private BasicRoomTypeResponse building;
+    private Long classroomId;
     private String roomName;
+    private BasicBuildingResponse building;
     private int capacity;
-    private List<Instant> availableDates;
-    private Instant month;
-    private List<TimeSlotResponse> timeSlots;
+    private ClassroomAvailabilityResponse schedule;
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;

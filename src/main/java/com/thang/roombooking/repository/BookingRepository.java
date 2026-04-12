@@ -124,12 +124,36 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     List<Booking> findRecentBookings(Long userId, LocalDate today, Pageable pageable);
 
     @Query("""
-    SELECT b FROM Booking b\s
-    JOIN FETCH b.classroom c\s
-    WHERE b.user.id = :userId\s
-    AND b.bookingDate >= :today\s
+    SELECT b FROM Booking b 
+    JOIN FETCH b.classroom c 
+    WHERE b.user.id = :userId 
+    AND b.bookingDate >= :today 
     AND b.status IN ('APPROVED', 'PENDING')
     ORDER BY b.bookingDate ASC
-   \s""")
+    """)
     List<Booking> findUpcomingBookings(@Param("userId") Long userId, @Param("today") LocalDate today, Pageable pageable);
+
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "JOIN FETCH b.bookingTimeSlots bts " +
+           "JOIN FETCH bts.timeSlot ts " +
+           "WHERE b.classroom.id = :classroomId " +
+           "AND b.bookingDate >= :startDate " +
+           "AND b.bookingDate <= :endDate " +
+           "AND b.status IN :statuses")
+    List<Booking> findBookingsByClassroomAndDateRange(
+            @Param("classroomId") Long classroomId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "JOIN FETCH b.bookingTimeSlots bts " +
+           "JOIN FETCH bts.timeSlot ts " +
+           "WHERE b.classroom.id IN :classroomIds " +
+           "AND b.bookingDate = :date " +
+           "AND b.status IN :statuses")
+    List<Booking> findBookingsByClassroomIdsAndDate(
+            @Param("classroomIds") List<Long> classroomIds,
+            @Param("date") LocalDate date,
+            @Param("statuses") List<BookingStatus> statuses);
 }

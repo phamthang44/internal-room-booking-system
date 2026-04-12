@@ -1,16 +1,16 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
-import com.thang.roombooking.common.dto.response.AdminDetailClassroomResponse;
-import com.thang.roombooking.common.dto.response.AuditResponse;
-import com.thang.roombooking.common.dto.response.ClassroomListResponse;
-import com.thang.roombooking.common.dto.response.TimeSlotResponse;
+import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.RoomSort;
 import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
+import com.thang.roombooking.common.mapper.BuildingMapper;
 import com.thang.roombooking.common.mapper.ClassroomMapper;
+import com.thang.roombooking.common.mapper.EquipmentMapper;
+import com.thang.roombooking.common.mapper.RoomTypeMapper;
 import com.thang.roombooking.common.search.ClassroomFields;
 import com.thang.roombooking.common.search.GenericSpecificationBuilder;
 import com.thang.roombooking.common.search.SearchOperation;
@@ -20,6 +20,7 @@ import com.thang.roombooking.entity.Translation;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.repository.TimeSlotRepository;
 import com.thang.roombooking.repository.TranslationRepository;
+import com.thang.roombooking.service.AvailabilityService;
 import com.thang.roombooking.service.ClassroomQueryService;
 import com.thang.roombooking.service.TranslationService;
 import jakarta.persistence.criteria.*;
@@ -37,12 +38,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,23 +50,18 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
     private final TimeSlotRepository timeSlotRepository;
     private final TranslationService translationService;
     private final ClassroomMapper classroomMapper;
+    private final BuildingMapper buildingMapper;
+    private final RoomTypeMapper roomTypeMapper;
+    private final EquipmentMapper equipmentMapper;
+    private final AvailabilityService availabilityService;
 
 
     private Map<TranslatableEntityType, Set<Long>> handleEntityIdsByType(Page<Classroom> classrooms) {
-        Map<TranslatableEntityType, Set<Long>> idsByType = new HashMap<>();
+        Map<TranslatableEntityType, Set<Long>> idsByType = new EnumMap<>(TranslatableEntityType.class);
 
         for (Classroom c : classrooms.getContent()) {
             // Building ID
-            if (c.getBuilding() != null) {
-                idsByType.computeIfAbsent(TranslatableEntityType.BUILDING, k -> new HashSet<>())
-                        .add(c.getBuilding().getId());
-            }
-
-            // RoomType ID - Cái này giúp sửa lỗi "room_type.standard_classroom" không dịch được
-            if (c.getRoomType() != null) {
-                idsByType.computeIfAbsent(TranslatableEntityType.ROOM_TYPE, k -> new HashSet<>())
-                        .add(c.getRoomType().getId());
-            }
+            populateEntityIdsFromClassroom(c, idsByType);
 
             // Equipment IDs
             if (c.getClassroomEquipments() != null) {
@@ -103,7 +94,24 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         // 2. Gọi service dịch dựa trên Map phân loại (Giải quyết triệt để lỗi trùng ID=7)
         Map<String, String> translations = translationService.getTranslations(idsByType);
 
-        return classrooms.map(c -> classroomMapper.toBasicResponse(c, translations));
+        // 3. Fetch bulk availability safely avoiding N+1
+        List<Long> classroomIds = classrooms.getContent().stream().map(Classroom::getId).toList();
+        Map<Long, DateAvailability> bulkSchedule = availabilityService.getBulkClassroomsAvailabilityForDate(classroomIds, req.getBookingDate());
+
+        return classrooms.map(c -> {
+            ClassroomListResponse res = classroomMapper.toBasicResponse(c, translations);
+            DateAvailability dailySchedule = bulkSchedule.get(c.getId());
+            res.setDailySchedule(dailySchedule);
+            
+            boolean isAvailable = false;
+            if (dailySchedule != null && dailySchedule.slots() != null) {
+                isAvailable = dailySchedule.slots().stream()
+                        .anyMatch(s -> s.slotId().intValue() == req.getTimeSlotId() && s.isAvailable());
+            }
+            res.setAvailableForQuery(isAvailable);
+            
+            return res;
+        });
     }
 
     @Override
@@ -118,6 +126,21 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         return buildAdminDetailResponse(classroom, translations);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public DetailClassroomResponse getDetailClassroom(Long id) {
+
+        Classroom classroom = classroomRepository.findById(id)
+                .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
+
+        Map<String, String> translations = buildTranslations(classroom);
+
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = startDate.plusDays(6);
+        ClassroomAvailabilityResponse schedule = availabilityService.getClassroomAvailability(id, startDate, endDate);
+
+        return buildClientDetailResponse(classroom, translations, schedule);
+    }
 
 
     private Map<String, String> buildTranslations(Classroom classroom) {
@@ -125,16 +148,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         Map<TranslatableEntityType, Set<Long>> ids = new HashMap<>();
 
         // Building
-        if (classroom.getBuilding() != null) {
-            ids.computeIfAbsent(TranslatableEntityType.BUILDING, k -> new HashSet<>())
-                    .add(classroom.getBuilding().getId());
-        }
-
-        // RoomType
-        if (classroom.getRoomType() != null) {
-            ids.computeIfAbsent(TranslatableEntityType.ROOM_TYPE, k -> new HashSet<>())
-                    .add(classroom.getRoomType().getId());
-        }
+        populateEntityIdsFromClassroom(classroom, ids);
 
         // Equipments
         if (classroom.getClassroomEquipments() != null) {
@@ -148,13 +162,49 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         return translationService.getTranslations(ids);
     }
 
+    private static void populateEntityIdsFromClassroom(Classroom classroom, Map<TranslatableEntityType, Set<Long>> ids) {
+        if (classroom.getBuilding() != null) {
+            ids.computeIfAbsent(TranslatableEntityType.BUILDING, k -> new HashSet<>())
+                    .add(classroom.getBuilding().getId());
+        }
+
+        // RoomType
+        if (classroom.getRoomType() != null) {
+            ids.computeIfAbsent(TranslatableEntityType.ROOM_TYPE, k -> new HashSet<>())
+                    .add(classroom.getRoomType().getId());
+        }
+    }
+
+
+    private DetailClassroomResponse buildClientDetailResponse(Classroom classroom,  Map<String, String> translations, ClassroomAvailabilityResponse schedule) {
+        return DetailClassroomResponse.builder()
+                .classroomId(classroom.getId())
+                .building(buildingMapper.toBasicBuildingResponse(
+                        classroom.getBuilding(), translations))
+                .roomName(classroom.getRoomName())
+                .capacity(classroom.getCapacity())
+                .schedule(schedule)
+                .equipments(classroom.getClassroomEquipments() == null ? List.of() : 
+                        classroom.getClassroomEquipments().stream()
+                        .map(e -> equipmentMapper.toEquipmentResponse(e, translations))
+                        .toList())
+                .addressBuildingLocation(
+                        classroom.getBuilding() != null
+                                ? classroom.getBuilding().getAddress()
+                                : null
+                )
+                .roomType(roomTypeMapper.toBasicRoomTypeResponse(
+                        classroom.getRoomType(), translations))
+                .build();
+    }
+
     private AdminDetailClassroomResponse buildAdminDetailResponse(
             Classroom classroom,
             Map<String, String> translations
     ) {
 
         return AdminDetailClassroomResponse.builder()
-                .building(classroomMapper.toBasicRoomTypeResponse(
+                .building(buildingMapper.toBuildingResponse(
                         classroom.getBuilding(), translations))
                 .roomName(classroom.getRoomName())
                 .capacity(classroom.getCapacity())
@@ -162,14 +212,14 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 .month(Instant.now()) // hoặc param truyền vào
                 .timeSlots(getTimeSlots(classroom.getId()))
                 .equipments(classroom.getClassroomEquipments().stream()
-                        .map(e -> classroomMapper.toEquipmentResponse(e, translations))
+                        .map(e -> equipmentMapper.toEquipmentResponse(e, translations))
                         .toList())
                 .addressBuildingLocation(
                         classroom.getBuilding() != null
                                 ? classroom.getBuilding().getAddress()
                                 : null
                 )
-                .roomType(classroomMapper.toBasicRoomTypeResponse(
+                .roomType(roomTypeMapper.toBasicRoomTypeResponse(
                         classroom.getRoomType(), translations))
                 .auditResponse(
                         AuditResponse.builder()
