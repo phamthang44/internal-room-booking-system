@@ -57,7 +57,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             bookingValidatorService.validateClassroom(request.classroomId(), request.attendees());
             bookingValidatorService.validateBookingDate(request.bookingDate());
             bookingValidatorService.validatePurpose(request.purpose());
-            bookingPolicyManager.validateBookingTimeWorkingHours(request.timeBooking());
+            bookingPolicyManager.validateBookingTimeWorkingHours(request.bookingDate(), request.timeBooking());
 
             // 2. Policy Quota & Penalty
             bookingPolicyManager.validatePenalty(currentUser.getId()); //TODO: tạm thời luôn cho qua chưa tính tới

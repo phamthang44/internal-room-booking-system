@@ -10,5 +10,5 @@ public interface BookingPolicy {
 
     void validatePenalty(Long userId); //check blacklist case book xong ko tới check in
 
-    void validateBookingTimeWorkingHours(Instant bookingTime);
+    void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime);
 }

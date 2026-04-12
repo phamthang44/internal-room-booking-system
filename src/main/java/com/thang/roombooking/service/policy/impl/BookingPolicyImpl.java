@@ -51,12 +51,15 @@ public class BookingPolicyImpl implements BookingPolicy {
     }
 
     @Override
-    public void validateBookingTimeWorkingHours(Instant bookingTime) {
+    public void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime) {
+        // Chỉ validate giờ làm việc nếu là đặt cho ngày hôm nay
+        // Nếu đặt cho tương lai (ngày mai trở đi), bỏ qua check này
+        if (!bookingDate.equals(LocalDate.now())) {
+            return;
+        }
+
         // Chuyển Instant sang giờ Việt Nam
         LocalTime now = LocalTime.ofInstant(bookingTime, ZoneId.of("Asia/Ho_Chi_Minh"));
-
-//        LocalTime openingTime = LocalTime.of(6, 30); // 6h30
-//        LocalTime closingTime = LocalTime.of(17, 30); // 17h30
 
         if (now.isBefore(OPENING_TIME) || now.isAfter(CLOSING_TIME)) {
             throw new AppException(BookingErrorCode.BOOKING_OUT_OF_WORKING_HOURS,
