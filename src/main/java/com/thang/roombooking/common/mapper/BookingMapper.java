@@ -15,7 +15,7 @@ import org.mapstruct.*;
 
 import java.util.Map;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {BuildingMapper.class})
 public interface BookingMapper {
 
     // ── CreateBookingResponse ────────────────────────────────────────────────
@@ -26,22 +26,6 @@ public interface BookingMapper {
     @Mapping(target = "timeSlots", source = "bookingTimeSlots")
     @Mapping(target = "roomName", source = "classroom.roomName")
     CreateBookingResponse toCreateBookingResponse(Booking booking, @Context Map<String, String> translations);
-
-    // ── Building helper ──────────────────────────────────────────────────────
-
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "nameKey")
-    BasicRoomTypeResponse toBuildingResponse(Building building, @Context Map<String, String> buildingTranslations);
-
-    @AfterMapping
-    default void translateBuilding(Building building,
-                                   @MappingTarget BasicRoomTypeResponse response,
-                                   @Context Map<String, String> buildingTranslations) {
-        String key = "BUILDING_" + building.getId() + "_name";
-        if (buildingTranslations != null && buildingTranslations.containsKey(key)) {
-            response.setName(buildingTranslations.get(key));
-        }
-    }
 
     // ── TimeSlotResponse ─────────────────────────────────────────────────────
 

@@ -6,14 +6,12 @@ import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
 import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.AssetType;
 import com.thang.roombooking.common.enums.RoomStatus;
-import com.thang.roombooking.common.enums.TranslatableEntityType;
-import com.thang.roombooking.common.utils.TranslationKeyBuilder;
 import com.thang.roombooking.entity.*;
 import org.mapstruct.*;
 
 import java.util.Map;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {EquipmentMapper.class})
 public interface ClassroomMapper {
 
     @Mapping(target = "classroomId", source = "id")
@@ -22,42 +20,21 @@ public interface ClassroomMapper {
     @Mapping(target = "roomType", source = "roomType.nameKey")
     ClassroomListResponse toBasicResponse(Classroom classroom, @Context Map<String, String> translations);
 
-    @Mapping(target = "name", source = "equipment.nameKey")
-    @Mapping(target = "description", source = "equipment.descriptionKey")
-    @Mapping(target = "id", source = "equipment.id")
-    EquipmentResponse toEquipmentResponse(ClassroomEquipment classroomEquipment, @Context Map<String, String> translations);
-
     @AfterMapping
     default void translateBasicResponse(@MappingTarget ClassroomListResponse response, Classroom classroom, @Context Map<String, String> translations) {
         if (classroom.getBuilding() != null) {
             String key = "BUILDING_" + classroom.getBuilding().getId() + "_name";
-            if (translations.containsKey(key)) {
+            if (translations != null && translations.containsKey(key)) {
                 response.setBuildingName(translations.get(key));
             }
         }
         if (classroom.getRoomType() != null) {
             String key = "ROOM_TYPE_" + classroom.getRoomType().getId() + "_name";
-            if (translations.containsKey(key)) {
+            if (translations != null && translations.containsKey(key)) {
                 response.setRoomType(translations.get(key));
             }
         }
     }
-
-//    @AfterMapping
-//    default void translateEquipmentResponse(@MappingTarget EquipmentResponse response, ClassroomEquipment classroomEquipment, @Context Map<String, String> translations) {
-//        if (classroomEquipment.getEquipment() != null) {
-//            String nameKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_name";
-//            if (translations.containsKey(nameKey)) {
-//                response.setName(translations.get(nameKey));
-//            }
-//
-//            String descKey = "EQUIPMENT_" + classroomEquipment.getEquipment().getId() + "_description";
-//            if (translations.containsKey(descKey)) {
-//                response.setDescription(translations.get(descKey));
-//            }
-//        }
-//    }
-
 
     @Mapping(target = "roomAssets", ignore = true)
     @Mapping(target = "classroomEquipments", ignore = true)
@@ -87,82 +64,6 @@ public interface ClassroomMapper {
                         .build();
                 classroom.addAsset(asset); // Tận dụng method addAsset
             });
-        }
-    }
-
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "nameKey")
-    BasicRoomTypeResponse toBasicRoomTypeResponse(RoomType roomType, @Context Map<String, String> translations);
-
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "nameKey")
-    BasicRoomTypeResponse toBasicRoomTypeResponse(Building building, @Context Map<String, String> translations);
-
-    @AfterMapping
-    default void translateRoomType(
-            @MappingTarget BasicRoomTypeResponse response,
-            RoomType roomType,
-            @Context Map<String, String> translations
-    ) {
-        if (roomType != null) {
-            String key = TranslationKeyBuilder.build(
-                    TranslatableEntityType.ROOM_TYPE,
-                    roomType.getId(),
-                    "name"
-            );
-
-            if (translations.containsKey(key)) {
-                response.setName(translations.get(key));
-            }
-        }
-    }
-    @AfterMapping
-    default void translateBuilding(
-            @MappingTarget BasicRoomTypeResponse response,
-            Building building,
-            @Context Map<String, String> translations
-    ) {
-        if (building != null) {
-            String key = TranslationKeyBuilder.build(
-                    TranslatableEntityType.BUILDING,
-                    building.getId(),
-                    "name"
-            );
-
-            if (translations.containsKey(key)) {
-                response.setName(translations.get(key));
-            }
-        }
-    }
-    @AfterMapping
-    default void translateEquipmentResponse(
-            @MappingTarget EquipmentResponse response,
-            ClassroomEquipment classroomEquipment,
-            @Context Map<String, String> translations
-    ) {
-        if (classroomEquipment.getEquipment() != null) {
-
-            Long id = Long.valueOf(classroomEquipment.getEquipment().getId());
-
-            String nameKey = TranslationKeyBuilder.build(
-                    TranslatableEntityType.EQUIPMENT,
-                    id,
-                    "name"
-            );
-
-            if (translations.containsKey(nameKey)) {
-                response.setName(translations.get(nameKey));
-            }
-
-            String descKey = TranslationKeyBuilder.build(
-                    TranslatableEntityType.EQUIPMENT,
-                    id,
-                    "description"
-            );
-
-            if (translations.containsKey(descKey)) {
-                response.setDescription(translations.get(descKey));
-            }
         }
     }
 }
