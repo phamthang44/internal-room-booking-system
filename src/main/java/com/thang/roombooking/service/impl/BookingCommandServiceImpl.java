@@ -67,13 +67,24 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
 
             bookingValidatorService.validateTimeSlots(request.bookingDate(),  timeSlots);
+
+            LocalTime bookingStartTime = timeSlots.stream()
+                    .map(TimeSlot::getStartTime)
+                    .min(LocalTime::compareTo)
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+            
+            LocalTime bookingEndTime = timeSlots.stream()
+                    .map(TimeSlot::getEndTime)
+                    .max(LocalTime::compareTo)
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
             // 4. Build Entity với nguyên tắc XOR
             Booking booking = Booking.builder()
                     .user(currentUser)
                     .classroom(classroomRepository.getReferenceById(request.classroomId()))
                     .bookingDate(request.bookingDate())
-                    .startTime(null)
-                    .endTime(null)
+                    .startTime(bookingStartTime)
+                    .endTime(bookingEndTime)
                     .attendees(request.attendees())
                     .purpose(request.purpose())
                     .status(BookingStatus.PENDING)
