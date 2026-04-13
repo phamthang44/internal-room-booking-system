@@ -227,14 +227,20 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 b.getAction(),
                 b.getStatusAfter().name(),
                 b.getUpdatedAt(), // Mốc thời gian cuối cùng trạng thái thay đổi
-                hasText(b.getNote()) ? b.getNote() : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT)
+                hasText(b.getNote()) ? I18nUtils.get(b.getNote()) : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT)
         );
+    }
+
+    private static boolean isI18nKey(String value) {
+        return value != null && value.startsWith("booking.");
     }
 
     private String resolveRecentHistoryMessage(Booking b) {
         return switch (b.getStatus()) {
             case REJECTED -> hasText(b.getRejectionReason())
-                    ? b.getRejectionReason()
+                    ? (isI18nKey(b.getRejectionReason())
+                    ? I18nUtils.get(b.getRejectionReason())
+                    : b.getRejectionReason())
                     : I18nUtils.get(BookingMessageKeys.HISTORY_REJECTED_NO_REASON);
             case PENDING -> I18nUtils.get(BookingMessageKeys.HISTORY_PENDING);
             case CANCELLED -> I18nUtils.get(BookingMessageKeys.HISTORY_CANCELLED);
