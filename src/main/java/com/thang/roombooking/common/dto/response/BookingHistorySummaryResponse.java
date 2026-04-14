@@ -8,6 +8,6 @@ public record BookingHistorySummaryResponse(
         String action,         // Lấy từ BookingHistory (CHECK_IN, CANCEL,...)
         String statusAfter,
         Instant timestamp,
-        String note
-) {
+        String note,
+        String performedBy) {
 }

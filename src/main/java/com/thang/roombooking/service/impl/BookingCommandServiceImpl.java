@@ -162,8 +162,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                syncBookingState(booking, BookingStatus.CHECKED_IN);
-
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         booking,
                         BookingStatus.CHECKED_IN,
@@ -248,8 +246,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         );
 
         if (updatedRows > 0) {
-            syncBookingState(booking, BookingStatus.CANCELLED);
-
             // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
             BookingViolation violation = BookingViolation.builder()
                     .booking(booking)
@@ -282,8 +278,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         );
 
         if (updatedRows > 0) {
-            syncBookingState(booking, BookingStatus.REJECTED);
-
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     booking,
                     BookingStatus.REJECTED,
@@ -329,8 +323,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
             log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
             if (updatedRows > 0) {
-                syncBookingState(booking, BookingStatus.CANCELLED);
-
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         booking,
                         BookingStatus.CANCELLED,
@@ -350,10 +342,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         }
     }
 
-    private void syncBookingState(Booking booking, BookingStatus newStatus) {
-        booking.setStatus(newStatus);
-        booking.setVersion(booking.getVersion() + 1);
-    }
 
     private Map<TranslatableEntityType, Set<Long>> getBuildingTranslationIds(Building building) {
         if (building == null) return Collections.emptyMap();

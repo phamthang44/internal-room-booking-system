@@ -40,7 +40,6 @@ public class BookingQueryServiceImpl implements BookingQueryService {
 
     private final BookingRepository bookingRepository;
     private final BookingHistoryRepository bookingHistoryRepository;
-    private final BookingApprovalRepository bookingApprovalRepository;
     private final TranslationService translationService;
     private final BookingMapper bookingMapper;
 
@@ -80,13 +79,14 @@ public class BookingQueryServiceImpl implements BookingQueryService {
         //    so we must build each instance fresh with the resolved slotName.
         response.setTimeSlots(buildTranslatedTimeSlots(booking, translations));
 
-        // 7. Load approval / audit history
-        List<BookingApprovalResponse> approvalHistory = bookingApprovalRepository
+        // 7. Load audit history of a booking
+        List<BookingHistorySummaryResponse> history = bookingHistoryRepository
                 .findByBookingId(booking.getId())
                 .stream()
-                .map(bookingMapper::toBookingApprovalResponse)
+                .map(this::mapToBookingHistorySummary)
                 .toList();
-        response.setApprovalHistory(approvalHistory);
+
+        response.setBookingHistorySummaryResponses(history);
 
         return response;
     }
@@ -116,7 +116,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                     }
                     // Build translated time slots (same pattern as getBookingDetail)
                     response.setTimeSlots(buildTranslatedTimeSlots(booking, translations));
-                    // Approval history intentionally omitted in list view (performance)
+
                     return response;
                 })
                 .toList();
@@ -218,16 +218,16 @@ public class BookingQueryServiceImpl implements BookingQueryService {
         );
     }
 
-    // Map lịch sử gần đây (Lấy trạng thái cuối từ bảng Booking)
-    private BookingHistorySummaryResponse mapToHistorySummary(BookingHistory b) {
-        // Vì lấy từ bảng Booking nên action sẽ tương ứng với status hiện tại
+    // Map lịch sử chi tiết cho đơn
+    private BookingHistorySummaryResponse mapToBookingHistorySummary(BookingHistory bh) {
         return new BookingHistorySummaryResponse(
-                b.getBooking().getId(),
-                getTranslatedRoomName(b.getBooking()),
-                b.getAction(),
-                b.getStatusAfter().name(),
-                b.getUpdatedAt(), // Mốc thời gian cuối cùng trạng thái thay đổi
-                hasText(b.getNote()) ? I18nUtils.get(b.getNote()) : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT)
+                bh.getBooking().getId(),
+                getTranslatedRoomName(bh.getBooking()),
+                bh.getAction(),
+                bh.getStatusAfter().name(),
+                bh.getCreatedAt(), // Mốc thời gian tạo history
+                hasText(bh.getNote()) ? (isI18nKey(bh.getNote()) ? I18nUtils.get(bh.getNote()) : bh.getNote()) : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT),
+                bh.getPerformedBy()
         );
     }
 
@@ -293,7 +293,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                         bts -> bts.getTimeSlot().getStartTime()))
                 .map(bts -> {
                     var slot = bts.getTimeSlot();
-                    String key = "TIME_SLOT_" + slot.getId() + "_slotName";
+                    String key = "TIME_SLOT_" + slot.getId() + "_name";
                     String slotName = translations.getOrDefault(key, slot.getSlotNameKey());
                     return TimeSlotResponse.builder()
                             .id(slot.getId())

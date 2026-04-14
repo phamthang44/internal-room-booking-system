@@ -20,4 +20,6 @@ public interface BookingHistoryRepository extends JpaRepository<BookingHistory,L
     ORDER BY h.createdAt DESC
    \s""")
     List<BookingHistory> findRecentActivities(Long userId, Pageable pageable);
+
+    List<BookingHistory> findByBookingId(Long bookingId);
 }

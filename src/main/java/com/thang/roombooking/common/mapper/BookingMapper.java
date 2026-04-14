@@ -1,16 +1,7 @@
 package com.thang.roombooking.common.mapper;
 
-import com.thang.roombooking.common.dto.response.BasicRoomTypeResponse;
-import com.thang.roombooking.common.dto.response.BookingApprovalResponse;
-import com.thang.roombooking.common.dto.response.BookingDetailResponse;
-import com.thang.roombooking.common.dto.response.CreateBookingResponse;
-import com.thang.roombooking.common.dto.response.TimeSlotResponse;
-import com.thang.roombooking.common.enums.TranslatableEntityType;
-import com.thang.roombooking.entity.Booking;
-import com.thang.roombooking.entity.BookingApproval;
-import com.thang.roombooking.entity.BookingTimeSlot;
-import com.thang.roombooking.entity.Building;
-import com.thang.roombooking.entity.TimeSlot;
+import com.thang.roombooking.common.dto.response.*;
+import com.thang.roombooking.entity.*;
 import org.mapstruct.*;
 
 import java.util.Map;
@@ -41,7 +32,7 @@ public interface BookingMapper {
                              @Context Map<String, String> translations) {
 
         TimeSlot slot = bts.getTimeSlot();
-        String lookupKey = "TIME_SLOT_" + slot.getId() + "_slotName";
+        String lookupKey = "TIME_SLOT_" + slot.getId() + "_name";
         String translatedName = translations.getOrDefault(lookupKey, slot.getSlotNameKey());
         target.slotName(translatedName);
     }
@@ -66,8 +57,9 @@ public interface BookingMapper {
     @Mapping(target = "attendees",       source = "attendees")   // no attendees column on Booking; set via @AfterMapping
     @Mapping(target = "status",          source = "status")
     @Mapping(target = "timeSlots",       ignore = true)   // translated & set explicitly in BookingQueryServiceImpl
-    @Mapping(target = "approvalHistory", ignore = true)   // populated by service layer after separate query
+    @Mapping(target = "bookingHistorySummaryResponses", ignore = true)   // populated by service layer after separate query
     BookingDetailResponse toBookingDetailResponse(Booking booking, @Context Map<String, String> translations);
+
 
     @AfterMapping
     default void afterMappingBookingDetail(Booking booking,

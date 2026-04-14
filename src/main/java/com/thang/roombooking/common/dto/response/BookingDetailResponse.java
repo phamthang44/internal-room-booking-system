@@ -48,7 +48,7 @@ public class BookingDetailResponse {
     @Schema(description = "Current booking status")
     private BookingStatus status;
 
-    // ── Audit / approval history ─────────────────────────────────────────────
+    // ── Audit history ─────────────────────────────────────────────
     @Schema(description = "Approval audit history (may be empty for PENDING bookings)")
-    private List<BookingApprovalResponse> approvalHistory;
+    private List<BookingHistorySummaryResponse> bookingHistorySummaryResponses;
 }
