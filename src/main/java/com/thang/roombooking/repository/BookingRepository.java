@@ -18,15 +18,14 @@ import java.util.List;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
-    boolean existsByClassroomIdAndEndTimeAfter(Long roomId, Instant now);
-
-    boolean existsByClassroomIdAndStatusInAndStartTimeAfter(
-            Long classroomId,
-            List<BookingStatus> statuses,
-            Instant time
-    );
-
-    boolean existsByClassroomIdAndStatusInAndEndTimeAfter(Long roomId, List<BookingStatus> approved, Instant now);
+    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Booking b " +
+           "WHERE b.classroom.id = :classroomId " +
+           "AND b.status IN :statuses " +
+           "AND (b.bookingDate > :today OR (b.bookingDate = :today AND b.endTime > :currentTime))")
+    boolean hasUpcomingBookings(@Param("classroomId") Long classroomId,
+                                @Param("statuses") List<BookingStatus> statuses,
+                                @Param("today") LocalDate today,
+                                @Param("currentTime") LocalTime currentTime);
 
     long countByUserIdAndBookingDateAndStatusNot(Long userId, LocalDate date, BookingStatus bookingStatus);
 

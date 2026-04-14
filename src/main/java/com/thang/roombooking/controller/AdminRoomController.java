@@ -2,6 +2,7 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.CreateClassroomRequest;
 import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
+import com.thang.roombooking.common.dto.request.UpdateClassroomStatusRequest;
 import com.thang.roombooking.common.dto.response.AdminDetailClassroomResponse;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.CreateClassroomResponse;
@@ -43,6 +44,15 @@ public class AdminRoomController {
     public ResponseEntity<ApiResult<UpdateClassroomResponse>> updateClassroom(@Valid @RequestBody UpdateClassroomRequest req) {
         log.info("Received request to update classroom {}", req.classroomId());
         var response = classroomCommandService.updateClassroom(req);
+        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.updated.success", response.roomName())));
+    }
+
+    @PatchMapping("/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResult<UpdateClassroomResponse>> updateClassroomStatus(
+            @Valid @RequestBody UpdateClassroomStatusRequest req) {
+        log.info("Received request to change classroom status {}", req.classroomId());
+        var response = classroomCommandService.updateStatusClassroom(req.classroomId(),  req.status());
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.updated.success", response.roomName())));
     }
 

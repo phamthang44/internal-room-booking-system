@@ -9,7 +9,9 @@ import com.thang.roombooking.service.policy.context.RoomContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -24,9 +26,11 @@ public class DeleteRoomPolicyImpl implements RoomPolicy {
 
     @Override
     public void validate(RoomContext context) {
-        boolean hasFutureBooking = bookingRepository.existsByClassroomIdAndEndTimeAfter(
+        boolean hasFutureBooking = bookingRepository.hasUpcomingBookings(
                 context.getRoomId(),
-                Instant.now()
+                List.of(com.thang.roombooking.common.enums.BookingStatus.PENDING, com.thang.roombooking.common.enums.BookingStatus.APPROVED),
+                LocalDate.now(),
+                LocalTime.now()
         );
 
         if (hasFutureBooking) {

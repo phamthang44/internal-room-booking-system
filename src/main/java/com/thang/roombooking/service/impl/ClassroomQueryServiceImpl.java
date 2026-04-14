@@ -73,7 +73,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
     @Override
     public Page<ClassroomListResponse> searchPublic(RoomSearchRequest req) {
-        req.setRoomStatus(RoomStatus.AVAILABLE);
+        //req.setRoomStatus(RoomStatus.AVAILABLE);
 
         if (req.getBookingDate() == null) req.setBookingDate(LocalDate.now());
         if (req.getTimeSlotId() == null) req.setTimeSlotId(4);
