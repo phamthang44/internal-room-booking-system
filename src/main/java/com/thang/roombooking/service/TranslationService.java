@@ -2,7 +2,6 @@ package com.thang.roombooking.service;
 
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 

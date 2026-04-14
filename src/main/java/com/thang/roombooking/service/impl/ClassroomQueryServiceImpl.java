@@ -3,7 +3,6 @@ package com.thang.roombooking.service.impl;
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
 import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.RoomSort;
-import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
@@ -200,7 +199,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
     ) {
 
         return AdminDetailClassroomResponse.builder()
-                .building(buildingMapper.toBuildingResponse(
+                .building(buildingMapper.toBasicBuildingResponse(
                         classroom.getBuilding(), translations))
                 .roomName(classroom.getRoomName())
                 .capacity(classroom.getCapacity())

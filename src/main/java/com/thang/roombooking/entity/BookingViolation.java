@@ -4,7 +4,6 @@ import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
 import com.thang.roombooking.common.enums.ViolationType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 

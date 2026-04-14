@@ -1,6 +1,5 @@
 package com.thang.roombooking.entity;
 
-import com.thang.roombooking.common.entity.BaseAuditEntity;
 import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
 import jakarta.persistence.*;
 import lombok.*;

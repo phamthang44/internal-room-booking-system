@@ -3,9 +3,6 @@ package com.thang.roombooking.service.policy.impl;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
-import com.thang.roombooking.entity.Booking;
-import com.thang.roombooking.entity.UserAccount;
-import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.service.policy.BookingFlowPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,7 +13,6 @@ import java.time.*;
 @RequiredArgsConstructor
 public class BookingFlowPolicyImpl implements BookingFlowPolicy {
 
-    private final BookingRepository bookingRepository;
 
     @Override
     public void validateCheckInTimePolicy(Instant bookingStartTime) {

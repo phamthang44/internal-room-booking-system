@@ -3,7 +3,6 @@ package com.thang.roombooking.service.policy.impl;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
-import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.service.policy.BookingPolicy;
 import lombok.RequiredArgsConstructor;

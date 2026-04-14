@@ -1,12 +1,9 @@
 package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.entity.BaseAuditEntity;
-import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
 import com.thang.roombooking.common.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Setter

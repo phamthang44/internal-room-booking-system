@@ -1,7 +1,6 @@
 package com.thang.roombooking.service.policy;
 
 import com.thang.roombooking.common.enums.BookingStatus;
-import com.thang.roombooking.entity.UserAccount;
 
 import java.time.Instant;
 import java.time.LocalDateTime;

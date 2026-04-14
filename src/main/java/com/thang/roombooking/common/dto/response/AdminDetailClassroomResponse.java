@@ -11,7 +11,7 @@ import java.util.List;
 @Setter
 @Builder
 public class AdminDetailClassroomResponse {
-    private BasicRoomTypeResponse building;
+    private BasicBuildingResponse building;
     private String roomName;
     private int capacity;
     private List<Instant> availableDates;
