@@ -16,17 +16,13 @@ import com.thang.roombooking.common.search.GenericSpecificationBuilder;
 import com.thang.roombooking.common.search.SearchOperation;
 import com.thang.roombooking.entity.Classroom;
 import com.thang.roombooking.entity.ClassroomEquipment;
-import com.thang.roombooking.entity.Translation;
 import com.thang.roombooking.repository.ClassroomRepository;
-import com.thang.roombooking.repository.TimeSlotRepository;
-import com.thang.roombooking.repository.TranslationRepository;
 import com.thang.roombooking.service.AvailabilityService;
 import com.thang.roombooking.service.ClassroomQueryService;
 import com.thang.roombooking.service.TranslationService;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -47,7 +43,6 @@ import java.util.stream.Collectors;
 public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
     private final ClassroomRepository classroomRepository;
-    private final TimeSlotRepository timeSlotRepository;
     private final TranslationService translationService;
     private final ClassroomMapper classroomMapper;
     private final BuildingMapper buildingMapper;
@@ -152,11 +147,12 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
         // Equipments
         if (classroom.getClassroomEquipments() != null) {
-            Set<?> equipmentIds = classroom.getClassroomEquipments().stream()
-                    .map(e -> e.getEquipment().getId())
+            Set<Long> equipmentIds = classroom.getClassroomEquipments().stream()
+                    .filter(e -> e.getEquipment() != null)
+                    .map(e -> Long.valueOf(e.getEquipment().getId()))
                     .collect(Collectors.toSet());
 
-            ids.put(TranslatableEntityType.EQUIPMENT, (Set<Long>) equipmentIds);
+            ids.put(TranslatableEntityType.EQUIPMENT, equipmentIds);
         }
 
         return translationService.getTranslations(ids);

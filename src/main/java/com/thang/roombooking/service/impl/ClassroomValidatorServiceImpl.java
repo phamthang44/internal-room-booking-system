@@ -9,15 +9,12 @@ import com.thang.roombooking.entity.*;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BuildingRepository;
 import com.thang.roombooking.repository.ClassroomRepository;
-import com.thang.roombooking.repository.EquipmentRepository;
 import com.thang.roombooking.repository.RoomTypeRepository;
 import com.thang.roombooking.service.ClassroomValidatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Slf4j

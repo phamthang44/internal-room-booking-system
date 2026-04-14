@@ -8,7 +8,6 @@ import com.thang.roombooking.common.enums.AuthStatus;
 import com.thang.roombooking.common.enums.UserRole;
 import com.thang.roombooking.common.enums.UserStatus;
 import com.thang.roombooking.common.exception.AppException;
-import com.thang.roombooking.common.exception.TokenRefreshException;
 import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.entity.ExternalIdentity;

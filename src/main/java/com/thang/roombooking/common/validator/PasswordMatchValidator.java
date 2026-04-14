@@ -1,7 +1,6 @@
 package com.thang.roombooking.common.validator;
 
 import com.thang.roombooking.common.dto.request.RegisterRequest;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

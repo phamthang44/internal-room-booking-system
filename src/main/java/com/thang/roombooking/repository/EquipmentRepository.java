@@ -1,8 +1,6 @@
 package com.thang.roombooking.repository;
 
 import com.thang.roombooking.entity.Equipment;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Positive;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

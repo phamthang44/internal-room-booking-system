@@ -1,6 +1,5 @@
 package com.thang.roombooking.common.validator;
 
-import com.thang.roombooking.repository.TimeSlotRepository;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +10,6 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class TimeSlotSelectionValidator implements ConstraintValidator<ValidTimeSlotSelection, List<Integer>> {
-
-    private final TimeSlotRepository timeSlotRepository; // inject nếu cần check DB
 
     @Override
     public boolean isValid(List<Integer> value, ConstraintValidatorContext context) {

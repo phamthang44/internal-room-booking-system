@@ -1,6 +1,5 @@
 package com.thang.roombooking.common.mapper;
 
-import com.thang.roombooking.common.dto.request.BaseClassroomRequest;
 import com.thang.roombooking.common.dto.request.CreateClassroomRequest;
 import com.thang.roombooking.common.dto.request.UpdateClassroomRequest;
 import com.thang.roombooking.common.dto.response.*;

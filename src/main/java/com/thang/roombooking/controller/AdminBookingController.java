@@ -1,9 +1,7 @@
 package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.BookingApprovalRequest;
-import com.thang.roombooking.common.dto.request.CheckInRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
-import com.thang.roombooking.common.enums.ApprovalAction;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.BookingCommandService;

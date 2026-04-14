@@ -5,14 +5,11 @@ import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.utils.TextValidationUtils;
 import com.thang.roombooking.entity.TimeSlot;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
-import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.service.BookingValidatorService;
 import com.thang.roombooking.service.ClassroomValidatorService;
 import com.thang.roombooking.service.TimeSlotService;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -26,7 +23,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookingValidatorServiceImpl implements BookingValidatorService {
 
-    private final BookingRepository bookingRepository;
     private final ClassroomValidatorService classroomValidatorService;
     private final BookingPolicyManager bookingPolicyManager;
     private final TimeSlotService timeSlotService;

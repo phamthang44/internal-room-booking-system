@@ -2,7 +2,6 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.StudentDashboardResponse;
-import com.thang.roombooking.entity.UserAccount;
 import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.BookingQueryService;
 import lombok.RequiredArgsConstructor;

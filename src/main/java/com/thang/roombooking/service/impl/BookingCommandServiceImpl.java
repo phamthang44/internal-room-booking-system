@@ -14,8 +14,6 @@ import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
-import com.thang.roombooking.repository.BookingApprovalRepository;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.ClassroomRepository;
@@ -145,13 +143,13 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
-            List<TimeSlot> slots = booking.getBookingTimeSlots().stream()
-                    .map(BookingTimeSlot::getTimeSlot)
-                    .sorted(Comparator.comparing(TimeSlot::getStartTime))
-                    .toList();
+            //List<TimeSlot> slots = booking.getBookingTimeSlots().stream()
+                    //.map(BookingTimeSlot::getTimeSlot)
+                    //.sorted(Comparator.comparing(TimeSlot::getStartTime))
+                    //.toList();
 
             // 2. Nhờ Validator tìm Slot hợp lệ
-            TimeSlot targetSlot = bookingValidatorService.validateAndGetTargetSlot(slots, booking.getBookingDate(), LocalTime.now());
+            //TimeSlot targetSlot = bookingValidatorService.validateAndGetTargetSlot(slots, booking.getBookingDate(), LocalTime.now());
 
             // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
             int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), booking.getVersion());
