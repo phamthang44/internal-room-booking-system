@@ -17,6 +17,7 @@ public class RoomBookingRabbitMQProperties {
     public static class Queues {
         private String emailPriority;
         private String emailNormal;
+        private String emailBooking;
     }
 
     @Data
@@ -24,5 +25,6 @@ public class RoomBookingRabbitMQProperties {
         // Binding Patterns
         private String patternEmailPriority;
         private String patternEmailNormal;
+        private String patternEmailBooking;
     }
 }

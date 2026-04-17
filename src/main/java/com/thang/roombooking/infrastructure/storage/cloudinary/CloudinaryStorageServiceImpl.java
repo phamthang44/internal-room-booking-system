@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -120,8 +121,14 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
             try {
                 // 1. Chuyển list URL thành list Public ID
                 List<String> publicIds = fileUrls.stream()
-                        .map(this::extractPublicId) // Tái sử dụng hàm extractPublicId ở dưới
+                        .map(this::tryExtractPublicId)
+                        .flatMap(Optional::stream)
                         .toList();
+
+                if (publicIds.isEmpty()) {
+                    log.info("ℹ️ Không có URL Cloudinary hợp lệ để confirm (bỏ qua).");
+                    return;
+                }
 
                 // 2. Gọi client để gỡ tag
                 cloudinaryClient.removeTag("temporary", publicIds);
@@ -156,7 +163,13 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
             );
         }
 
-        String[] parts = fileUrl.split("/");
+        String sanitized = fileUrl;
+        int qIndex = sanitized.indexOf("?");
+        if (qIndex >= 0) {
+            sanitized = sanitized.substring(0, qIndex);
+        }
+
+        String[] parts = sanitized.split("/");
         String fileName = parts[parts.length - 1];
         String folder = parts[parts.length - 2];
 
@@ -168,5 +181,18 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
         }
 
         return folder + "/" + fileName.substring(0, dotIndex);
+    }
+
+    private Optional<String> tryExtractPublicId(String fileUrl) {
+        try {
+            // Only try to confirm our own Cloudinary assets; skip external URLs (picsum, etc.)
+            if (fileUrl == null || !fileUrl.contains("res.cloudinary.com")) {
+                return Optional.empty();
+            }
+            return Optional.of(extractPublicId(fileUrl));
+        } catch (Exception e) {
+            log.debug("Skip confirm for url='{}' due to: {}", fileUrl, e.getMessage());
+            return Optional.empty();
+        }
     }
 }

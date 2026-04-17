@@ -51,6 +51,20 @@ public class RabbitMQConfig {
                 .with(properties.getRoutingKeys().getPatternEmailNormal());
     }
 
+    // --- BOOKING LANE: booking lifecycle emails (create/approve/reject/cancel) ---
+    @Bean
+    public Queue emailBookingQueue() {
+        return new Queue(properties.getQueues().getEmailBooking(), true);
+    }
+
+    @Bean
+    public Binding bindingBookingEmail(Queue emailBookingQueue, TopicExchange eventExchange) {
+        // Enforce: notification.email.booking.* -> email-booking
+        return BindingBuilder.bind(emailBookingQueue)
+                .to(eventExchange)
+                .with(properties.getRoutingKeys().getPatternEmailBooking());
+    }
+
     // ==================== 3. INFRASTRUCTURE ====================
     @Bean
     public MessageConverter jsonMessageConverter() {
