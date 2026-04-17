@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="${title} ?: 'Booking notification'">Booking notification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 24px 16px; }
+
+    .email-card {
+      max-width: 580px; margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #2c2c2a;
+      border: 1px solid #dde1e7;
+    }
+
+    .email-header {
+      padding: 28px 32px 24px;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+      background: #185FA5;
+    }
+    .email-brand {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; opacity: 0.65; color: #fff;
+    }
+    .email-icon-wrap {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .email-icon-wrap svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; }
+    .email-header-title { font-size: 20px; font-weight: 600; color: #fff; line-height: 1.3; }
+    .email-header-sub { font-size: 13px; color: rgba(255,255,255,0.78); margin-top: 2px; }
+
+    .email-body { padding: 28px 32px; }
+    .greeting { font-size: 14px; color: #444; margin-bottom: 12px; }
+    .greeting b { color: #111; }
+    .intro { font-size: 14px; color: #555; margin-bottom: 18px; line-height: 1.65; }
+
+    .info-block {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      border: 1px solid #e8e9eb;
+    }
+    .info-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 7px 0; border-bottom: 1px solid #eee; gap: 12px;
+    }
+    .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .info-row:first-child { padding-top: 0; }
+    .info-label {
+      font-size: 12px; color: #888; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em; min-width: 90px;
+    }
+    .info-value { font-size: 13px; color: #222; font-weight: 500; text-align: right; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      background: #EAF3DE; color: #3B6D11;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #3B6D11; }
+
+    .alert-box {
+      border-radius: 8px; padding: 14px 16px;
+      margin-bottom: 18px; font-size: 13px; line-height: 1.55;
+      display: flex; gap: 10px; align-items: flex-start;
+      background: #E6F1FB; border: 1px solid #B5D4F4; color: #0C447C;
+    }
+    .alert-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+    .cta-btn {
+      display: inline-block; padding: 11px 24px;
+      border-radius: 8px; font-size: 13px; font-weight: 700;
+      text-decoration: none; margin-top: 4px;
+      background: #185FA5; color: #fff;
+    }
+
+    .footer {
+      padding: 18px 32px;
+      background: #fafafa;
+      border-top: 1px solid #eee;
+      text-align: center;
+    }
+    .footer p { font-size: 11px; color: #aaa; line-height: 1.6; }
+    .footer a { color: #888; text-decoration: underline; }
+
+    @media only screen and (max-width: 520px) {
+      .email-header, .email-body, .footer { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-card">
+    <div class="email-header" th:style="'background:' + (${headerBg} ?: '#185FA5')">
+      <div class="email-brand" th:text="${appName} ?: 'Room Booking System'">Room Booking System</div>
+      <div class="email-icon-wrap" th:if="${headerIconSvg != null}" th:utext="${headerIconSvg}">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </div>
+      <div class="email-header-title" th:text="${title} ?: 'Booking notification'">Booking notification</div>
+      <div class="email-header-sub" th:text="${subtitle} ?: ''"></div>
+    </div>
+
+    <div class="email-body">
+      <p class="greeting">Hello <b th:text="${userName} ?: 'there'">there</b>,</p>
+      <p class="intro" th:text="${intro} ?: ''"></p>
+
+      <div class="info-block">
+        <div class="info-row">
+          <span class="info-label">Booking ID</span>
+          <span class="info-value" th:text="${bookingId} ?: '—'">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Room</span>
+          <span class="info-value" th:text="${roomName} ?: '—'">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Date</span>
+          <span class="info-value" th:text="${bookingDate} ?: '—'">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Time</span>
+          <span class="info-value" th:text="(${startTime} ?: '—') + ' – ' + (${endTime} ?: '—')">—</span>
+        </div>
+        <div class="info-row" th:if="${attendees != null}">
+          <span class="info-label">Attendees</span>
+          <span class="info-value" th:text="${attendees}">0</span>
+        </div>
+        <div class="info-row" th:if="${purpose != null}">
+          <span class="info-label">Purpose</span>
+          <span class="info-value" th:text="${purpose}">—</span>
+        </div>
+        <div class="info-row" th:if="${statusText != null}">
+          <span class="info-label">Status</span>
+          <span class="info-value">
+            <span class="status-badge"
+                  th:style="'background:' + (${statusBg} ?: '#EAF3DE') + ';color:' + (${statusColor} ?: '#3B6D11')">
+              <span class="badge-dot" th:style="'background:' + (${statusDot} ?: (${statusColor} ?: '#3B6D11'))"></span>
+              <span th:text="${statusText}">UPDATED</span>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <div class="alert-box" th:if="${alertText != null}"
+           th:style="'background:' + (${alertBg} ?: '#E6F1FB') + ';border-color:' + (${alertBorder} ?: '#B5D4F4') + ';color:' + (${alertColor} ?: '#0C447C')">
+        <span class="alert-icon" th:text="${alertIcon} ?: 'i'">i</span>
+        <div th:text="${alertText}">—</div>
+      </div>
+
+      <a class="cta-btn" th:if="${ctaUrl != null}" th:href="${ctaUrl}" th:text="${ctaText} ?: 'View booking'">View booking</a>
+
+      <p style="margin-top:14px;font-size:12px;color:#888;" th:if="${supportEmail != null}">
+        Need help? <a th:href="'mailto:' + ${supportEmail}" th:text="${supportEmail}">support</a>
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>
+        This is an automated message from <span th:text="${appName} ?: 'Room Booking System'">Room Booking System</span>.<br>
+        Do not reply to this email.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+

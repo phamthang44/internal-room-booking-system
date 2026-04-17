@@ -116,8 +116,11 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
 
         Map<String, String> translations = buildTranslations(classroom);
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = startDate.plusDays(30);
+        ClassroomAvailabilityResponse schedule = availabilityService.getClassroomAvailability(id, startDate, endDate);
 
-        return buildAdminDetailResponse(classroom, translations);
+        return buildAdminDetailResponse(classroom, translations, schedule);
     }
 
     @Override
@@ -195,7 +198,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
     private AdminDetailClassroomResponse buildAdminDetailResponse(
             Classroom classroom,
-            Map<String, String> translations
+            Map<String, String> translations,
+            ClassroomAvailabilityResponse schedule
     ) {
 
         return AdminDetailClassroomResponse.builder()
@@ -204,8 +208,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 .roomName(classroom.getRoomName())
                 .capacity(classroom.getCapacity())
                 .availableDates(getAvailableDates(classroom.getId()))
-                .month(Instant.now()) // hoặc param truyền vào
-                .timeSlots(getTimeSlots(classroom.getId()))
+                .schedule(schedule)
                 .equipments(classroom.getClassroomEquipments().stream()
                         .map(e -> equipmentMapper.toEquipmentResponse(e, translations))
                         .toList())

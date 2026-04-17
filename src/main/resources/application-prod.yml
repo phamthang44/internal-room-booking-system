@@ -6,6 +6,15 @@ app:
   support:
     email: concierge@room-booking.com
   url: https://room-booking.com
+  mail:
+    # Optional overrides for outbound email metadata
+    from-email: ${MAIL_FROM_EMAIL:}
+    admin-email: ${MAIL_ADMIN_EMAIL:}
+    social:
+      instagram-url: ${APP_SOCIAL_INSTAGRAM_URL:}
+      facebook-url: ${APP_SOCIAL_FACEBOOK_URL:}
+      pinterest-url: ${APP_SOCIAL_PINTEREST_URL:}
+      twitter-url: ${APP_SOCIAL_TWITTER_URL:}
 
   import:
     temp-dir: ${java.io.tmpdir}/product-imports
@@ -24,6 +33,7 @@ cloudinary:
   cloudName: ${CLOUDINARY_CLOUD_NAME}
   apiKey: ${CLOUDINARY_API_KEY}
   apiSecret: ${CLOUDINARY_API_SECRET}
+  folder: ${CLOUDINARY_FOLDER:room-booking-uploads}
 
 spring:
   config:

@@ -15,8 +15,7 @@ public class AdminDetailClassroomResponse {
     private String roomName;
     private int capacity;
     private List<Instant> availableDates;
-    private Instant month;
-    private List<TimeSlotResponse> timeSlots;
+    private ClassroomAvailabilityResponse schedule;
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;

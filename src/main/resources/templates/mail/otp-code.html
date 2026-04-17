@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="#{email.otp.title} ?: 'Verification Code'">Verification Code</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            padding: 24px 16px;
+            line-height: 1.6;
+            color: #2c2c2a;
+        }
+
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #dde1e7;
+        }
+
+        /* ── Header ── */
+        .header {
+            background-color: #3C3489;
+            padding: 28px 32px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .brand {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.55);
+        }
+
+        .header-icon-wrap {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.18);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-icon-wrap svg {
+            width: 24px;
+            height: 24px;
+            stroke: #ffffff;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .header-sub {
+            font-size: 13px;
+            color: rgba(255,255,255,0.72);
+            margin-top: -4px;
+        }
+
+        /* ── Body ── */
+        .body {
+            padding: 28px 32px;
+        }
+
+        .greeting {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .greeting b { color: #111; }
+
+        .intro {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.7;
+            margin-bottom: 22px;
+        }
+
+        /* ── OTP block ── */
+        .otp-block {
+            background-color: #EEEDFE;
+            border: 1px solid #CECBF6;
+            border-radius: 10px;
+            padding: 28px 20px;
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .otp-eyebrow {
+            font-size: 11px;
+            font-weight: 600;
+            color: #534AB7;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 14px;
+        }
+
+        .otp-code {
+            font-size: 44px;
+            font-weight: 300;
+            color: #3C3489;
+            letter-spacing: 14px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 14px;
+            /* indent to compensate for letter-spacing on last char */
+            padding-left: 14px;
+        }
+
+        .otp-validity {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #534AB7;
+            background: rgba(255,255,255,0.65);
+            border-radius: 20px;
+            padding: 4px 12px;
+        }
+
+        .otp-validity svg {
+            width: 13px;
+            height: 13px;
+            stroke: #534AB7;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        /* ── Steps ── */
+        .steps-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 12px;
+        }
+
+        .step-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #3C3489;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .step-text {
+            font-size: 13px;
+            color: #444;
+            line-height: 1.6;
+        }
+
+        /* ── Notice ── */
+        .notice-box {
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 20px 0;
+            font-size: 13px;
+            line-height: 1.55;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .notice-warning {
+            background: #FAEEDA;
+            border: 1px solid #FAC775;
+            color: #633806;
+        }
+
+        .notice-warning svg {
+            width: 15px;
+            height: 15px;
+            stroke: #854F0B;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            padding: 18px 32px 22px;
+            background: #fafafa;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+
+        .footer p {
+            font-size: 11px;
+            color: #aaa;
+            line-height: 1.7;
+        }
+
+        .footer a { color: #888; text-decoration: underline; }
+
+        @media only screen and (max-width: 520px) {
+            .header, .body, .footer { padding-left: 20px; padding-right: 20px; }
+            .otp-code { font-size: 34px; letter-spacing: 10px; padding-left: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="email-wrapper">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="brand" th:text="${appName} ?: 'Room Booking System'">Room Booking System</div>
+        <div class="header-icon-wrap">
+            <!-- Shield / lock icon -->
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="header-title" th:text="${pageTitle} ?: 'Account verification'">Account verification</div>
+        <div class="header-sub" th:text="${pageSubtitle} ?: 'Enter the code below to confirm your identity'">Enter the code below to confirm your identity</div>
+    </div>
+
+    <!-- Body -->
+    <div class="body">
+        <p class="greeting">Hello <b th:text="${greeting} ?: 'there'">there</b>,</p>
+        <p class="intro" th:text="${message} ?: 'To complete your request, please use the one-time verification code below. This code is unique to you and expires shortly.'">
+            To complete your request, please use the one-time verification code below. This code is unique to you and expires shortly.
+        </p>
+
+        <!-- OTP block -->
+        <div class="otp-block">
+            <div class="otp-eyebrow">Your verification code</div>
+            <div class="otp-code" th:text="${otpCode}">1 2 3 4 5 6</div>
+            <div class="otp-validity">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span th:text="'Valid for ' + (${expiryMinutes} ?: '10') + ' minutes'">Valid for 10 minutes</span>
+            </div>
+        </div>
+
+        <!-- How to use -->
+        <p class="steps-title">How to use this code</p>
+        <div class="step-row">
+            <div class="step-num">1</div>
+            <div class="step-text">Return to the verification page where you were asked for this code.</div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">2</div>
+            <div class="step-text">Enter the 6-digit code exactly as shown above.</div>
+        </div>
+        <div class="step-row" style="margin-bottom:20px;">
+            <div class="step-num">3</div>
+            <div class="step-text">Submit before the timer runs out — the code expires after <span th:text="${expiryMinutes} ?: '10'">10</span> minutes.</div>
+        </div>
+
+        <!-- Security notice -->
+        <div class="notice-box notice-warning">
+            <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Never share this code with anyone. We will <strong>never</strong> ask you for it by phone, chat, or email. If you did not request this, please ignore this message and contact <a th:href="'mailto:' + (${supportEmail} ?: '#')" th:text="${supportEmail} ?: 'support@company.com'" style="color:#854F0B;">support</a> if you're concerned.</span>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>
+            This is an automated message from your Room Booking System.<br>
+            Do not reply to this email. &nbsp;<a th:href="${helpCenterUrl} ?: '#'">Help center</a>
+            &nbsp;·&nbsp;<a th:href="${privacyPolicyUrl} ?: '#'">Privacy</a>
+            &nbsp;·&nbsp;<a th:href="${termsUrl} ?: '#'">Terms</a>
+        </p>
+        <p style="margin-top:8px;" th:text="'© ' + ${#temporals.year(#temporals.createNow())} + ' ' + (${appName} ?: 'Room Booking System') + '. All rights reserved.'">
+            © 2025 Room Booking System. All rights reserved.
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

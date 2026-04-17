@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room booking email templates</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #222; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    h2 { margin-top: 22px; }
+    ul { margin-left: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Room booking email templates</h1>
+
+  <p>
+    This file is a lightweight reference for what variables each Thymeleaf email template expects.
+    It intentionally avoids hard-coded example people/booking data so it stays reusable across projects.
+  </p>
+
+  <h2><code>mail/otp-code.html</code></h2>
+  <ul>
+    <li><code>appName</code></li>
+    <li><code>greeting</code> (optional)</li>
+    <li><code>message</code> (optional)</li>
+    <li><code>otpCode</code></li>
+    <li><code>expiryMinutes</code></li>
+    <li><code>supportEmail</code></li>
+    <li><code>helpCenterUrl</code> / <code>privacyPolicyUrl</code> / <code>termsUrl</code> (optional)</li>
+  </ul>
+
+  <h2><code>mail/reset-password-success.html</code></h2>
+  <ul>
+    <li><code>appName</code></li>
+    <li><code>userName</code> (optional)</li>
+    <li><code>userEmail</code> (optional)</li>
+    <li><code>resetTimestamp</code></li>
+    <li><code>loginUrl</code></li>
+    <li><code>supportEmail</code></li>
+    <li><code>helpCenterUrl</code> / <code>privacyPolicyUrl</code> / <code>securityUrl</code> (optional)</li>
+  </ul>
+
+  <h2><code>mail/welcome.html</code></h2>
+  <ul>
+    <li><code>appName</code></li>
+    <li><code>userName</code> (optional)</li>
+    <li><code>welcomeMessage</code> (optional)</li>
+    <li><code>ctaUrl</code> + <code>ctaText</code></li>
+    <li><code>supportEmail</code></li>
+    <li><code>helpCenterUrl</code> / <code>privacyPolicyUrl</code> / <code>unsubscribeUrl</code> (optional)</li>
+  </ul>
+</body>
+</html>

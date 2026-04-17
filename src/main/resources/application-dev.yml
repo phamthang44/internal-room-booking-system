@@ -1,6 +1,14 @@
 app:
   base-url: http://localhost:8080
   frontend-url: http://localhost:5173
+  name: room-booking
+  tagline: Room Booking System
+  support:
+    email: support@localhost
+  url: http://localhost:8080
+  mail:
+    from-email: ${MAIL_FROM_EMAIL:}
+    admin-email: ${MAIL_ADMIN_EMAIL:}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
 
@@ -11,6 +19,9 @@ jwt:
     public-path: classpath:certs/public.pem
   refresh:
     expiration: 2592000000 # 30 days in milliseconds
+
+cloudinary:
+  folder: ${CLOUDINARY_FOLDER:room-booking-uploads}
 
 spring:
   config:

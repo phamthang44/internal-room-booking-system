@@ -19,3 +19,22 @@ spring:
       force: true
   messages:
     encoding: UTF-8
+
+roombooking:
+  rabbitmq:
+    # 1. Exchange: Topic Exchange for the entire system
+    exchange: roombooking.core.exchange
+
+    # 2. Routing Keys: Binding patterns for internal consumers
+    routing-keys:
+      # Priority: security-sensitive emails (OTP, password reset, etc.)
+      pattern-email-priority: "notification.email.security.*"
+      # Normal: all other internal notification emails
+      pattern-email-normal: "notification.email.*"
+
+    # 3. Queues: Work mailboxes (Defined by consumers)
+    # Pattern: <module>.<action>.queue
+    queues:
+      # Unified Email Fast/Slow Lanes
+      email-priority: notification.send-email.priority.queue
+      email-normal: notification.send-email.normal.queue

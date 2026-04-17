@@ -1,0 +1,381 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans, Arial, sans-serif); }
+
+  .shell { padding: 1rem 0; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .tab-btn {
+    padding: 6px 13px; font-size: 12px; font-weight: 500; border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary, #ccc);
+    background: var(--color-background-primary, #fff);
+    color: var(--color-text-secondary, #555);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .tab-btn:hover { background: var(--color-background-secondary, #f5f5f5); }
+  .tab-btn.active {
+    color: var(--color-text-primary, #111);
+    border-color: var(--color-border-primary, #999);
+    background: var(--color-background-secondary, #f0f0f0);
+  }
+
+  .email-frame {
+    background: #f0f2f5;
+    border-radius: var(--border-radius-lg, 12px);
+    padding: 2rem 1rem;
+    border: 0.5px solid var(--color-border-tertiary, #e0e0e0);
+  }
+  .email-card {
+    max-width: 580px; margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #2c2c2a;
+    border: 0.5px solid #ddd;
+  }
+
+  .email-header {
+    padding: 28px 32px 24px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .email-brand {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; opacity: 0.55; color: #fff;
+  }
+  .email-icon-wrap {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 4px;
+  }
+  .email-header-title {
+    font-size: 20px; font-weight: 600; color: #fff; line-height: 1.3;
+  }
+  .email-header-sub {
+    font-size: 13px; color: rgba(255,255,255,0.75); margin-top: 2px;
+  }
+
+  .email-body { padding: 28px 32px; }
+  .greeting { font-size: 14px; color: #444; margin-bottom: 12px; }
+  .greeting b { color: #111; }
+  .intro { font-size: 14px; color: #555; margin-bottom: 20px; line-height: 1.65; }
+
+  .info-block {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    border: 0.5px solid #e8e9eb;
+  }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 7px 0; border-bottom: 0.5px solid #eee; gap: 12px;
+  }
+  .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .info-row:first-child { padding-top: 0; }
+  .info-label { font-size: 12px; color: #888; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; min-width: 90px; }
+  .info-value { font-size: 13px; color: #222; font-weight: 500; text-align: right; }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .cta-btn {
+    display: inline-block; padding: 11px 24px;
+    border-radius: 8px; font-size: 13px; font-weight: 600;
+    text-decoration: none; margin-top: 8px; margin-bottom: 4px;
+  }
+
+  .alert-box {
+    border-radius: 8px; padding: 14px 16px;
+    margin-bottom: 18px; font-size: 13px; line-height: 1.55;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .alert-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+  .divider { border: none; border-top: 0.5px solid #eee; margin: 20px 0; }
+
+  .footer {
+    padding: 18px 32px;
+    background: #fafafa;
+    border-top: 0.5px solid #eee;
+    text-align: center;
+  }
+  .footer p { font-size: 11px; color: #aaa; line-height: 1.6; }
+  .footer a { color: #888; text-decoration: underline; }
+
+  .timeline-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .tl-content { flex: 1; }
+  .tl-time { font-size: 11px; color: #aaa; font-weight: 500; text-transform: uppercase; }
+  .tl-label { font-size: 13px; color: #333; font-weight: 500; }
+
+  .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .slot-card {
+    border: 0.5px solid #e2e8f0; border-radius: 8px;
+    padding: 10px 12px; background: #fff; cursor: pointer;
+  }
+  .slot-time { font-size: 12px; font-weight: 600; color: #334155; }
+  .slot-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+  .conflict-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 0.5px solid #eee;
+  }
+  .conflict-item:last-child { border-bottom: none; }
+  .conflict-bar { width: 3px; border-radius: 2px; self-align: stretch; min-height: 36px; }
+</style>
+
+<div class="shell">
+  <div class="tabs" id="tabBar"></div>
+  <div class="email-frame">
+    <div class="email-card" id="emailContent"></div>
+  </div>
+</div>
+
+<script>
+const TEMPLATES = [
+  {
+    id: "BOOKING_CREATED",
+    label: "Created",
+    headerBg: "linear-gradient(135deg, #185FA5, #378ADD)",
+    headerBgSolid: "#185FA5",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>`,
+    title: "Booking confirmed",
+    subtitle: "Your room has been reserved",
+    render: () => `
+      <p class="greeting">Hello <b>Sarah Chen</b>,</p>
+      <p class="intro">Your booking request was approved and your room is reserved. Here's a summary of your reservation.</p>
+      <div class="info-block">
+        <div class="info-row"><span class="info-label">Booking ID</span><span class="info-value" style="color:#185FA5;font-family:monospace">#BK-20241015-047</span></div>
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value">Horizon Suite · Floor 3</span></div>
+        <div class="info-row"><span class="info-label">Date</span><span class="info-value">Monday, Oct 15, 2024</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value">10:00 AM – 11:30 AM</span></div>
+        <div class="info-row"><span class="info-label">Duration</span><span class="info-value">1 hr 30 min</span></div>
+        <div class="info-row"><span class="info-label">Attendees</span><span class="info-value">8 people</span></div>
+        <div class="info-row"><span class="info-label">Purpose</span><span class="info-value">Sprint planning</span></div>
+      </div>
+      <div style="margin-bottom:18px;">
+        <a class="cta-btn" style="background:#185FA5;color:#fff;">View booking details</a>
+      </div>
+      <p style="font-size:12px;color:#aaa;">Need to make changes? You can modify or cancel this booking up to 30 minutes before the scheduled time.</p>
+    `
+  },
+  {
+    id: "BOOKING_STATUS_UPDATED",
+    label: "Status updated",
+    headerBgSolid: "#3B6D11",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`,
+    title: "Booking status updated",
+    subtitle: "Something changed on your reservation",
+    render: () => `
+      <p class="greeting">Hello <b>James Park</b>,</p>
+      <p class="intro">The status of your booking has been updated by an administrator. Please review the changes below.</p>
+      <div class="info-block">
+        <div class="info-row"><span class="info-label">Booking ID</span><span class="info-value" style="color:#3B6D11;font-family:monospace">#BK-20241015-032</span></div>
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value">Zenith Room · Floor 2</span></div>
+        <div class="info-row"><span class="info-label">Date</span><span class="info-value">Wednesday, Oct 16, 2024</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value">2:00 PM – 3:00 PM</span></div>
+        <div class="info-row">
+          <span class="info-label">Status</span>
+          <span>
+            <span style="font-size:12px;color:#888;text-decoration:line-through;margin-right:6px;">Pending</span>
+            <span class="status-badge" style="background:#EAF3DE;color:#3B6D11;"><span class="badge-dot" style="background:#3B6D11;"></span>Approved</span>
+          </span>
+        </div>
+      </div>
+      <div class="alert-box" style="background:#EAF3DE;border:0.5px solid #C0DD97;">
+        <span class="alert-icon">&#10003;</span>
+        <div style="font-size:13px;color:#3B6D11;">Your booking has been approved by Admin. You're all set for your meeting on Wednesday.</div>
+      </div>
+      <a class="cta-btn" style="background:#3B6D11;color:#fff;">View updated booking</a>
+    `
+  },
+  {
+    id: "BOOKING_CANCELLED",
+    label: "Cancelled",
+    headerBgSolid: "#A32D2D",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    title: "Booking cancelled",
+    subtitle: "Your reservation has been removed",
+    render: () => `
+      <p class="greeting">Hello <b>Maria Santos</b>,</p>
+      <p class="intro">Your room booking has been cancelled. The time slot is now available for others to book.</p>
+      <div class="info-block" style="border-color:#f5c4b3;background:#fcebeb08;">
+        <div class="info-row"><span class="info-label">Booking ID</span><span class="info-value" style="color:#A32D2D;font-family:monospace;text-decoration:line-through">#BK-20241014-019</span></div>
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value" style="color:#aaa;text-decoration:line-through">Apex Suite · Floor 4</span></div>
+        <div class="info-row"><span class="info-label">Date</span><span class="info-value" style="color:#aaa;text-decoration:line-through">Tuesday, Oct 14, 2024</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value" style="color:#aaa;text-decoration:line-through">9:00 AM – 10:00 AM</span></div>
+        <div class="info-row"><span class="info-label">Cancelled by</span><span class="info-value">Admin · Oct 13, 2:45 PM</span></div>
+        <div class="info-row"><span class="info-label">Reason</span><span class="info-value">Facility maintenance</span></div>
+      </div>
+      <div class="alert-box" style="background:#FCEBEB;border:0.5px solid #F7C1C1;">
+        <span class="alert-icon" style="color:#A32D2D;">!</span>
+        <div style="font-size:13px;color:#791F1F;">If this cancellation was unexpected, please contact your administrator or rebook the room for a different time.</div>
+      </div>
+      <a class="cta-btn" style="background:#A32D2D;color:#fff;">Book another room</a>
+    `
+  },
+  {
+    id: "ROOM_AVAILABILITY_UPDATED",
+    label: "Room availability",
+    headerBgSolid: "#3C3489",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
+    title: "Room availability updated",
+    subtitle: "Changes affect your booking window",
+    render: () => `
+      <p class="greeting">Hello <b>David Nguyen</b>,</p>
+      <p class="intro">The availability schedule for <b>Nova Room · Floor 1</b> has been updated by admin. Affected time slots are listed below.</p>
+      <div class="info-block" style="margin-bottom:12px;">
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value">Nova Room · Floor 1</span></div>
+        <div class="info-row"><span class="info-label">Capacity</span><span class="info-value">12 people</span></div>
+        <div class="info-row"><span class="info-label">Effective from</span><span class="info-value">Mon, Oct 21, 2024</span></div>
+      </div>
+      <p style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Available slots</p>
+      <div class="slot-grid" style="margin-bottom:18px;">
+        <div class="slot-card"><div class="slot-time">9:00 – 10:00 AM</div><div class="slot-meta">Mon · Wed · Fri</div></div>
+        <div class="slot-card"><div class="slot-time">11:00 – 12:00 PM</div><div class="slot-meta">Mon – Fri</div></div>
+        <div class="slot-card"><div class="slot-time">2:00 – 3:30 PM</div><div class="slot-meta">Tue · Thu</div></div>
+        <div class="slot-card" style="opacity:.45;"><div class="slot-time" style="text-decoration:line-through">4:00 – 5:00 PM</div><div class="slot-meta" style="color:#e24b4a;">Removed</div></div>
+      </div>
+      <a class="cta-btn" style="background:#3C3489;color:#fff;">View full schedule</a>
+    `
+  },
+  {
+    id: "BOOKING_CONFLICT",
+    label: "Conflict",
+    headerBgSolid: "#854F0B",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    title: "Booking conflict detected",
+    subtitle: "Action required to resolve overlap",
+    render: () => `
+      <p class="greeting">Hello <b>Lin Wei</b>,</p>
+      <p class="intro">A scheduling conflict has been detected with your booking. Two reservations overlap for the same room. Please review and resolve this as soon as possible.</p>
+      <div class="alert-box" style="background:#FAEEDA;border:0.5px solid #FAC775;margin-bottom:18px;">
+        <span class="alert-icon" style="color:#854F0B;">&#9651;</span>
+        <div style="font-size:13px;color:#633806;">Conflict on <b>Thursday, Oct 17</b> between <b>3:00 PM – 4:00 PM</b> in <b>Summit Room · Floor 5</b>.</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div class="conflict-item">
+          <div class="conflict-bar" style="background:#185FA5;"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#222;">Your booking <span style="font-family:monospace;font-weight:400;color:#185FA5;">#BK-20241017-055</span></div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">Sprint Review · 3:00 PM – 4:30 PM · 12 attendees</div>
+          </div>
+        </div>
+        <div class="conflict-item">
+          <div class="conflict-bar" style="background:#A32D2D;"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#222;">Conflicting booking <span style="font-family:monospace;font-weight:400;color:#A32D2D;">#BK-20241017-048</span></div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">Design review · 3:00 PM – 4:00 PM · Alex Turner</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="cta-btn" style="background:#854F0B;color:#fff;padding:10px 18px;font-size:12px;">Reschedule my booking</a>
+        <a class="cta-btn" style="background:#fff;color:#854F0B;border:0.5px solid #854F0B;padding:10px 18px;font-size:12px;">Contact admin</a>
+      </div>
+    `
+  },
+  {
+    id: "BOOKING_REMINDER",
+    label: "Reminder",
+    headerBgSolid: "#0F6E56",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`,
+    title: "Reminder: your booking starts soon",
+    subtitle: "30 minutes until your meeting",
+    render: () => `
+      <p class="greeting">Hello <b>Tom Reyes</b>,</p>
+      <p class="intro">This is a friendly reminder that your room booking starts in <b>30 minutes</b>. Please make your way to the room on time.</p>
+      <div class="info-block">
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value">Crest Room · Floor 2</span></div>
+        <div class="info-row"><span class="info-label">Starts at</span><span class="info-value" style="color:#0F6E56;font-weight:700;">2:30 PM today</span></div>
+        <div class="info-row"><span class="info-label">Ends at</span><span class="info-value">3:30 PM</span></div>
+        <div class="info-row"><span class="info-label">Attendees</span><span class="info-value">6 people</span></div>
+        <div class="info-row"><span class="info-label">Access code</span><span class="info-value" style="font-family:monospace;color:#0F6E56;letter-spacing:.08em;">7824</span></div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <p style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Getting there</p>
+        <div class="timeline-row"><div class="tl-dot" style="background:#0F6E56;"></div><div class="tl-content"><div class="tl-time">Now</div><div class="tl-label">Head to Building B, Floor 2</div></div></div>
+        <div class="timeline-row"><div class="tl-dot" style="background:#5DCAA5;"></div><div class="tl-content"><div class="tl-time">On arrival</div><div class="tl-label">Tap your badge at door or enter code 7824</div></div></div>
+        <div class="timeline-row" style="margin-bottom:0;"><div class="tl-dot" style="background:#9FE1CB;"></div><div class="tl-content"><div class="tl-time">After meeting</div><div class="tl-label">Please leave room clean and restore equipment</div></div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="cta-btn" style="background:#0F6E56;color:#fff;padding:10px 18px;font-size:12px;">View details</a>
+        <a class="cta-btn" style="background:#fff;color:#A32D2D;border:0.5px solid #A32D2D;padding:10px 18px;font-size:12px;">Cancel booking</a>
+      </div>
+    `
+  },
+  {
+    id: "WAITLIST_AVAILABLE",
+    label: "Waitlist",
+    headerBgSolid: "#993556",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 21 7 17 3"/><line x1="21" y1="7" x2="9" y2="7"/><polyline points="7 21 3 17 7 13"/><line x1="15" y1="17" x2="3" y2="17"/></svg>`,
+    title: "A spot just opened up",
+    subtitle: "Claim your waitlisted room now",
+    render: () => `
+      <p class="greeting">Hello <b>Aisha Okonkwo</b>,</p>
+      <p class="intro">Great news! A room on your waitlist has become available. You have a limited window to claim your booking — act quickly before it expires.</p>
+      <div class="info-block" style="border-color:#F4C0D1;background:#FBEAF008;">
+        <div class="info-row"><span class="info-label">Room</span><span class="info-value">Pinnacle Room · Floor 3</span></div>
+        <div class="info-row"><span class="info-label">Date</span><span class="info-value">Friday, Oct 18, 2024</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value">11:00 AM – 12:00 PM</span></div>
+        <div class="info-row"><span class="info-label">Capacity</span><span class="info-value">10 people</span></div>
+        <div class="info-row"><span class="info-label">Waitlist pos.</span><span class="info-value" style="color:#993556;">#1 of 4 on waitlist</span></div>
+      </div>
+      <div class="alert-box" style="background:#FBEAF0;border:0.5px solid #F4C0D1;margin-bottom:18px;">
+        <span class="alert-icon" style="color:#993556;">&#9203;</span>
+        <div style="font-size:13px;color:#72243E;">This offer expires in <b>60 minutes</b>. If you don't confirm, the slot will be offered to the next person on the waitlist.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="cta-btn" style="background:#993556;color:#fff;padding:10px 18px;font-size:12px;">Confirm my booking</a>
+        <a class="cta-btn" style="background:#fff;color:#888;border:0.5px solid #ccc;padding:10px 18px;font-size:12px;">Skip this slot</a>
+      </div>
+    `
+  }
+];
+
+let active = 0;
+
+function renderTabs() {
+  const bar = document.getElementById("tabBar");
+  bar.innerHTML = TEMPLATES.map((t, i) =>
+    `<button class="tab-btn${i === active ? " active" : ""}" onclick="selectTab(${i})">${t.label}</button>`
+  ).join("");
+}
+
+function renderEmail() {
+  const t = TEMPLATES[active];
+  const card = document.getElementById("emailContent");
+  card.innerHTML = `
+    <div class="email-header" style="background:${t.headerBgSolid};">
+      <div class="email-brand">Room Booking System</div>
+      <div class="email-icon-wrap">${t.icon}</div>
+      <div class="email-header-title">${t.title}</div>
+      <div class="email-header-sub">${t.subtitle}</div>
+    </div>
+    <div class="email-body">
+      ${t.render()}
+    </div>
+    <div class="footer">
+      <p>This is an automated message from your Room Booking System.<br>
+      Do not reply to this email. <a href="#">Manage notifications</a> · <a href="#">Help center</a></p>
+      <p style="margin-top:6px;">© 2024 Your Company · Internal Use Only</p>
+    </div>
+  `;
+}
+
+function selectTab(i) {
+  active = i;
+  renderTabs();
+  renderEmail();
+}
+
+renderTabs();
+renderEmail();
+</script>
