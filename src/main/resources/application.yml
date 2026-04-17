@@ -31,6 +31,8 @@ roombooking:
       pattern-email-priority: "notification.email.security.*"
       # Normal: all other internal notification emails
       pattern-email-normal: "notification.email.*"
+      # Booking: booking lifecycle emails (create/approve/reject/cancel)
+      pattern-email-booking: "notification.email.booking.*"
 
     # 3. Queues: Work mailboxes (Defined by consumers)
     # Pattern: <module>.<action>.queue
@@ -38,3 +40,5 @@ roombooking:
       # Unified Email Fast/Slow Lanes
       email-priority: notification.send-email.priority.queue
       email-normal: notification.send-email.normal.queue
+      # Booking notification mailbox (separate to avoid payload type mixing)
+      email-booking: notification.send-email.booking.queue

@@ -21,6 +21,9 @@ jwt:
     expiration: 2592000000 # 30 days in milliseconds
 
 cloudinary:
+  cloudName: ${CLOUDINARY_CLOUD_NAME}
+  apiKey: ${CLOUDINARY_API_KEY}
+  apiSecret: ${CLOUDINARY_API_SECRET}
   folder: ${CLOUDINARY_FOLDER:room-booking-uploads}
 
 spring:
@@ -40,6 +43,15 @@ spring:
     url: jdbc:postgresql://localhost:5432/room_booking_db?stringtype=unspecified
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:root}
+
+  mail:
+    host: localhost
+    port: 1025
+    username: "noreply@greenwich.com"
+    password: ""
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
 
   flyway:
     enabled: true
