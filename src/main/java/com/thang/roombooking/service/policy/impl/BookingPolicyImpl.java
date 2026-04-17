@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.*;
 import java.util.List;
+import java.util.Set;
 
 import static com.thang.roombooking.common.constant.TimeConstant.CLOSING_TIME;
 import static com.thang.roombooking.common.constant.TimeConstant.OPENING_TIME;
@@ -29,17 +30,17 @@ public class BookingPolicyImpl implements BookingPolicy {
 
     @Override
     public void validateQuotaPolicy(Long userId, LocalDate date, int requestedSlots) {
-        // Đếm số slot User đã đặt trong ngày hôm đó
-        // Chỉ tin vào bảng Bookings - Nơi lưu giữ sự thật
-        long bookedToday = bookingRepository.countByUserIdAndBookingDateAndStatusIn(
+        // Count number of reserved time-slots (not number of bookings).
+        // This prevents users from bypassing quota by creating bookings in other rooms.
+        long bookedTodaySlots = bookingRepository.countBookedSlotsByUserAndDateAndStatuses(
                 userId,
                 date,
-                List.of(BookingStatus.PENDING, BookingStatus.APPROVED) // Chỉ tính đơn còn hiệu lực
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN) // active bookings
         );
 
         int maxQuota = 2;
         // Quy tắc: tối đa 2 slots (tương đương 4 tiếng) mỗi ngày
-        if (bookedToday + requestedSlots > maxQuota) {
+        if (bookedTodaySlots + requestedSlots > maxQuota) {
             throw new AppException(BookingErrorCode.BOOKING_QUOTA_EXCEEDED, maxQuota, 1);
         }
     }
@@ -63,6 +64,25 @@ public class BookingPolicyImpl implements BookingPolicy {
         if (now.isBefore(OPENING_TIME) || now.isAfter(CLOSING_TIME)) {
             throw new AppException(BookingErrorCode.BOOKING_OUT_OF_WORKING_HOURS,
                     OPENING_TIME, CLOSING_TIME);
+        }
+    }
+
+    @Override
+    public void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds) {
+        if (requestedTimeSlotIds == null || requestedTimeSlotIds.isEmpty()) return;
+
+        Set<Integer> activeSlotIds = bookingRepository.findActiveSlotIdsByUserAndDateAndStatuses(
+                userId,
+                bookingDate,
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN)
+        );
+
+        if (activeSlotIds == null || activeSlotIds.isEmpty()) return;
+
+        for (Integer requested : requestedTimeSlotIds) {
+            if (requested != null && activeSlotIds.contains(requested)) {
+                throw new AppException(BookingErrorCode.BOOKING_USER_DAILY_SLOT_CONFLICT);
+            }
         }
     }
 

@@ -60,6 +60,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
             // 2. Policy Quota & Penalty
             bookingPolicyManager.validatePenalty(currentUser.getId()); //TODO: tạm thời luôn cho qua chưa tính tới
+            bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
             bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
 
             // 3. Lấy thực thể TimeSlot (Dùng chung một hàm List cho gọn)

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,11 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     @Override
     public void validatePenalty(Long userId) {
         // TODO tạm thời bỏ qua tính năng policy này
+    }
+
+    @Override
+    public void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds) {
+        bookingPolicy.validateNoOverlappingActiveBookings(userId, bookingDate, requestedTimeSlotIds);
     }
 
     @Override

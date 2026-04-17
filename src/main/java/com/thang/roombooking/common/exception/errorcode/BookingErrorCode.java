@@ -22,6 +22,7 @@ public enum BookingErrorCode implements BaseErrorCode {
     // Nhóm Quota & Penalty Policy (Hạn mức và Vi phạm)
     BOOKING_QUOTA_EXCEEDED(HttpStatus.BAD_REQUEST, "BK_004", "error.booking.quota_exceeded"),
     BOOKING_USER_RESTRICTED(HttpStatus.FORBIDDEN, "BK_005", "error.booking.user_is_blacklisted"),
+    BOOKING_USER_DAILY_SLOT_CONFLICT(HttpStatus.CONFLICT, "BK_023", "error.booking.user_daily_slot_conflict"),
 
     // Nhóm Check-in Policy (Luồng vận hành)
     BOOKING_CHECK_IN_TOO_EARLY(HttpStatus.BAD_REQUEST, "BK_006", "error.booking.check_in_too_early"),

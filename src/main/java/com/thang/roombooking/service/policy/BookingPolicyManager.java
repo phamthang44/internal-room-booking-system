@@ -5,6 +5,7 @@ import com.thang.roombooking.common.enums.BookingStatus;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 public interface BookingPolicyManager {
@@ -14,6 +15,8 @@ public interface BookingPolicyManager {
     void validateQuotaPolicy(Long userId, LocalDate date, int requestedSlots);
 
     void validatePenalty(Long userId);
+
+    void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
 
     void validateCheckInTimePolicy(Instant bookingStartTime);
 

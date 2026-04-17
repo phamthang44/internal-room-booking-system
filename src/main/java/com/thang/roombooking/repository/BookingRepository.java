@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.time.Instant;
+import java.util.Set;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
@@ -30,6 +31,31 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     long countByUserIdAndBookingDateAndStatusNot(Long userId, LocalDate date, BookingStatus bookingStatus);
 
     long countByUserIdAndBookingDateAndStatusIn(Long userId, LocalDate date, List<BookingStatus> bookingStatuses);
+
+    @Query("""
+        SELECT COUNT(DISTINCT bts.id)
+        FROM Booking b
+        JOIN b.bookingTimeSlots bts
+        WHERE b.user.id = :userId
+          AND b.bookingDate = :date
+          AND b.status IN :statuses
+        """)
+    long countBookedSlotsByUserAndDateAndStatuses(@Param("userId") Long userId,
+                                                  @Param("date") LocalDate date,
+                                                  @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+        SELECT DISTINCT ts.id
+        FROM Booking b
+        JOIN b.bookingTimeSlots bts
+        JOIN bts.timeSlot ts
+        WHERE b.user.id = :userId
+          AND b.bookingDate = :date
+          AND b.status IN :statuses
+        """)
+    Set<Integer> findActiveSlotIdsByUserAndDateAndStatuses(@Param("userId") Long userId,
+                                                           @Param("date") LocalDate date,
+                                                           @Param("statuses") List<BookingStatus> statuses);
 
     @Modifying
     @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
@@ -124,7 +150,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     JOIN b.classroom c
     WHERE b.user.id = :userId
     AND b.bookingDate >= :today
-    AND b.status IN ('APPROVED', 'PENDING')
+    AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')
     ORDER BY b.bookingDate ASC
     """)
     List<BookingSummaryResponse> findUpcomingBookings(Long userId, LocalDate today);
@@ -142,7 +168,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
         FROM Booking b
         WHERE b.user.id = :userId
         AND b.bookingDate >= :today
-        AND b.status IN ('APPROVED', 'PENDING')
+        AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')
         """)
     Long countUpcomingByUser(Long userId, LocalDate today);
 
@@ -167,7 +193,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     JOIN FETCH b.classroom c 
     WHERE b.user.id = :userId 
     AND b.bookingDate >= :today 
-    AND b.status IN ('APPROVED', 'PENDING')
+    AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')
     ORDER BY b.bookingDate ASC
     """)
     List<Booking> findUpcomingBookings(@Param("userId") Long userId, @Param("today") LocalDate today, Pageable pageable);
