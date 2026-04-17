@@ -56,6 +56,8 @@ public interface BookingMapper {
     @Mapping(target = "purpose",         source = "purpose")
     @Mapping(target = "attendees",       source = "attendees")   // no attendees column on Booking; set via @AfterMapping
     @Mapping(target = "status",          source = "status")
+    @Mapping(target = "checkinTime",     source = "checkinTime")
+    @Mapping(target = "checkoutTime",    source = "checkoutTime")
     @Mapping(target = "timeSlots",       ignore = true)   // translated & set explicitly in BookingQueryServiceImpl
     @Mapping(target = "bookingHistorySummaryResponses", ignore = true)   // populated by service layer after separate query
     BookingDetailResponse toBookingDetailResponse(Booking booking, @Context Map<String, String> translations);

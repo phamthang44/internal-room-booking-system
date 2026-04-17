@@ -19,5 +19,7 @@ public class DetailClassroomResponse {
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;
+    private List<String> imageUrls;
+    private List<RoomAssetResponse> roomAssets;
 
 }

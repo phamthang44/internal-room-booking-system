@@ -8,6 +8,8 @@ import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.entity.*;
 import org.mapstruct.*;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {EquipmentMapper.class})
@@ -33,6 +35,21 @@ public interface ClassroomMapper {
                 response.setRoomType(translations.get(key));
             }
         }
+
+        // Primary image for list cards
+        if (classroom.getRoomAssets() != null && !classroom.getRoomAssets().isEmpty()) {
+            List<RoomAsset> images = classroom.getRoomAssets().stream()
+                    .filter(a -> a.getAssetType() == null || a.getAssetType() == AssetType.IMAGE)
+                    .sorted(Comparator
+                            .comparing((RoomAsset a) -> Boolean.TRUE.equals(a.getIsPrimary()))
+                            .reversed()
+                            .thenComparing(a -> a.getId() == null ? Long.MAX_VALUE : a.getId()))
+                    .toList();
+
+            if (!images.isEmpty()) {
+                response.setImageUrl(images.get(0).getUrl());
+            }
+        }
     }
 
     @Mapping(target = "roomAssets", ignore = true)
@@ -55,14 +72,15 @@ public interface ClassroomMapper {
 
         // 2. Map RoomAssets từ imageUrls (Dùng method addAsset đã có trong Entity để sync 2 chiều)
         if (request.imageUrls() != null) {
-            request.imageUrls().forEach(url -> {
+            for (int i = 0; i < request.imageUrls().size(); i++) {
+                String url = request.imageUrls().get(i);
                 RoomAsset asset = RoomAsset.builder()
                         .url(url)
                         .assetType(AssetType.IMAGE)
-                        .isPrimary(false)
+                        .isPrimary(i == 0)
                         .build();
                 classroom.addAsset(asset); // Tận dụng method addAsset
-            });
+            }
         }
     }
 }

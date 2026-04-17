@@ -4,6 +4,7 @@ import com.thang.roombooking.common.dto.response.ClassroomAvailabilityResponse;
 import com.thang.roombooking.common.dto.response.DateAvailability;
 import com.thang.roombooking.common.dto.response.SlotStatus;
 import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.common.enums.SlotBookingStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.utils.TranslationKeyBuilder;
 import com.thang.roombooking.entity.Booking;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,16 +44,21 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             availabilityMap.put(date, createDailySlots(allSlots, translations));
         }
 
-        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING);
+        // NOTE: include CHECKED_IN so we can render IN_USE for active sessions.
+        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING, BookingStatus.CHECKED_IN);
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomAndDateRange(
                 classroomId, startDate, endDate, blockingStatuses
         );
+
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDate today = LocalDate.now(vnZone);
+        LocalTime nowTime = LocalTime.now(vnZone);
 
         for (Booking booking : overlappingBookings) {
             LocalDate bDate = booking.getBookingDate();
             List<SlotStatus> daySlots = availabilityMap.get(bDate);
             if (daySlots != null) {
-                applyBookingToDaySlots(booking, daySlots);
+                applyBookingToDaySlots(booking, daySlots, bDate, today, nowTime);
             }
         }
 
@@ -72,16 +80,21 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             bulkMap.put(cId, new DateAvailability(date, createDailySlots(allSlots, translations)));
         }
 
-        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING);
+        // NOTE: include CHECKED_IN so we can render IN_USE for active sessions.
+        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING, BookingStatus.CHECKED_IN);
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomIdsAndDate(
                 classroomIds, date, blockingStatuses
         );
+
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDate today = LocalDate.now(vnZone);
+        LocalTime nowTime = LocalTime.now(vnZone);
 
         for (Booking booking : overlappingBookings) {
             Long cId = booking.getClassroom().getId();
             DateAvailability classroomDateGrid = bulkMap.get(cId);
             if (classroomDateGrid != null) {
-                applyBookingToDaySlots(booking, classroomDateGrid.slots());
+                applyBookingToDaySlots(booking, classroomDateGrid.slots(), date, today, nowTime);
             }
         }
 
@@ -114,7 +127,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                     translatedSlotName,
                     slot.getStartTime(),
                     slot.getEndTime(),
-                    "AVAILABLE",
+                    SlotBookingStatus.AVAILABLE,
                     true,
                     null
             ));
@@ -122,18 +135,42 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         return dailySlots;
     }
 
-    private void applyBookingToDaySlots(Booking booking, List<SlotStatus> daySlots) {
+    private void applyBookingToDaySlots(
+            Booking booking,
+            List<SlotStatus> daySlots,
+            LocalDate bookingDate,
+            LocalDate today,
+            LocalTime nowTime
+    ) {
         booking.getBookingTimeSlots().forEach(bts -> {
             Long bSlotId = Long.valueOf(bts.getTimeSlot().getId());
+            LocalTime slotStart = bts.getTimeSlot().getStartTime();
+            LocalTime slotEnd = bts.getTimeSlot().getEndTime();
+
+            if (booking.getStatus() == BookingStatus.CHECKED_IN) {
+                // Do not block if already checked out
+                if (booking.getCheckoutTime() != null) return;
+                // Only show IN_USE for today's active time window
+                if (!Objects.equals(bookingDate, today)) return;
+                boolean inUseNow =
+                        (nowTime.equals(slotStart) || nowTime.isAfter(slotStart))
+                                && nowTime.isBefore(slotEnd);
+                if (!inUseNow) return;
+            }
+
             for (int i = 0; i < daySlots.size(); i++) {
                 SlotStatus current = daySlots.get(i);
                 if (current.slotId().equals(bSlotId)) {
+                    SlotBookingStatus statusLabel =
+                            booking.getStatus() == BookingStatus.CHECKED_IN
+                                    ? SlotBookingStatus.IN_USE
+                                    : SlotBookingStatus.valueOf(booking.getStatus().name());
                     daySlots.set(i, new SlotStatus(
                             current.slotId(),
                             current.slotName(),
                             current.startTime(),
                             current.endTime(),
-                            booking.getStatus().name(),
+                            statusLabel,
                             false,
                             booking.getId()
                     ));

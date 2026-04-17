@@ -38,6 +38,7 @@ public enum BookingErrorCode implements BaseErrorCode {
     BOOKING_NOT_FOUND(HttpStatus.NOT_FOUND, "BK_011", "error.booking.not_found"),
     BOOKING_NOT_APPROVED(HttpStatus.BAD_REQUEST, "BK_012", "error.booking.not_approved"),
     BOOKING_ALREADY_CHECKED_IN(HttpStatus.BAD_REQUEST, "BK_013", "error.booking.already_checked_in"),
+    BOOKING_NOT_CHECKED_IN(HttpStatus.BAD_REQUEST, "BK_022", "error.booking.not_checked_in"),
     BOOKING_ACCESS_DENIED(HttpStatus.FORBIDDEN, "BK_014", "error.booking.access_denied"),
     BOOKING_CHECK_IN_WRONG_DATE(HttpStatus.BAD_REQUEST, "BK_015", "error.booking.check_in_wrong_date"),
 

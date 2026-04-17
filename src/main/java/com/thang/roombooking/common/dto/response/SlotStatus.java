@@ -1,5 +1,7 @@
 package com.thang.roombooking.common.dto.response;
 
+import com.thang.roombooking.common.enums.SlotBookingStatus;
+
 import java.time.LocalTime;
 
 public record SlotStatus(
@@ -7,7 +9,7 @@ public record SlotStatus(
         String slotName,
         LocalTime startTime,
         LocalTime endTime,
-        String status,
+        SlotBookingStatus status,
         boolean isAvailable, // Quan trọng nhất để FE render màu xanh/đỏ
         Long currentBookingId // (Optional) Để Admin biết ai đang chiếm chỗ
 ) {}

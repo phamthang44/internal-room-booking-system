@@ -13,8 +13,10 @@ import com.thang.roombooking.common.mapper.RoomTypeMapper;
 import com.thang.roombooking.common.search.ClassroomFields;
 import com.thang.roombooking.common.search.GenericSpecificationBuilder;
 import com.thang.roombooking.common.search.SearchOperation;
+import com.thang.roombooking.common.enums.AssetType;
 import com.thang.roombooking.entity.Classroom;
 import com.thang.roombooking.entity.ClassroomEquipment;
+import com.thang.roombooking.entity.RoomAsset;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.service.AvailabilityService;
 import com.thang.roombooking.service.ClassroomQueryService;
@@ -175,6 +177,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
 
     private DetailClassroomResponse buildClientDetailResponse(Classroom classroom,  Map<String, String> translations, ClassroomAvailabilityResponse schedule) {
+        List<RoomAssetResponse> roomAssets = mapRoomAssets(classroom);
+        List<String> imageUrls = deriveImageUrls(roomAssets);
         return DetailClassroomResponse.builder()
                 .classroomId(classroom.getId())
                 .building(buildingMapper.toBasicBuildingResponse(
@@ -193,6 +197,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 )
                 .roomType(roomTypeMapper.toBasicRoomTypeResponse(
                         classroom.getRoomType(), translations))
+                .roomAssets(roomAssets)
+                .imageUrls(imageUrls)
                 .build();
     }
 
@@ -201,6 +207,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
             Map<String, String> translations,
             ClassroomAvailabilityResponse schedule
     ) {
+        List<RoomAssetResponse> roomAssets = mapRoomAssets(classroom);
+        List<String> imageUrls = deriveImageUrls(roomAssets);
 
         return AdminDetailClassroomResponse.builder()
                 .building(buildingMapper.toBasicBuildingResponse(
@@ -219,6 +227,8 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 )
                 .roomType(roomTypeMapper.toBasicRoomTypeResponse(
                         classroom.getRoomType(), translations))
+                .roomAssets(roomAssets)
+                .imageUrls(imageUrls)
                 .auditResponse(
                         AuditResponse.builder()
                                 .createdAt(classroom.getCreatedAt())
@@ -230,12 +240,38 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 .build();
     }
 
-    private List<Instant> getAvailableDates(Long classroomId) {
-        return List.of(); // TODO query booking / schedule
+    private List<RoomAssetResponse> mapRoomAssets(Classroom classroom) {
+        if (classroom.getRoomAssets() == null || classroom.getRoomAssets().isEmpty()) return List.of();
+
+        return classroom.getRoomAssets().stream()
+                .map(this::toRoomAssetResponse)
+                .sorted(Comparator
+                        .comparing((RoomAssetResponse a) -> a.isPrimary() != null && a.isPrimary())
+                        .reversed()
+                        .thenComparing(a -> a.id() == null ? Long.MAX_VALUE : a.id()))
+                .toList();
     }
 
-    private List<TimeSlotResponse> getTimeSlots(Long classroomId) {
-        return List.of(); // TODO query schedule
+    private RoomAssetResponse toRoomAssetResponse(RoomAsset asset) {
+        return RoomAssetResponse.builder()
+                .id(asset.getId())
+                .url(asset.getUrl())
+                .assetType(asset.getAssetType())
+                .isPrimary(asset.getIsPrimary())
+                .build();
+    }
+
+    private List<String> deriveImageUrls(List<RoomAssetResponse> roomAssets) {
+        if (roomAssets == null || roomAssets.isEmpty()) return List.of();
+        return roomAssets.stream()
+                .filter(a -> a.assetType() == null || a.assetType() == AssetType.IMAGE)
+                .map(RoomAssetResponse::url)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private List<Instant> getAvailableDates(Long classroomId) {
+        return List.of(); // TODO query booking / schedule
     }
 
     /**

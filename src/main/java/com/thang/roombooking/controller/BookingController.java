@@ -3,6 +3,7 @@ package com.thang.roombooking.controller;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
 import com.thang.roombooking.common.dto.request.CancelBookingRequest;
 import com.thang.roombooking.common.dto.request.CheckInRequest;
+import com.thang.roombooking.common.dto.request.CheckoutRequest;
 import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.BookingDetailResponse;
@@ -66,6 +67,24 @@ public class BookingController {
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.checkin.success"))
+        );
+    }
+
+    // ── CHECK-OUT ────────────────────────────────────────────────────────────
+
+    @Idempotent(keyPrefix = "booking-checkout")
+    @PatchMapping("/checkout")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResult<String>> checkout(
+            @Valid @RequestBody CheckoutRequest req,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Received request to checkout booking id {}, student id {}",
+                req.bookingId(), userDetails.getUser().getEmail());
+
+        bookingCommandService.checkout(req, userDetails.getUser());
+
+        return ResponseEntity.status(HttpStatus.OK).body(
+                ApiResult.success(I18nUtils.get("booking.checkout.success"))
         );
     }
 

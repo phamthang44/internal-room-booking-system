@@ -137,6 +137,31 @@ public class Classroom extends BaseSoftDeleteEntity<Long> {
                             .build();
                     this.addAsset(newAsset); // Sử dụng helper method để sync 2 chiều
                 });
+
+        // 4. Ensure exactly one primary image (prefer existing primary if still present)
+        if (!this.roomAssets.isEmpty()) {
+            boolean hasPrimary = this.roomAssets.stream()
+                    .anyMatch(a -> Boolean.TRUE.equals(a.getIsPrimary()));
+
+            if (!hasPrimary) {
+                String primaryUrl = newUrls.isEmpty() ? null : newUrls.get(0);
+                if (primaryUrl != null) {
+                    this.roomAssets.forEach(a -> a.setIsPrimary(primaryUrl.equals(a.getUrl())));
+                }
+            } else {
+                // If multiple primaries exist (bad legacy data), keep the first and clear others.
+                boolean kept = false;
+                for (RoomAsset a : this.roomAssets) {
+                    if (Boolean.TRUE.equals(a.getIsPrimary())) {
+                        if (!kept) {
+                            kept = true;
+                        } else {
+                            a.setIsPrimary(false);
+                        }
+                    }
+                }
+            }
+        }
     }
 
 

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.time.Instant;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
@@ -46,11 +47,43 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                             @Param("expectedVersion") Integer expectedVersion);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.version = b.version + 1 " +
+    @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.checkinTime = :checkinTime, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'APPROVED' " + // Chỉ cho phép check-in khi đã được duyệt
             "AND b.version = :version")    // Chống duplicate/conflict request
-    int atomicCheckIn(Long id, Integer version);
+    int atomicCheckIn(@Param("id") Long id,
+                      @Param("checkinTime") Instant checkinTime,
+                      @Param("version") Integer version);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.checkoutTime = :checkoutTime, b.version = b.version + 1 " +
+            "WHERE b.id = :id " +
+            "AND b.status = 'CHECKED_IN' " +
+            "AND b.checkoutTime IS NULL " +
+            "AND b.version = :version")
+    int atomicCheckout(@Param("id") Long id,
+                       @Param("checkoutTime") Instant checkoutTime,
+                       @Param("version") Integer version);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = 'COMPLETED', b.checkoutTime = :checkoutTime, b.version = b.version + 1 " +
+            "WHERE b.id = :id " +
+            "AND b.status = 'CHECKED_IN' " +
+            "AND b.checkoutTime IS NULL " +
+            "AND b.version = :version")
+    int atomicCheckoutToCompleted(@Param("id") Long id,
+                                  @Param("checkoutTime") Instant checkoutTime,
+                                  @Param("version") Integer version);
+
+    @Query("""
+    SELECT b FROM Booking b
+    WHERE b.status = :status
+      AND b.checkoutTime IS NULL
+      AND (b.bookingDate < :today OR (b.bookingDate = :today AND b.endTime <= :thresholdTime))
+    """)
+    List<Booking> findCheckedInBookingsToAutoCheckout(@Param("status") BookingStatus status,
+                                                      @Param("today") LocalDate today,
+                                                      @Param("thresholdTime") LocalTime thresholdTime);
 
     @Query("""
     SELECT b FROM Booking b\s

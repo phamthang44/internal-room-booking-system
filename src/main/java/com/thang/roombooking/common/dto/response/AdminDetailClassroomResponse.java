@@ -19,6 +19,8 @@ public class AdminDetailClassroomResponse {
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;
     private BasicRoomTypeResponse roomType;
+    private List<String> imageUrls;
+    private List<RoomAssetResponse> roomAssets;
 
     //audit
     private AuditResponse auditResponse;

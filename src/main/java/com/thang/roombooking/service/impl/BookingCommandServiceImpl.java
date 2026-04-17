@@ -3,6 +3,7 @@ package com.thang.roombooking.service.impl;
 import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.request.BookingApprovalRequest;
 import com.thang.roombooking.common.dto.request.CheckInRequest;
+import com.thang.roombooking.common.dto.request.CheckoutRequest;
 import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
 import com.thang.roombooking.common.enums.BookingAction;
@@ -131,8 +132,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         log.info("{} | Check in Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
         try {
-            bookingPolicyManager.validateCheckInTimePolicy(request.checkInTime());
-            // lấy booking và time slots
+            // 1) Load booking first (we must validate against the booking's scheduled start, not the client's checkInTime)
             Booking booking = bookingRepository.findById(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
@@ -143,6 +143,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
+            // 2) Validate check-in time window against the booking's start date-time (VN timezone)
+            ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+            LocalDateTime startDateTime = booking.getBookingDate().atTime(booking.getStartTime());
+            Instant startInstant = startDateTime.atZone(vnZone).toInstant();
+            bookingPolicyManager.validateCheckInTimePolicy(startInstant);
+
             //List<TimeSlot> slots = booking.getBookingTimeSlots().stream()
                     //.map(BookingTimeSlot::getTimeSlot)
                     //.sorted(Comparator.comparing(TimeSlot::getStartTime))
@@ -152,7 +158,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             //TimeSlot targetSlot = bookingValidatorService.validateAndGetTargetSlot(slots, booking.getBookingDate(), LocalTime.now());
 
             // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
-            int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), booking.getVersion());
+            Instant checkinTime = request.checkInTime() != null ? request.checkInTime() : Instant.now();
+            int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), checkinTime, booking.getVersion());
 
             if (updatedRows == 0) {
                 // Nếu đã CHECKED_IN rồi thì status không còn là APPROVED -> updatedRows = 0
@@ -177,6 +184,50 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             throw e;
         } catch (Exception e) {
             log.error("{} | Unexpected error during booking checkin for User: {}", LogConstant.SYS_ERROR,
+                    currentUser.getId(), e);
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void checkout(CheckoutRequest request, UserAccount currentUser) {
+        log.info("{} | Checkout Booking | User: {} | Data: {}",
+                LogConstant.ACTION_START, currentUser.getId(), request);
+        try {
+            Booking booking = bookingRepository.findById(request.bookingId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            if (!booking.getUser().getId().equals(currentUser.getId())) {
+                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+            }
+
+            if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+                throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
+            }
+
+            Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
+            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, booking.getVersion());
+            if (updatedRows == 0) {
+                // already checked out or version mismatch
+                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+            }
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    booking,
+                    BookingStatus.COMPLETED,
+                    BookingAction.CHECK_OUT.name(),
+                    currentUser.getEmail(),
+                    "booking.checkout.reason.success"
+            ));
+
+            log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
+        } catch (AppException e) {
+            log.warn("{}: Failed to checkout booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
+                    currentUser.getId(), e.getErrorCode());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Unexpected error during booking checkout for User: {}", LogConstant.SYS_ERROR,
                     currentUser.getId(), e);
             throw e;
         }
@@ -217,7 +268,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     currentUser.getEmail(),
                     "booking.approve.reason.staff"
             ));
-            // TODO: Gửi RabbitMQ/WebSocket tại đây
             return approvedBooking.getId();
         } catch (AppException e) {
             log.warn("{}: Failed to approve | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
@@ -260,7 +310,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     "SYSTEM",
                     "booking.cancel.reason.no_show"
             ));
-            // TODO: Bắn notification báo cho sinh viên là đơn đã bị hủy do đi muộn
         }
     }
 
@@ -283,6 +332,26 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     "SYSTEM",
                     "booking.reject.reason.overtime"
             ));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void autoCheckoutExpiredBooking(Booking booking) {
+        // Best-effort: checkoutTime = now (server time)
+        try {
+            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), Instant.now(), booking.getVersion());
+            if (updatedRows > 0) {
+                eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                        booking,
+                        BookingStatus.COMPLETED,
+                        BookingAction.CHECK_OUT.name(),
+                        "SYSTEM",
+                        "booking.checkout.reason.auto"
+                ));
+            }
+        } catch (Exception e) {
+            log.error("{} | autoCheckout failed for booking {}: {}", LogConstant.SYS_ERROR, booking.getId(), e.getMessage());
         }
     }
 
@@ -329,7 +398,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         booking.getCancelledBy() // này do lí do cancel chứ ta ?
                 ));
             }
-            //TODO: bắn message với message "booking.status.cancelled"
         } catch (AppException e) {
             log.warn("{} | cancelBooking | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
             throw e;

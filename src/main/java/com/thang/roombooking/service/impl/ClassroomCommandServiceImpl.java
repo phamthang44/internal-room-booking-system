@@ -14,6 +14,7 @@ import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.mapper.ClassroomMapper;
 import com.thang.roombooking.entity.*;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
+import com.thang.roombooking.infrastructure.storage.FileStorageService;
 import com.thang.roombooking.repository.*;
 import com.thang.roombooking.service.ClassroomCommandService;
 import com.thang.roombooking.service.ClassroomValidatorService;
@@ -39,6 +40,7 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
     private final ClassroomValidatorService classroomValidatorService;
     private final ClassroomMapper classroomMapper;
     private final EquipmentRepository equipmentRepository;
+    private final FileStorageService fileStorageService;
 
     private final RoomPolicyFactory policyFactory;
 
@@ -58,6 +60,7 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
                     req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE, req.imageUrls());
 
             Classroom saved = classroomRepository.save(classroom);
+            fileStorageService.confirmFiles(req.imageUrls());
             log.info("{} | Created Classroom Success: {}", LogConstant.ACTION_SUCCESS, saved.getRoomName());
             return classroomMapper.toCreateClassroomResponse(saved);
         } catch (AppException e) {
@@ -117,6 +120,7 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
                     req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE, req.imageUrls());
 
             Classroom saved = classroomRepository.save(existingClassroom);
+            fileStorageService.confirmFiles(req.imageUrls());
             log.info("{} | Updated Classroom ID Success: {}", LogConstant.ACTION_SUCCESS, saved.getId());
             return classroomMapper.toUpdateClassroomResponse(saved);
         } catch (AppException e) {

@@ -4,6 +4,7 @@ import com.thang.roombooking.common.enums.BookingStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -47,6 +48,12 @@ public class BookingDetailResponse {
 
     @Schema(description = "Current booking status")
     private BookingStatus status;
+
+    @Schema(description = "Actual check-in time (Instant ISO-8601)", example = "2026-04-17T13:45:37.404Z")
+    private Instant checkinTime;
+
+    @Schema(description = "Actual check-out time (Instant ISO-8601)", example = "2026-04-17T15:45:37.404Z")
+    private Instant checkoutTime;
 
     // ── Audit history ─────────────────────────────────────────────
     @Schema(description = "Approval audit history (may be empty for PENDING bookings)")

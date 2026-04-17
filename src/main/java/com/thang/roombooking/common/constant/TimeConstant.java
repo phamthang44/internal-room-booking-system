@@ -6,8 +6,8 @@ public class TimeConstant {
 
     private TimeConstant() {}
 
-    public static LocalTime OPENING_TIME = LocalTime.of(6, 30);
+    public static final LocalTime OPENING_TIME = LocalTime.of(6, 30);
 
-    public static LocalTime CLOSING_TIME = LocalTime.of(17, 30);
+    public static final LocalTime CLOSING_TIME = LocalTime.of(17, 30);
 
 }

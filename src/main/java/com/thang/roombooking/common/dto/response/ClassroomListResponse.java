@@ -22,4 +22,5 @@ public class ClassroomListResponse {
     // Added metrics for schedule checking directly in Public List queries
     private boolean isAvailableForQuery;
     private DateAvailability dailySchedule;
+    private String imageUrl;
 }
