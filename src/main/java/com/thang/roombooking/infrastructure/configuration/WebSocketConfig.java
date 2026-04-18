@@ -12,8 +12,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Define the WebSocket endpoint that the client will use to connect to the server
-        registry.addEndpoint("/chat").withSockJS();
+        // Allows raw WebSocket connections (ws://localhost:8080/api/chat) from frontend
+        registry.addEndpoint("/api/chat")
+                .setAllowedOriginPatterns("*");
+
+        // Allows SockJS fallback over HTTP (http://localhost:8080/api/chat)
+        registry.addEndpoint("/api/chat")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
+                
+        // Allows raw WebSocket connections explicitly at /ws (which the frontend actually calls)
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");
+                
+        // Also support SockJS at /ws
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 
     @Override
@@ -22,4 +37,4 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         config.enableSimpleBroker("/topic");
         config.setApplicationDestinationPrefixes("/app");
     }
-}
+}   

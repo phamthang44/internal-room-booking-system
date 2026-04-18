@@ -1,5 +1,6 @@
 package com.thang.roombooking.common.dto.response;
 
+import com.thang.roombooking.common.enums.RoomStatus;
 import lombok.*;
 
 import java.util.List;
@@ -15,6 +16,7 @@ public class DetailClassroomResponse {
     private String roomName;
     private BasicBuildingResponse building;
     private int capacity;
+    private RoomStatus status;
     private ClassroomAvailabilityResponse schedule;
     private List<EquipmentResponse> equipments;
     private String addressBuildingLocation;

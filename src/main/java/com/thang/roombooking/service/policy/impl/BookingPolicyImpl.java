@@ -35,7 +35,7 @@ public class BookingPolicyImpl implements BookingPolicy {
         long bookedTodaySlots = bookingRepository.countBookedSlotsByUserAndDateAndStatuses(
                 userId,
                 date,
-                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN) // active bookings
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED) // active bookings
         );
 
         int maxQuota = 2;
@@ -71,18 +71,15 @@ public class BookingPolicyImpl implements BookingPolicy {
     public void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds) {
         if (requestedTimeSlotIds == null || requestedTimeSlotIds.isEmpty()) return;
 
-        Set<Integer> activeSlotIds = bookingRepository.findActiveSlotIdsByUserAndDateAndStatuses(
+        List<Long> conflictingIds = bookingRepository.findConflictingBookingIds(
                 userId,
                 bookingDate,
-                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN)
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN),
+                requestedTimeSlotIds
         );
 
-        if (activeSlotIds == null || activeSlotIds.isEmpty()) return;
-
-        for (Integer requested : requestedTimeSlotIds) {
-            if (requested != null && activeSlotIds.contains(requested)) {
-                throw new AppException(BookingErrorCode.BOOKING_USER_DAILY_SLOT_CONFLICT);
-            }
+        if (conflictingIds != null && !conflictingIds.isEmpty()) {
+            throw new AppException(BookingErrorCode.BOOKING_USER_DAILY_SLOT_CONFLICT, conflictingIds.get(0));
         }
     }
 

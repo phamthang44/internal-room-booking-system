@@ -11,6 +11,7 @@ public record BookingNotificationRequestedEvent(
         String action,
         BookingStatus statusAfter,
         String performedBy,
-        String note
+        String note,
+        String locale
 ) {}
 

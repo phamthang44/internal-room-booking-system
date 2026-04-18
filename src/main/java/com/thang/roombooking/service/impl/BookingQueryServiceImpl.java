@@ -3,7 +3,9 @@ package com.thang.roombooking.service.impl;
 import com.thang.roombooking.common.constant.BookingMessageKeys;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
 import com.thang.roombooking.common.dto.response.*;
+import com.thang.roombooking.common.enums.BookingAction;
 import com.thang.roombooking.common.enums.BookingSort;
+import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
@@ -155,8 +157,19 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 getTranslatedBuilding(b),
                 b.getBookingDate(),
                 formatTimeRange(b),
-                b.getStatus()
+                b.getStatus(),
+                resolveNextDashboardAction(b.getStatus())
         );
+    }
+
+    private static String resolveNextDashboardAction(BookingStatus status) {
+        if (status == BookingStatus.APPROVED) {
+            return BookingAction.CHECK_IN.name();
+        }
+        if (status == BookingStatus.CHECKED_IN) {
+            return BookingAction.CHECK_OUT.name();
+        }
+        return null;
     }
 
     private String getTranslatedBuilding(Booking b) {
@@ -202,18 +215,29 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     }
 
     private BookingRecentSummaryResponse mapToHistorySummary(Booking b) {
-        // Vì lấy từ bảng Booking nên action sẽ tương ứng với status hiện tại
-
         String message = resolveRecentHistoryMessage(b);
 
         return new BookingRecentSummaryResponse(
                 b.getId(),
-                b.getClassroom().getRoomName(),
+                getTranslatedRoomName(b),
                 getTranslatedBuilding(b),
-                b.getStatus().name(),
+                resolveDashboardHistoryAction(b.getStatus()),
+                b.getStatus(),
                 b.getUpdatedAt(),
                 message
         );
+    }
+
+    // Semantic action for UI (aligned with BookingAction / history)
+    private static String resolveDashboardHistoryAction(BookingStatus status) {
+        return switch (status) {
+            case COMPLETED -> BookingAction.CHECK_OUT.name();
+            case CHECKED_IN -> BookingAction.CHECK_IN.name();
+            case PENDING -> BookingAction.CREATE_BOOKING.name();
+            case APPROVED -> BookingAction.APPROVE_BOOKING.name();
+            case CANCELLED -> BookingAction.CANCEL_BOOKING.name();
+            case REJECTED -> BookingAction.REJECT_BOOKING.name();
+        };
     }
 
     // Map lịch sử chi tiết cho đơn
@@ -244,7 +268,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
             case CANCELLED -> I18nUtils.get(BookingMessageKeys.HISTORY_CANCELLED);
             case APPROVED -> I18nUtils.get(BookingMessageKeys.HISTORY_APPROVED);
             case CHECKED_IN -> I18nUtils.get(BookingMessageKeys.HISTORY_CHECKED_IN);
-            default -> I18nUtils.get(BookingMessageKeys.HISTORY_DEFAULT);
+            case COMPLETED -> I18nUtils.get(BookingMessageKeys.HISTORY_COMPLETED);
         };
     }
 

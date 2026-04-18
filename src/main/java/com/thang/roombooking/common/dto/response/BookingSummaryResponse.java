@@ -10,6 +10,8 @@ public record BookingSummaryResponse(
         String buildingName,
         LocalDate bookingDate,
         String timeSlotRange, // Ví dụ: "07:00 - 09:00"
-        BookingStatus status
+        BookingStatus status,
+        /** CHECK_IN when APPROVED, CHECK_OUT when CHECKED_IN; null otherwise. */
+        String nextAction
 ) {
 }

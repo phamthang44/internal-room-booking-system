@@ -16,6 +16,10 @@ public class I18nUtils {
         return Translator.toLocale(key, args);
     }
 
+    public static String get(String key, Locale locale, Object... args) {
+        return Translator.toLocale(key, locale, args);
+    }
+
     public static String formatCurrency(BigDecimal amount, Locale locale) {
         // Tự động detect currency dựa trên Locale
         // Ví dụ Locale.US -> USD, Locale("vi", "VN") -> VND

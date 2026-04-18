@@ -3,6 +3,7 @@ package com.thang.roombooking.service.impl;
 import com.thang.roombooking.common.dto.request.RoomSearchRequest;
 import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.RoomSort;
+import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
@@ -138,13 +139,25 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         LocalDate endDate = startDate.plusDays(6);
         ClassroomAvailabilityResponse schedule = availabilityService.getClassroomAvailability(id, startDate, endDate);
 
+        if (classroom.getStatus() != RoomStatus.AVAILABLE) {
+            List<DateAvailability> modifiedAvailabilities = schedule.availabilities().stream()
+                    .map(da -> new DateAvailability(
+                            da.date(),
+                            da.slots().stream()
+                                    .map(slot -> new SlotStatus(
+                                            slot.slotId(), slot.slotName(), slot.startTime(), slot.endTime(), slot.status(), false, slot.currentBookingId()
+                                    )).toList()
+                    )).toList();
+            schedule = new ClassroomAvailabilityResponse(schedule.date(), schedule.isFull(), modifiedAvailabilities);
+        }
+
         return buildClientDetailResponse(classroom, translations, schedule);
     }
 
 
     private Map<String, String> buildTranslations(Classroom classroom) {
 
-        Map<TranslatableEntityType, Set<Long>> ids = new HashMap<>();
+        Map<TranslatableEntityType, Set<Long>> ids = new EnumMap<>(TranslatableEntityType.class);
 
         // Building
         populateEntityIdsFromClassroom(classroom, ids);
@@ -185,6 +198,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                         classroom.getBuilding(), translations))
                 .roomName(classroom.getRoomName())
                 .capacity(classroom.getCapacity())
+                .status(classroom.getStatus())
                 .schedule(schedule)
                 .equipments(classroom.getClassroomEquipments() == null ? List.of() : 
                         classroom.getClassroomEquipments().stream()

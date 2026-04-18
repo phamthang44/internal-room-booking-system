@@ -1,6 +1,5 @@
 package com.thang.roombooking.repository;
 
-import com.thang.roombooking.common.dto.response.BookingSummaryResponse;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.entity.Booking;
 import org.springframework.data.domain.Pageable;
@@ -15,10 +14,21 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
+
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
+
+    @Query("""
+        SELECT DISTINCT b FROM Booking b
+        JOIN FETCH b.bookingTimeSlots bts
+        JOIN FETCH bts.timeSlot ts
+        WHERE b.id = :id
+    """)
+    Optional<Booking> findByIdWithTimeSlots(@Param("id") Long id);
+
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Booking b " +
            "WHERE b.classroom.id = :classroomId " +
            "AND b.status IN :statuses " +
@@ -43,6 +53,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     long countBookedSlotsByUserAndDateAndStatuses(@Param("userId") Long userId,
                                                   @Param("date") LocalDate date,
                                                   @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+        SELECT DISTINCT b.id
+        FROM Booking b
+        JOIN b.bookingTimeSlots bts
+        WHERE b.user.id = :userId
+          AND b.bookingDate = :date
+          AND b.status IN :statuses
+          AND bts.timeSlot.id IN :requestedSlotIds
+    """)
+    List<Long> findConflictingBookingIds(@Param("userId") Long userId,
+                                         @Param("date") LocalDate date,
+                                         @Param("statuses") List<BookingStatus> statuses,
+                                         @Param("requestedSlotIds") List<Integer> requestedSlotIds);
 
     @Query("""
         SELECT DISTINCT ts.id
@@ -141,19 +165,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     int atomicCancelByStudent(@Param("id") Long id,
                               @Param("newStatus") BookingStatus newStatus,
                               @Param("expectedVersion") Integer expectedVersion);
-
-    @Query("""
-    SELECT new com.thang.roombooking.common.dto.response.BookingSummaryResponse(
-        b.id, c.roomName, c.building.nameKey, b.bookingDate, '', b.status
-    )
-    FROM Booking b
-    JOIN b.classroom c
-    WHERE b.user.id = :userId
-    AND b.bookingDate >= :today
-    AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')
-    ORDER BY b.bookingDate ASC
-    """)
-    List<BookingSummaryResponse> findUpcomingBookings(Long userId, LocalDate today);
 
     @Query("""
         SELECT COUNT(b)

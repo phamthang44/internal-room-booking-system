@@ -8,5 +8,6 @@ public record BookingStatusChangedEvent(
         BookingStatus statusAfter,
         String action,
         String performedBy,
-        String note
+        String note,
+        String locale
 ) {}

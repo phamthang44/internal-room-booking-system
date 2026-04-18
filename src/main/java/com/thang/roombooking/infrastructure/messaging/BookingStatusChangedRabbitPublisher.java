@@ -41,6 +41,8 @@ public class BookingStatusChangedRabbitPublisher {
             case APPROVE_BOOKING -> RabbitMQConstants.RK_EMAIL_BOOKING_APPROVED;
             case REJECT_BOOKING, SYSTEM_REJECT -> RabbitMQConstants.RK_EMAIL_BOOKING_REJECTED;
             case CANCEL_BOOKING -> RabbitMQConstants.RK_EMAIL_BOOKING_CANCELLED;
+            case CHECK_IN -> RabbitMQConstants.RK_EMAIL_BOOKING_CHECKIN;
+            case CHECK_OUT -> RabbitMQConstants.RK_EMAIL_BOOKING_CHECKOUT;
             default -> null;
         };
 
@@ -53,7 +55,8 @@ public class BookingStatusChangedRabbitPublisher {
                 event.action(),
                 event.statusAfter(),
                 event.performedBy(),
-                event.note()
+                event.note(),
+                event.locale()
         );
 
         rabbitTemplate.convertAndSend(

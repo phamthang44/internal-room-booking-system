@@ -13,4 +13,5 @@ public final class BookingMessageKeys {
     public static final String HISTORY_REJECTED_NO_REASON = "booking.history.rejected.no_reason";
     public static final String HISTORY_DEFAULT = "booking.history.default";
     public static final String HISTORY_NOTE_DEFAULT = "booking.history.note.default";
+    public static final String HISTORY_COMPLETED = "booking.history.completed";
 }

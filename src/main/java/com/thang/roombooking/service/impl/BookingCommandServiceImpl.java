@@ -23,6 +23,7 @@ import com.thang.roombooking.service.policy.BookingPolicyManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,7 +108,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.PENDING,
                     BookingAction.CREATE_BOOKING.name(),
                     currentUser.getEmail(),
-                    "booking.create.reason.pending"
+                    "booking.create.reason.pending",
+                    LocaleContextHolder.getLocale().toString()
             ));
 
             log.info("{}: Booking created with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
@@ -133,8 +135,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         log.info("{} | Check in Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
         try {
-            // 1) Load booking first (we must validate against the booking's scheduled start, not the client's checkInTime)
-            Booking booking = bookingRepository.findById(request.bookingId())
+            // 1) Load booking WITH time slots in one query (source of truth for start time)
+            Booking booking = bookingRepository.findByIdWithTimeSlots(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             bookingPolicyManager.validateCheckInStatus(booking.getStatus());
@@ -144,19 +146,27 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
-            // 2) Validate check-in time window against the booking's start date-time (VN timezone)
+            // 2) Derive the booking's effective start time from its TimeSlots (source of truth).
+            // The denormalized booking.startTime column is nullable (see V9/V11 migrations) and
+            // cannot be relied upon. We must resolve the earliest start time from the related slots.
             ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
-            LocalDateTime startDateTime = booking.getBookingDate().atTime(booking.getStartTime());
+
+            LocalTime resolvedStartTime = booking.getBookingTimeSlots().stream()
+                    .map(BookingTimeSlot::getTimeSlot)
+                    .map(TimeSlot::getStartTime)
+                    .min(LocalTime::compareTo)
+                    .orElseGet(() -> {
+                        // Fallback: if slots are not loaded, use the denormalized column
+                        if (booking.getStartTime() != null) {
+                            log.warn("[checkIn] No BookingTimeSlots loaded for booking={}, falling back to denormalized startTime", booking.getId());
+                            return booking.getStartTime();
+                        }
+                        throw new AppException(BookingErrorCode.BOOKING_NOT_FOUND);
+                    });
+
+            LocalDateTime startDateTime = booking.getBookingDate().atTime(resolvedStartTime);
             Instant startInstant = startDateTime.atZone(vnZone).toInstant();
             bookingPolicyManager.validateCheckInTimePolicy(startInstant);
-
-            //List<TimeSlot> slots = booking.getBookingTimeSlots().stream()
-                    //.map(BookingTimeSlot::getTimeSlot)
-                    //.sorted(Comparator.comparing(TimeSlot::getStartTime))
-                    //.toList();
-
-            // 2. Nhờ Validator tìm Slot hợp lệ
-            //TimeSlot targetSlot = bookingValidatorService.validateAndGetTargetSlot(slots, booking.getBookingDate(), LocalTime.now());
 
             // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
             Instant checkinTime = request.checkInTime() != null ? request.checkInTime() : Instant.now();
@@ -173,7 +183,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         BookingStatus.CHECKED_IN,
                         BookingAction.CHECK_IN.name(),
                         currentUser.getEmail(),
-                        "booking.checkin.reason.success"
+                        "booking.checkin.reason.success",
+                        LocaleContextHolder.getLocale().toString()
                 ));
             }
 
@@ -219,7 +230,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.COMPLETED,
                     BookingAction.CHECK_OUT.name(),
                     currentUser.getEmail(),
-                    "booking.checkout.reason.success"
+                    "booking.checkout.reason.success",
+                    LocaleContextHolder.getLocale().toString()
             ));
 
             log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
@@ -267,7 +279,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.APPROVED,
                     BookingAction.APPROVE_BOOKING.name(),
                     currentUser.getEmail(),
-                    "booking.approve.reason.staff"
+                    "booking.approve.reason.staff",
+                    LocaleContextHolder.getLocale().toString()
             ));
             return approvedBooking.getId();
         } catch (AppException e) {
@@ -309,7 +322,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.CANCELLED,
                     BookingAction.CANCEL_BOOKING.name(),
                     "SYSTEM",
-                    "booking.cancel.reason.no_show"
+                    "booking.cancel.reason.no_show",
+                    Locale.getDefault().toString()
             ));
         }
     }
@@ -331,7 +345,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     BookingStatus.REJECTED,
                     BookingAction.SYSTEM_REJECT.name(),
                     "SYSTEM",
-                    "booking.reject.reason.overtime"
+                    "booking.reject.reason.overtime",
+                    Locale.getDefault().toString()
             ));
         }
     }
@@ -348,7 +363,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         BookingStatus.COMPLETED,
                         BookingAction.CHECK_OUT.name(),
                         "SYSTEM",
-                        "booking.checkout.reason.auto"
+                        "booking.checkout.reason.auto",
+                        Locale.getDefault().toString()
                 ));
             }
         } catch (Exception e) {
@@ -396,7 +412,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         BookingStatus.CANCELLED,
                         BookingAction.CANCEL_BOOKING.name(),
                         booking.getUser().getEmail(),
-                        booking.getCancelledBy() // này do lí do cancel chứ ta ?
+                        booking.getCancelledBy(),
+                        LocaleContextHolder.getLocale().toString()
                 ));
             }
         } catch (AppException e) {
