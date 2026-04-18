@@ -1,10 +1,62 @@
 services:
+  # --- BACKEND APP ---
+  backend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # OR use pre-built image for EC2 deployment:
+    # image: twinthang44/room-booking-be:latest
+    container_name: room_booking_be
+    env_file: .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      # Link các service bằng tên trong docker-compose
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/room_booking_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - JWT_PRIVATE_KEY_PATH=file:/app/certs/private.pem
+      - JWT_PUBLIC_KEY_PATH=file:/app/certs/public.pem
+    volumes:
+      - ./certs:/app/certs:ro # Read-only mount for your security keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    # KHÔNG mở port ra ngoài, Nginx sẽ lo việc này
+
+  # --- NGINX (NGƯỜI GÁC CỔNG) ---
+  nginx:
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    image: twinthang44/room-booking-nginx:latest
+    container_name: room_booking_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend-app
+    restart: unless-stopped
+
+  # --- POSTGRESQL ---
   postgres:
     env_file:
       - .env
     image: postgres:17-bookworm
     container_name: room_booking_postgres17
-    restart: no
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
@@ -14,50 +66,53 @@ services:
       - room_booking_postgres_data:/var/lib/postgresql/data
       # Dòng dưới này OK, nhưng nhớ là nó chỉ chạy script khi DB trắng trơn lần đầu thôi nhé
 #      - ./init-scripts:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-room_booking_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # --- RABBITMQ ---
   rabbitmq:
     env_file:
       - .env
     image: rabbitmq:4.2.2-management-alpine # Bản management có giao diện Web Admin
     container_name: room_booking_rabbitmq
-    restart: no
-    ports:
-      - "5672:5672"   # Port để code Java kết nối
-      - "15672:15672" # Port để vào trang Admin Web
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
-
+  # --- REDIS ---
   redis:
     image: redis:7-alpine
     container_name: room_booking_redis
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       # ĐÃ SỬA: Phải khớp với tên khai báo ở cuối file
       - room_booking_redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  maildev:
-    image: maildev/maildev
-    container_name: room_booking_maildev
-    restart: always
-    ports:
-      - "1080:1080" # Web UI
-      - "1025:1025" # SMTP Port
+  # --- MAILDEV (dev/test only — comment out for production) ---
+  # maildev:
+  #   image: maildev/maildev
+  #   container_name: room_booking_maildev
+  #   restart: always
+  #   ports:
+  #     - "1080:1080" # Web UI
+  #     - "1025:1025" # SMTP Port
 
 volumes:
   room_booking_postgres_data:
   room_booking_redis_data: # Khớp với service redis ở trên rồi
-
-# Đã xóa phần networks cho gọn

@@ -191,8 +191,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     Long countTotalByUser(Long userId);
 
     @Query("""
-    SELECT b FROM Booking b
+    SELECT DISTINCT b FROM Booking b
     JOIN FETCH b.classroom c
+    JOIN FETCH b.bookingTimeSlots bts
+    JOIN FETCH bts.timeSlot ts
     WHERE b.user.id = :userId
     AND (b.bookingDate < :today OR b.status NOT IN ('PENDING', 'APPROVED'))
     ORDER BY b.bookingDate DESC, b.id DESC
@@ -200,8 +202,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     List<Booking> findRecentBookings(Long userId, LocalDate today, Pageable pageable);
 
     @Query("""
-    SELECT b FROM Booking b 
+    SELECT DISTINCT b FROM Booking b 
     JOIN FETCH b.classroom c 
+    JOIN FETCH b.bookingTimeSlots bts
+    JOIN FETCH bts.timeSlot ts
     WHERE b.user.id = :userId 
     AND b.bookingDate >= :today 
     AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')

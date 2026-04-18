@@ -51,7 +51,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
         log.info("getBookingDetail | bookingId={} | userId={}", id, currentUser.getId());
 
         // 1. Fetch booking – throw 404 if missing
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         // 2. Ownership check – only the owner (or ADMIN/STAFF) may view
@@ -377,6 +377,14 @@ public class BookingQueryServiceImpl implements BookingQueryService {
      */
     private Specification<Booking> buildSpecification(BookingSearchRequest req, UserAccount currentUser) {
         return (root, query, cb) -> {
+            // Eagerly fetch time slots and classroom
+            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("bookingTimeSlots", jakarta.persistence.criteria.JoinType.LEFT)
+                    .fetch("timeSlot", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("classroom", jakarta.persistence.criteria.JoinType.LEFT)
+                    .fetch("building", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
             // Always scope to current user
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
             predicates.add(cb.equal(root.get("user").get("id"), currentUser.getId()));

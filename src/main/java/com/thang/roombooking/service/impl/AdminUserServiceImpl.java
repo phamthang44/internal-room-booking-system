@@ -211,6 +211,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             UserAccount user = UserAccount.builder()
                     .username(req.getUsername().trim().toLowerCase())
                     .fullName(req.getFullName().trim())
+                    .studentCode("TEMP_" + java.util.UUID.randomUUID().toString().substring(0, 5)) 
                     .password(passwordEncoder.encode(req.getPassword()))
                     .email(req.getEmail().trim().toLowerCase())
                     .role(defaultRole)
@@ -218,9 +219,15 @@ public class AdminUserServiceImpl implements AdminUserService {
                     .provider(IdentityProvider.LOCAL)
                     .build();
 
-            UserAccount savedUser = userAccountRepository.save(user);
+            UserAccount savedUser = userAccountRepository.saveAndFlush(user);
+
+            // Generate the real student code based on ID (SE000007 format)
+            String realStudentCode = String.format("SE%06d", savedUser.getId());
+            savedUser.setStudentCode(realStudentCode);
+            userAccountRepository.save(savedUser);
+
             log.info("{} | Create account successfully | user id: {}", LogConstant.ACTION_SUCCESS, savedUser.getId());
-            return UserBasicResponse.fromEntity(user);
+            return UserBasicResponse.fromEntity(savedUser);
         } catch (AppException e) {
             log.warn("{} | Create account | Error : {}", LogConstant.BIZ_ERROR, e.getErrorCode());
             throw e;

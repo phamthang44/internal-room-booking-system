@@ -93,13 +93,20 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new AppException(AuthErrorCode.ROLE_NOT_FOUND, UserRole.STUDENT.name()));
 
         UserAccount newUser = UserAccount.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
+                .username(request.getUsername().trim())
+                .fullName(request.getFullName().trim())
+                .studentCode("TEMP_" + java.util.UUID.randomUUID().toString().substring(0, 5)) // Temporary unique code
+                .email(request.getEmail().trim().toLowerCase())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(studentRole)
                 .status(UserStatus.ACTIVE)
                 .build();
 
+        newUser = userAccountRepository.saveAndFlush(newUser);
+
+        // Generate the real student code based on ID (SE000007 format)
+        String realStudentCode = String.format("SE%06d", newUser.getId());
+        newUser.setStudentCode(realStudentCode);
         newUser = userAccountRepository.save(newUser);
 
         // Auto-login after registration

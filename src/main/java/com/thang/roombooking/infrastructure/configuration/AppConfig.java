@@ -21,7 +21,8 @@ public class AppConfig {
                                 "http://localhost:3000",
                                 "http://localhost:5173",
                                 "https://thang.tail704409.ts.net",
-                                "http://localhost:8080"
+                                "http://localhost:8080",
+                                "https://internal-room-booking-system-fronte.vercel.app"
                         )
                         .allowedMethods("*")
                         .allowedHeaders("*");

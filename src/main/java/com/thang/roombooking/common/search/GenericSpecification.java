@@ -23,10 +23,10 @@ public class GenericSpecification<T> implements Specification<T> {
             // Các phép so sánh bằng/số
             case EQUALITY -> criteriaBuilder.equal(path, value);
             case NEGATION -> criteriaBuilder.notEqual(path, value);
-            case GREATER_THAN -> criteriaBuilder.greaterThan(path.as(String.class), value.toString());
-            case LESS_THAN -> criteriaBuilder.lessThan(path.as(String.class), value.toString());
-            case GREATER_THAN_OR_EQUAL -> criteriaBuilder.greaterThanOrEqualTo(path.as(String.class), value.toString());
-            case LESS_THAN_OR_EQUAL -> criteriaBuilder.lessThanOrEqualTo(path.as(String.class), value.toString());
+            case GREATER_THAN -> criteriaBuilder.greaterThan((Expression<Comparable>)(Object) path, (Comparable) value);
+            case LESS_THAN -> criteriaBuilder.lessThan((Expression<Comparable>)(Object) path, (Comparable) value);
+            case GREATER_THAN_OR_EQUAL -> criteriaBuilder.greaterThanOrEqualTo((Expression<Comparable>)(Object) path, (Comparable) value);
+            case LESS_THAN_OR_EQUAL -> criteriaBuilder.lessThanOrEqualTo((Expression<Comparable>)(Object) path, (Comparable) value);
 
             // 🔥 CÁC PHÉP SEARCH STRING (Fix Case-Insensitive & Nested Path)
             // Phải ép path về lower và value về lower

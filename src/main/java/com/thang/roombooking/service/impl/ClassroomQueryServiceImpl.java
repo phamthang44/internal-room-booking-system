@@ -74,6 +74,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ClassroomListResponse> searchPublic(RoomSearchRequest req) {
         //req.setRoomStatus(RoomStatus.AVAILABLE);
 

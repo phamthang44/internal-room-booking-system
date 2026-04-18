@@ -40,6 +40,11 @@
         </dependency>
         <!-- Source: https://mvnrepository.com/artifact/com.google.api-client/google-api-client -->
         <dependency>
+            <groupId>com.mailjet</groupId>
+            <artifactId>mailjet-client</artifactId>
+            <version>6.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.api-client</groupId>
             <artifactId>google-api-client</artifactId>
             <version>2.9.0</version>

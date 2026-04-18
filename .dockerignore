@@ -1,0 +1,39 @@
+# Build artifacts
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Security Keys — DO NOT BAKE INTO IMAGE
+certs/
+src/main/resources/certs/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Config files not needed in image
+nginx*.conf
+.env
+*.md
+HELP.md
+README.md
+AGENTS.md
+CLAUDE.md
+
+# Other
+logs/
+.mvn/wrapper/maven-wrapper.jar
+.gitnexus/
+.claude/
+prompts/
+room-booking-collections/
+init-scripts/

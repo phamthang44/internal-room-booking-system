@@ -5,10 +5,11 @@ import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -21,17 +22,17 @@ import java.util.Base64;
 public class KeyUtils {
 
     @Value("${jwt.key.private-path}")
-    private String privateKeyPath;
+    private Resource privateKeyResource;
 
     @Value("${jwt.key.public-path}")
-    private String publicKeyPath;
+    private Resource publicKeyResource;
 
     @Value("${jwt.key.id}")
     private String keyId;
 
     public RSAKey getRsaKey() {
         try {
-            String privateKeyContent = readKeyFile(privateKeyPath)
+            String privateKeyContent = readResource(privateKeyResource)
                     .replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
                     .replaceAll("\\s+", "");
@@ -39,7 +40,7 @@ public class KeyUtils {
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyContent));
             RSAPrivateKey privateKey = (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
 
-            String publicKeyContent = readKeyFile(publicKeyPath)
+            String publicKeyContent = readResource(publicKeyResource)
                     .replace("-----BEGIN PUBLIC KEY-----", "")
                     .replace("-----END PUBLIC KEY-----", "")
                     .replaceAll("\\s+", "");
@@ -56,7 +57,7 @@ public class KeyUtils {
         }
     }
 
-    private String readKeyFile(String path) throws IOException {
-        return new String(new ClassPathResource(path.replace("classpath:", "")).getInputStream().readAllBytes());
+    private String readResource(Resource resource) throws IOException {
+        return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
 }
