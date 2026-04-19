@@ -46,6 +46,10 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+.env.dev
+# .env.dev is intentionally NOT ignored (safe defaults, no secrets)
+# .env.prod holds real secrets — never commit it
+.env.prod
 logs/
 *.log
 *.sql

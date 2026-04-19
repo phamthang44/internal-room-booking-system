@@ -1,0 +1,74 @@
+# docker-compose.prod.yml  — PRODUCTION OVERRIDES
+# ─────────────────────────────────────────────────────────────────────────────
+# Analogous to Maven -Pprod
+#
+# Always used together with docker-compose.base.yml:
+#   docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
+#
+# Or use the convenience scripts:
+#   .\run.ps1 -Env prod
+#   make prod
+#
+# Secrets: copy .env.prod.example → .env.prod on the server.
+# NEVER commit .env.prod — it is gitignored.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Postgres: load production credentials (NO exposed ports — internal only)
+  postgres:
+    env_file: .env.prod
+
+  # ── RabbitMQ: load production credentials (NO exposed ports)
+  rabbitmq:
+    env_file: .env.prod
+
+  # --- BACKEND APP ---
+  backend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_PROFILE: prod   # ← Maven -Pprod
+    image: twinthang44/room-booking-be:latest
+    container_name: room_booking_be
+    env_file: .env.prod
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      # ── Docker internal network hostnames
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-room_booking_db}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - JWT_PRIVATE_KEY_PATH=file:/app/certs/private.pem
+      - JWT_PUBLIC_KEY_PATH=file:/app/certs/public.pem
+    volumes:
+      - ./certs:/app/certs:ro   # Read-only RSA key pair
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    # NO port exposure — Nginx is the only public entry point
+
+  # --- NGINX (reverse proxy + SSL termination) ---
+  nginx:
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    image: twinthang44/room-booking-nginx:latest
+    container_name: room_booking_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+      - "5432:5432"  # PostgreSQL Stream Proxy
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend-app
+    restart: unless-stopped

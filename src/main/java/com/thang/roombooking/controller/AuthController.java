@@ -82,10 +82,10 @@ public class AuthController {
         // Clear cookie
         ResponseCookie cleared = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(false)  //dev env
+                .secure(true)  //dev env
                 .path("/")
                 .maxAge(0)
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cleared.toString());
         return ResponseEntity.noContent().build();
@@ -94,10 +94,10 @@ public class AuthController {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(Duration.ofDays(7))
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

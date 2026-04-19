@@ -44,8 +44,13 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             availabilityMap.put(date, createDailySlots(allSlots, translations));
         }
 
-        // NOTE: include CHECKED_IN so we can render IN_USE for active sessions.
-        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING, BookingStatus.CHECKED_IN);
+        // NOTE: include CHECKED_IN and COMPLETED to align with database exclusion constraint.
+        List<BookingStatus> blockingStatuses = Arrays.asList(
+                BookingStatus.APPROVED, 
+                BookingStatus.PENDING, 
+                BookingStatus.CHECKED_IN,
+                BookingStatus.COMPLETED
+        );
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomAndDateRange(
                 classroomId, startDate, endDate, blockingStatuses
         );
@@ -80,8 +85,13 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             bulkMap.put(cId, new DateAvailability(date, createDailySlots(allSlots, translations)));
         }
 
-        // NOTE: include CHECKED_IN so we can render IN_USE for active sessions.
-        List<BookingStatus> blockingStatuses = Arrays.asList(BookingStatus.APPROVED, BookingStatus.PENDING, BookingStatus.CHECKED_IN);
+        // NOTE: include CHECKED_IN and COMPLETED to align with database exclusion constraint.
+        List<BookingStatus> blockingStatuses = Arrays.asList(
+                BookingStatus.APPROVED, 
+                BookingStatus.PENDING, 
+                BookingStatus.CHECKED_IN,
+                BookingStatus.COMPLETED
+        );
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomIdsAndDate(
                 classroomIds, date, blockingStatuses
         );

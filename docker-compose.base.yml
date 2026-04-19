@@ -1,0 +1,65 @@
+# docker-compose.base.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared infrastructure services (Postgres, Redis, RabbitMQ).
+# Do NOT run this file directly.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
+#
+# Or use the convenience scripts:
+#   .\run.ps1 -Env infra    (PowerShell)
+#   make infra              (Git Bash)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # --- POSTGRESQL ---
+  postgres:
+    image: postgres:17-bookworm
+    container_name: room_booking_postgres17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: ${POSTGRES_DB:-room_booking_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - room_booking_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-room_booking_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- REDIS ---
+  redis:
+    image: redis:7-alpine
+    container_name: room_booking_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - room_booking_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- RABBITMQ ---
+  rabbitmq:
+    image: rabbitmq:4.2.2-management-alpine
+    container_name: room_booking_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  room_booking_postgres_data:
+  room_booking_redis_data:

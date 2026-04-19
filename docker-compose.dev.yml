@@ -1,0 +1,75 @@
+# docker-compose.dev.yml  — LOCAL DEVELOPMENT OVERRIDES
+# ─────────────────────────────────────────────────────────────────────────────
+# Analogous to Maven -Pdev
+#
+# Always used together with docker-compose.base.yml:
+#   docker compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
+#
+# Or use the convenience scripts (they handle the -f flags for you):
+#   .\run.ps1 -Env infra    → infra only (RECOMMENDED — run Spring from IDE)
+#   .\run.ps1 -Env dev      → full dev stack in Docker
+#   make infra / make dev
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Override: expose Postgres port so DBeaver / IntelliJ DB tool can connect
+  postgres:
+    ports:
+      - "5432:5432"
+    env_file: .env.dev
+
+  # ── Override: expose Redis port so RedisInsight can connect
+  redis:
+    ports:
+      - "6379:6379"
+
+  # ── Override: expose RabbitMQ ports (5672 AMQP + 15672 Management UI)
+  rabbitmq:
+    env_file: .env.dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI → http://localhost:15672
+
+  # ── MailDev: intercepts ALL outgoing emails as a fake inbox
+  maildev:
+    image: maildev/maildev
+    container_name: room_booking_maildev
+    restart: unless-stopped
+    ports:
+      - "1080:1080"   # Web inbox  → http://localhost:1080
+      - "1025:1025"   # SMTP port (Spring uses this in dev)
+
+  # ── Backend App
+  # For best hot-reload, comment this out and run Spring from IntelliJ instead.
+  # The infra services above are all you need for that workflow.
+  backend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_PROFILE: dev   # ← Maven -Pdev
+    container_name: room_booking_be_dev
+    env_file: .env.dev
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      # ── Docker internal network hostnames (override localhost values in .env.dev)
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-room_booking_db}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      # ── Route mail through MailDev (no real email sent)
+      - SPRING_MAIL_HOST=maildev
+      - SPRING_MAIL_PORT=1025
+    ports:
+      - "8080:8080"   # Direct access — no Nginx needed in dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
