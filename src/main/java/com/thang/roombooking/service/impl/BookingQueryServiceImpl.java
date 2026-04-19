@@ -1,6 +1,7 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.constant.BookingMessageKeys;
+import com.thang.roombooking.common.dto.request.AdminBookingSearchRequest;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
 import com.thang.roombooking.common.dto.response.*;
 import com.thang.roombooking.common.enums.BookingAction;
@@ -149,6 +150,120 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public ApiResult<List<AdminBookingListResponse>> searchAdmin(AdminBookingSearchRequest request, UserAccount currentUser) {
+        log.info("searchAdmin | adminUserId={} | bookingId={} | studentCode={} | classroomId={} | status={} | date={} | page={} | size={}",
+                currentUser.getId(), request.getBookingId(), request.getStudentCode(), request.getClassroomId(),
+                request.getStatus(), request.getBookingDate(), request.getPage(), request.getSize());
+
+        Specification<Booking> spec = buildAdminSpecification(request);
+        Pageable pageable = buildPageable(request);
+
+        Page<Booking> bookingsPage = bookingRepository.findAll(spec, pageable);
+
+        Map<String, String> translations = buildPageTranslations(bookingsPage.getContent());
+
+        List<AdminBookingListResponse> items = bookingsPage.getContent().stream()
+                .map(b -> toAdminBookingListResponse(b, translations))
+                .toList();
+
+        return ApiResult.success(
+                items,
+                bookingsPage.getNumber() + 1,
+                bookingsPage.getSize(),
+                bookingsPage.getTotalElements()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminBookingDetailResponse getAdminBookingDetail(Long id, UserAccount currentUser) {
+        log.info("getAdminBookingDetail | bookingId={} | adminUserId={}", id, currentUser.getId());
+
+        Booking booking = bookingRepository.findByIdWithAdminDetail(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        Map<String, String> translations = buildTranslations(booking);
+        AdminBookingDetailResponse response = bookingMapper.toAdminBookingDetailResponse(booking, translations);
+        response.setTimeSlots(buildTranslatedTimeSlots(booking, translations));
+        return response;
+    }
+
+    /**
+     * List row uses the first time slot by start time when a booking spans multiple slots; full slots are on the detail endpoint.
+     */
+    private AdminBookingListResponse toAdminBookingListResponse(Booking booking, Map<String, String> translations) {
+        List<TimeSlotResponse> slots = buildTranslatedTimeSlots(booking, translations);
+        TimeSlotResponse firstSlot = slots.isEmpty() ? null : slots.getFirst();
+
+        return AdminBookingListResponse.builder()
+                .id(booking.getId())
+                .studentName(booking.getUser() != null ? booking.getUser().getFullName() : null)
+                .room(bookingMapper.toAdminBookingRoomRequestedResponse(booking))
+                .purpose(booking.getPurpose())
+                .date(booking.getBookingDate())
+                .timeSlot(firstSlot)
+                .status(booking.getStatus())
+                .build();
+    }
+
+    private Specification<Booking> buildAdminSpecification(AdminBookingSearchRequest req) {
+        return (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("bookingTimeSlots", jakarta.persistence.criteria.JoinType.LEFT)
+                        .fetch("timeSlot", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("classroom", jakarta.persistence.criteria.JoinType.LEFT)
+                        .fetch("building", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            if (hasText(req.getStudentCode())) {
+                String pattern = "%" + req.getStudentCode().trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("user").get("studentCode")), pattern));
+            }
+
+            if (req.getBookingId() != null) {
+                predicates.add(cb.equal(root.get("id"), req.getBookingId()));
+            }
+
+            if (req.getClassroomId() != null) {
+                predicates.add(cb.equal(root.get("classroom").get("id"), req.getClassroomId()));
+            }
+
+            if (req.getBookingDate() != null) {
+                predicates.add(cb.equal(root.get("bookingDate"), req.getBookingDate()));
+            }
+
+            if (req.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), req.getStatus()));
+            }
+
+            if (req.getTimeSlotId() != null) {
+                var btsJoin = root.join("bookingTimeSlots", jakarta.persistence.criteria.JoinType.INNER);
+                predicates.add(cb.equal(btsJoin.get("timeSlot").get("id"), req.getTimeSlotId()));
+                query.distinct(true);
+            }
+
+            if (req.getAttendees() > 0) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("attendees"), req.getAttendees()));
+            }
+
+            if (predicates.isEmpty()) {
+                return cb.conjunction();
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    private Pageable buildPageable(AdminBookingSearchRequest req) {
+        int page = Math.max(req.getPage() - 1, 0);
+        Sort sort = buildSort(req.getSort());
+        return PageRequest.of(page, req.getSize(), sort);
+    }
+
     // Map đơn sắp tới
     private BookingSummaryResponse mapToSummary(Booking b) {
         return new BookingSummaryResponse(
@@ -248,9 +363,17 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 bh.getAction(),
                 bh.getStatusAfter().name(),
                 bh.getCreatedAt(), // Mốc thời gian tạo history
-                hasText(bh.getNote()) ? (isI18nKey(bh.getNote()) ? I18nUtils.get(bh.getNote()) : bh.getNote()) : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT),
+//                hasText(bh.getNote()) ? (isI18nKey(bh.getNote()) ? I18nUtils.get(bh.getNote()) : bh.getNote()) : I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT),
+                resolveNote(bh.getNote()),
                 bh.getPerformedBy()
         );
+    }
+
+    private String resolveNote(String note) {
+        if (hasText(note)) {
+            return isI18nKey(note) ? I18nUtils.get(note) : note;
+        }
+        return I18nUtils.get(BookingMessageKeys.HISTORY_NOTE_DEFAULT);
     }
 
     private static boolean isI18nKey(String value) {
@@ -259,17 +382,29 @@ public class BookingQueryServiceImpl implements BookingQueryService {
 
     private String resolveRecentHistoryMessage(Booking b) {
         return switch (b.getStatus()) {
-            case REJECTED -> hasText(b.getRejectionReason())
-                    ? (isI18nKey(b.getRejectionReason())
-                    ? I18nUtils.get(b.getRejectionReason())
-                    : b.getRejectionReason())
-                    : I18nUtils.get(BookingMessageKeys.HISTORY_REJECTED_NO_REASON);
+            case REJECTED -> handleRejectedCase(b.getRejectionReason());
+            //                      hasText(b.getRejectionReason())
+            //                    ? (isI18nKey(b.getRejectionReason())
+            //                    ? I18nUtils.get(b.getRejectionReason())
+            //                    : b.getRejectionReason())
+            //                    : I18nUtils.get(BookingMessageKeys.HISTORY_REJECTED_NO_REASON);
             case PENDING -> I18nUtils.get(BookingMessageKeys.HISTORY_PENDING);
             case CANCELLED -> I18nUtils.get(BookingMessageKeys.HISTORY_CANCELLED);
             case APPROVED -> I18nUtils.get(BookingMessageKeys.HISTORY_APPROVED);
             case CHECKED_IN -> I18nUtils.get(BookingMessageKeys.HISTORY_CHECKED_IN);
             case COMPLETED -> I18nUtils.get(BookingMessageKeys.HISTORY_COMPLETED);
         };
+    }
+
+    private String handleRejectedCase(String rejectionReason) {
+        if (hasText(rejectionReason)) {
+            if (isI18nKey(rejectionReason)) {
+                return I18nUtils.get(rejectionReason);
+            } else {
+                return rejectionReason;
+            }
+        }
+        return I18nUtils.get(BookingMessageKeys.HISTORY_REJECTED_NO_REASON);
     }
 
     private boolean hasText(String value) {
@@ -378,7 +513,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     private Specification<Booking> buildSpecification(BookingSearchRequest req, UserAccount currentUser) {
         return (root, query, cb) -> {
             // Eagerly fetch time slots and classroom
-            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
                 root.fetch("bookingTimeSlots", jakarta.persistence.criteria.JoinType.LEFT)
                     .fetch("timeSlot", jakarta.persistence.criteria.JoinType.LEFT);
                 root.fetch("classroom", jakarta.persistence.criteria.JoinType.LEFT)
@@ -401,7 +536,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 // JOIN bookingTimeSlots -> timeSlot
                 var btsJoin = root.join("bookingTimeSlots", jakarta.persistence.criteria.JoinType.INNER);
                 predicates.add(cb.equal(btsJoin.get("timeSlot").get("id"), req.getTimeSlotId()));
-                if (query != null) query.distinct(true);
+                query.distinct(true);
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));

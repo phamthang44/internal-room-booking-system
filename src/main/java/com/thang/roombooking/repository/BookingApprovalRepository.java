@@ -2,12 +2,13 @@ package com.thang.roombooking.repository;
 
 import com.thang.roombooking.entity.BookingApproval;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface BookingApprovalRepository extends JpaRepository<BookingApproval, Long> {
+public interface BookingApprovalRepository extends JpaRepository<BookingApproval, Long>, JpaSpecificationExecutor<BookingApproval> {
 
     /**
      * Returns all approval records for a given booking, ordered by creation time (oldest first).

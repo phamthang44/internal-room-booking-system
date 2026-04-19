@@ -29,6 +29,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     """)
     Optional<Booking> findByIdWithTimeSlots(@Param("id") Long id);
 
+    @Query("""
+        SELECT DISTINCT b FROM Booking b
+        JOIN FETCH b.user u
+        JOIN FETCH b.classroom c
+        JOIN FETCH c.building bl
+        LEFT JOIN FETCH b.bookingTimeSlots bts
+        LEFT JOIN FETCH bts.timeSlot ts
+        WHERE b.id = :id
+        """)
+    Optional<Booking> findByIdWithAdminDetail(@Param("id") Long id);
+
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Booking b " +
            "WHERE b.classroom.id = :classroomId " +
            "AND b.status IN :statuses " +

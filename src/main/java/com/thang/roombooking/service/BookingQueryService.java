@@ -1,6 +1,9 @@
 package com.thang.roombooking.service;
 
+import com.thang.roombooking.common.dto.request.AdminBookingSearchRequest;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
+import com.thang.roombooking.common.dto.response.AdminBookingDetailResponse;
+import com.thang.roombooking.common.dto.response.AdminBookingListResponse;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.BookingDetailResponse;
 import com.thang.roombooking.common.dto.response.StudentDashboardResponse;
@@ -29,4 +32,17 @@ public interface BookingQueryService {
     ApiResult<List<BookingDetailResponse>> searchPublic(BookingSearchRequest request, UserAccount currentUser);
 
     StudentDashboardResponse getStudentDashboard(Long userId);
+
+    /**
+     * Admin paginated search across all bookings (ADMIN/STAFF only at controller layer).
+     * Returns items + pagination metadata wrapped in {@link ApiResult}.
+     */
+    ApiResult<List<AdminBookingListResponse>> searchAdmin(AdminBookingSearchRequest request, UserAccount currentUser);
+
+    /**
+     * Full admin view of a booking, including user and room context.
+     * Caller must enforce ADMIN/STAFF authorization.
+     */
+    AdminBookingDetailResponse getAdminBookingDetail(Long id, UserAccount currentUser);
+
 }

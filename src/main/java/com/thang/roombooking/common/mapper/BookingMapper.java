@@ -86,4 +86,38 @@ public interface BookingMapper {
     @Mapping(target = "note",           source = "note")
     @Mapping(target = "decidedAt",      source = "createdAt")
     BookingApprovalResponse toBookingApprovalResponse(BookingApproval bookingApproval);
+
+    @Mapping(target = "approvalId",     source = "id")
+    @Mapping(target = "bookingId",      source = "booking.id")
+    @Mapping(target = "studentName",    source = "booking.user.fullName")
+    @Mapping(target = "roomName",       source = "booking.classroom.roomName")
+    @Mapping(target = "bookingDate",    source = "booking.bookingDate")
+    @Mapping(target = "approvalStatus", source = "approvalStatus")
+    @Mapping(target = "approverName",   source = "approver.fullName")
+    @Mapping(target = "note",           source = "note")
+    @Mapping(target = "decidedAt",      source = "createdAt")
+    ApprovalSummaryResponse toApprovalSummaryResponse(BookingApproval bookingApproval);
+
+    // ── Admin booking (list + detail) ─────────────────────────────────────────
+
+    @Mapping(target = "roomName", source = "classroom.roomName")
+    @Mapping(target = "capacity", source = "classroom.capacity")
+    @Mapping(target = "requestedAttendees", source = "attendees")
+    @Mapping(target = "actualAttendees", expression = "java(booking.getActualAttendees() == null ? 0 : booking.getActualAttendees().intValue())")
+    AdminBookingRoomRequestedResponse toAdminBookingRoomRequestedResponse(Booking booking);
+
+    @Mapping(target = "user", expression = "java(com.thang.roombooking.common.dto.response.UserBasicResponse.fromEntityWithStudentCode(booking.getUser()))")
+    @Mapping(target = "adminClassroom", source = "booking")
+    @Mapping(target = "rejectedReason", source = "rejectionReason")
+    @Mapping(target = "audit", source = "booking")
+    @Mapping(target = "checkInTime", source = "checkinTime")
+    @Mapping(target = "checkOutTime", source = "checkoutTime")
+    @Mapping(target = "timeSlots", ignore = true)
+    AdminBookingDetailResponse toAdminBookingDetailResponse(Booking booking, @Context Map<String, String> translations);
+
+    @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "updatedAt", source = "updatedAt")
+    @Mapping(target = "createdBy", source = "createdBy")
+    @Mapping(target = "updatedBy", source = "updatedBy")
+    AuditResponse toAuditResponse(Booking booking);
 }
