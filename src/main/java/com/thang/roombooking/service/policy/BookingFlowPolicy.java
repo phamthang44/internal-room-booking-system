@@ -16,4 +16,6 @@ public interface BookingFlowPolicy {
     void validateCheckInStatus(BookingStatus bookingStatus);
 
     void validateApproveStatus(BookingStatus bookingStatus);
+
+    void validateRejectStatus(BookingStatus bookingStatus);
 }

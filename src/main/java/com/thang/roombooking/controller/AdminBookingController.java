@@ -46,6 +46,19 @@ public class AdminBookingController {
         );
     }
 
+    @PatchMapping("/reject")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResult<String>> rejectBooking(
+            @Valid @RequestBody BookingApprovalRequest req,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Received request to reject booking id {}, staff/admin id {}",
+                req.bookingId(), userDetails.getUser().getEmail());
+
+        bookingCommandService.rejectBooking(req, userDetails.getUser());
+
+        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("booking.rejected.success", req.bookingId())));
+    }
+
     /**
      * Paginated admin search over all bookings.
      * <p>

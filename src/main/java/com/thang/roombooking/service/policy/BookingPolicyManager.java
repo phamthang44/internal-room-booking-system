@@ -26,6 +26,8 @@ public interface BookingPolicyManager {
 
     void validateApproveStatus(BookingStatus bookingStatus);
 
+    void validateRejectStatus(BookingStatus bookingStatus);
+
     void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
 
     void validatePenaltyPolicy();

@@ -16,6 +16,8 @@ public interface BookingCommandService {
 
     Long approveBooking(BookingApprovalRequest request, UserAccount currentUser);
 
+    void rejectBooking(BookingApprovalRequest request, UserAccount currentUser);
+
     void cancelExpiredBooking(Booking booking);
     
     void autoRejectOverduePendingBooking(Booking booking);

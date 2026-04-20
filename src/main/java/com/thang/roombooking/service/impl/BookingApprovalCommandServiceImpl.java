@@ -26,7 +26,7 @@ public class BookingApprovalCommandServiceImpl implements BookingApprovalCommand
         try {
             BookingApproval bookingApproval = BookingApproval.builder()
                     .booking(booking)
-                    .approvalStatus(BookingStatus.APPROVED.name())
+                    .approvalStatus(booking.getStatus().name())
                     .approver(userAccount)
                     .note(booking.getRejectionReason())
                     .build();

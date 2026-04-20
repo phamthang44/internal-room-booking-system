@@ -61,6 +61,11 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     }
 
     @Override
+    public void validateRejectStatus(BookingStatus bookingStatus) {
+        bookingFlowPolicy.validateRejectStatus(bookingStatus);
+    }
+
+    @Override
     public void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime) {
         bookingFlowPolicy.validateCancelConditionPolicy(bookingCreatedAt, bookingStatus, bookingStartDateTime);
     }

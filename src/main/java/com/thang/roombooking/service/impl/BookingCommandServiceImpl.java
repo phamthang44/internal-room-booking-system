@@ -6,13 +6,11 @@ import com.thang.roombooking.common.dto.request.CheckInRequest;
 import com.thang.roombooking.common.dto.request.CheckoutRequest;
 import com.thang.roombooking.common.dto.request.CreateBookingRequest;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
-import com.thang.roombooking.common.enums.BookingAction;
-import com.thang.roombooking.common.enums.BookingStatus;
-import com.thang.roombooking.common.enums.TranslatableEntityType;
-import com.thang.roombooking.common.enums.ViolationType;
+import com.thang.roombooking.common.enums.*;
 import com.thang.roombooking.common.event.BookingStatusChangedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
+import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
 import com.thang.roombooking.repository.BookingRepository;
@@ -87,7 +85,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .startTime(bookingStartTime)
                     .endTime(bookingEndTime)
                     .attendees(request.attendees())
-                    .purpose(request.purpose())
+                    .purpose(cleanString(request.purpose()))
                     .status(BookingStatus.PENDING)
                     .build();
 
@@ -178,6 +176,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
+                // Update entity in memory to ensure events/logs have fresh data
+                booking.setStatus(BookingStatus.CHECKED_IN);
+                booking.setCheckinTime(checkinTime);
+                booking.setVersion(booking.getVersion() + 1);
+
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         booking,
                         BookingStatus.CHECKED_IN,
@@ -225,14 +228,21 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
 
-            eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    booking,
-                    BookingStatus.COMPLETED,
-                    BookingAction.CHECK_OUT.name(),
-                    currentUser.getEmail(),
-                    "booking.checkout.reason.success",
-                    LocaleContextHolder.getLocale().toString()
-            ));
+            if (updatedRows > 0) {
+                // Update entity in memory
+                booking.setStatus(BookingStatus.COMPLETED);
+                booking.setCheckoutTime(checkoutTime);
+                booking.setVersion(booking.getVersion() + 1);
+
+                eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                        booking,
+                        BookingStatus.COMPLETED,
+                        BookingAction.CHECK_OUT.name(),
+                        currentUser.getEmail(),
+                        "booking.checkout.reason.success",
+                        LocaleContextHolder.getLocale().toString()
+                ));
+            }
 
             log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
         } catch (AppException e) {
@@ -249,13 +259,17 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long approveBooking(BookingApprovalRequest request, UserAccount currentUser) {
-        log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_SUCCESS, request.bookingId(), currentUser.getId());
+        log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_START, request.bookingId(), currentUser.getId());
         try {
             // lấy booking
             Booking booking = bookingRepository.findById(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             bookingPolicyManager.validateApproveStatus(booking.getStatus());
+
+            if (request.action() != ApprovalAction.APPROVE) {
+                throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
+            }
 
             // 3. Thực hiện Atomic Update (Kết hợp Optimistic Locking)
             // Truyền booking.getVersion() vào để DB đối chiếu
@@ -295,6 +309,64 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             throw e;
         }
         //notificationService.sendBookingApproveSuccess(booking, targetSlot); TODO: future feature notification service
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectBooking(BookingApprovalRequest request, UserAccount currentUser) {
+        log.info("{}: Booking reject with ID: {} by STAFF: {}", LogConstant.ACTION_START, request.bookingId(), currentUser.getId());
+        try {
+            Booking booking = bookingRepository.findById(request.bookingId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            bookingPolicyManager.validateRejectStatus(booking.getStatus());
+
+            if (request.action() != ApprovalAction.REJECT) {
+                throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
+            }
+
+            String cleanReason = cleanString(request.reason());
+            if (cleanReason == null || cleanReason.isBlank()) {
+                throw new AppException(BookingErrorCode.BOOKING_REJECTION_REASON_REQUIRED);
+            }
+
+            // Perform Atomic Update
+            int updatedRows = bookingRepository.atomicRejectPending(
+                    booking.getId(),
+                    BookingStatus.REJECTED,
+                    cleanReason,
+                    booking.getVersion()
+            );
+
+            if (updatedRows == 0) {
+                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+            }
+
+            // Update entity in memory for events
+            booking.setStatus(BookingStatus.REJECTED);
+            booking.setRejectionReason(cleanReason);
+            booking.setVersion(booking.getVersion() + 1);
+
+            log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
+            bookingApprovalCommandService.saveApprovalBooking(booking, currentUser);
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    booking,
+                    BookingStatus.REJECTED,
+                    BookingAction.REJECT_BOOKING.name(),
+                    currentUser.getEmail(),
+                    "booking.reject.reason.staff",
+                    LocaleContextHolder.getLocale().toString()
+            ));
+        } catch (AppException e) {
+            log.warn("{}: Failed to reject | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
+            throw e;
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.error("{} | Conflict Error |", LogConstant.SYS_ERROR, e.getCause());
+            throw e;
+        } catch (Exception e) {
+            log.error("{} | Unexpected System Error during rejection |", LogConstant.SYS_ERROR, e);
+            throw e;
+        }
     }
 
     @Transactional
@@ -426,6 +498,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         }
     }
 
+
+    private String cleanString(String data) {
+        return data != null ? data.trim() : null;
+    }
 
     private Map<TranslatableEntityType, Set<Long>> getBuildingTranslationIds(Building building) {
         if (building == null) return Collections.emptyMap();

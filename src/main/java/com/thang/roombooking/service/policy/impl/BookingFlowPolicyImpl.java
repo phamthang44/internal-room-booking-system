@@ -93,10 +93,19 @@ public class BookingFlowPolicyImpl implements BookingFlowPolicy {
     }
 
     @Override
+    public void validateRejectStatus(BookingStatus bookingStatus) {
+        if (bookingStatus != BookingStatus.PENDING) {
+            throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+        }
+    }
+
+
+    @Override
     public void validateApproveStatus(BookingStatus bookingStatus) {
         // Case 1: khác PENDING
         if (bookingStatus != BookingStatus.PENDING) {
             throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
         }
     }
+
 }
