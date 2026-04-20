@@ -22,4 +22,12 @@ public interface NotificationService {
     long getUnreadCount(Long userId);
 
     void saveAndPush(Long userId, NotificationPayload payload);
+
+    void delete(Long notificationId, Long userId);
+
+    void deleteMultiple(java.util.List<Long> ids, Long userId);
+
+    void clearAll(Long userId);
+
+    void saveForAdmins(NotificationPayload payload);
 }

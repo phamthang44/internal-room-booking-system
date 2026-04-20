@@ -7,6 +7,8 @@ This document provides a detailed analysis of the Request and Response types for
 2. [Base Response Structure (ApiResult)](#base-response-structure-apiresult)
 3. [Notification Response DTO](#notification-response-dto)
 4. [API Endpoints Analysis](#api-endpoints-analysis)
+   - [Read Operations](#read-operations)
+   - [Write/Clear Operations](#writeclear-operations)
 5. [WebSocket Integration (Real-time)](#websocket-integration-real-time)
 6. [UI Behavior Recommendations (The Bell Icon)](#ui-behavior-recommendations-the-bell-icon)
 7. [Enums (NotificationType)](#enums-notificationtype)
@@ -54,69 +56,54 @@ public class NotificationResponse {
 
 ## API Endpoints Analysis
 
-### 1. Get Paginated Notifications
+### Read Operations
+
+#### 1. Get Paginated Notifications
 **Endpoint:** `GET /api/v1/notifications`
 
 **Request Parameters:**
 - `page` (int, default=1): Page number.
 - `size` (int, default=20): Items per page.
 
-**Authentication:** Required (System identifies user via token).
+**Authentication:** Required.
 
 **Response Type:** `ApiResult<List<NotificationResponse>>`
 
-**Response Example:**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "title": "Booking Approved",
-      "message": "Your booking for Room 101 has been approved.",
-      "type": "BOOKING_STATUS",
-      "isRead": false,
-      "relatedId": "BK-12345",
-      "createdAt": "2023-10-27T10:00:00Z"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "size": 20,
-    "totalElements": 1,
-    "totalPages": 1,
-    "serverTime": 1698393600000
-  }
-}
-```
-
-### 2. Get Unread Count
+#### 2. Get Unread Count
 **Endpoint:** `GET /api/v1/notifications/unread-count`
 
 **Response Type:** `ApiResult<Long>`
 
-**Response Example:**
-```json
-{
-  "data": 5,
-  "meta": {
-    "serverTime": 1698393600000
-  }
-}
-```
+---
 
-### 3. Mark Specific Notification as Read
+### Write/Clear Operations
+
+#### 3. Mark Specific Notification as Read
 **Endpoint:** `PATCH /api/v1/notifications/{id}/read`
 
-**Request Type:** No request body.
+**Response Type:** `ApiResult<Void>`
 
-**Response Type:** `ApiResult<Void>` (Success with no data).
-
-### 4. Mark All Notifications as Read
+#### 4. Mark All Notifications as Read
 **Endpoint:** `POST /api/v1/notifications/read-all`
 
-**Request Type:** No request body.
+**Response Type:** `ApiResult<Void>`
 
-**Response Type:** `ApiResult<Void>` (Success with no data).
+#### 5. Delete Specific Notification
+**Endpoint:** `DELETE /api/v1/notifications/{id}`
+
+**Description**: Removes a single notification from the user's history permanently.
+
+#### 6. Bulk Delete Notifications
+**Endpoint:** `DELETE /api/v1/notifications/bulk`
+
+**Request Body**: `List<Long>` (JSON array of IDs).
+
+**Description**: Deletes multiple specific notifications.
+
+#### 7. Clear All Notifications
+**Endpoint:** `DELETE /api/v1/notifications/clear-all`
+
+**Description**: Permanently wipes all notification history for the authenticated user.
 
 ---
 

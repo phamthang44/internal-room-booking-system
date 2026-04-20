@@ -84,6 +84,41 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResult.success());
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResult<Void>> deleteNotification(
+            @PathVariable Long id,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Clear 1 notification");
+        Long userId = userDetails.getUser().getId();
+        notificationService.delete(id, userId);
+        
+        return ResponseEntity.ok(ApiResult.success());
+    }
+
+    @DeleteMapping("/bulk")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResult<Void>> deleteMultipleNotifications(
+            @RequestBody List<Long> ids,
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Clear selected notifications");
+        Long userId = userDetails.getUser().getId();
+        notificationService.deleteMultiple(ids, userId);
+        
+        return ResponseEntity.ok(ApiResult.success());
+    }
+
+    @DeleteMapping("/clear-all")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResult<Void>> clearAllNotifications(
+            @AuthenticationPrincipal SecurityUserDetails userDetails) {
+        log.info("Clear all notifications");
+        Long userId = userDetails.getUser().getId();
+        notificationService.clearAll(userId);
+        
+        return ResponseEntity.ok(ApiResult.success());
+    }
+
     private NotificationResponse mapToResponse(Notification notification) {
         return NotificationResponse.builder()
                 .id(notification.getId())

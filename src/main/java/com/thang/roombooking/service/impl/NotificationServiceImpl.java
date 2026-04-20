@@ -37,7 +37,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void notifyUser(String userId, NotificationPayload payload) {
-        log.info("Sending WS notification to user {} | type={} | bookingId={}",
+        log.info("Sending WS notification to user {} | type={} | bookingId={}", 
                 userId, payload.type(), payload.bookingId());
         messagingTemplate.convertAndSend(
                 "/topic/notifications/" + userId,
@@ -51,6 +51,8 @@ public class NotificationServiceImpl implements NotificationService {
                 topic, payload.type(), payload.bookingId());
         messagingTemplate.convertAndSend(topic, payload);
     }
+
+    // --- Persistence Implementation ---
 
     @Override
     @Transactional(readOnly = true)
@@ -89,14 +91,66 @@ public class NotificationServiceImpl implements NotificationService {
                 .user(user)
                 .title(payload.title())
                 .message(payload.message())
-                .type(NotificationType.BOOKING_STATUS) // Mapping can be dynamic later
-                .relatedId(String.valueOf(payload.bookingId()))
+                .type(parseType(payload.type()))
+                .relatedId(payload.bookingId() != null ? String.valueOf(payload.bookingId()) : null)
                 .isRead(false)
                 .build();
-
+        
         notificationRepository.save(notification);
-
+        
         // Push real-time
         this.notifyUser(String.valueOf(userId), payload);
+    }
+
+    @Override
+    @Transactional
+    public void saveForAdmins(NotificationPayload payload) {
+        // Fetch all Staff and Admin users to persist the notification for each
+        var admins = userAccountRepository.findAllByRoleNames(java.util.List.of("ADMIN", "STAFF"));
+        
+        log.info("Saving persistent notifications for {} admins/staff | type={}", admins.size(), payload.type());
+        
+        var notifications = admins.stream()
+                .map(admin -> Notification.builder()
+                        .user(admin)
+                        .title(payload.title())
+                        .message(payload.message())
+                        .type(parseType(payload.type()))
+                        .relatedId(payload.bookingId() != null ? String.valueOf(payload.bookingId()) : null)
+                        .isRead(false)
+                        .build())
+                .toList();
+        
+        notificationRepository.saveAll(notifications);
+        
+        // Also broadcast via WebSocket for immediate UI refresh
+        this.sendToTopic("/topic/admin/bookings", payload);
+    }
+
+    private NotificationType parseType(String type) {
+        try {
+            return NotificationType.valueOf(type);
+        } catch (Exception e) {
+            log.warn("Unknown notification type: {}. Defaulting to BOOKING_STATUS", type);
+            return NotificationType.BOOKING_STATUS;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long notificationId, Long userId) {
+        notificationRepository.deleteByIdAndUserId(notificationId, userId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteMultiple(java.util.List<Long> ids, Long userId) {
+        notificationRepository.deleteAllByIdInAndUserId(ids, userId);
+    }
+
+    @Override
+    @Transactional
+    public void clearAll(Long userId) {
+        notificationRepository.deleteAllByUserId(userId);
     }
 }

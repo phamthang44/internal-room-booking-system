@@ -22,4 +22,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     Optional<UserAccount> findByEmail(String email);
 
+    @Query("SELECT u FROM UserAccount u JOIN u.role r WHERE r.name IN :roleNames")
+    java.util.List<UserAccount> findAllByRoleNames(@Param("roleNames") java.util.Collection<String> roleNames);
 }
