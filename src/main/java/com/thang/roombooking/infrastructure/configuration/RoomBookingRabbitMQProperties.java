@@ -18,6 +18,7 @@ public class RoomBookingRabbitMQProperties {
         private String emailPriority;
         private String emailNormal;
         private String emailBooking;
+        private String notificationInApp;
     }
 
     @Data
@@ -26,5 +27,6 @@ public class RoomBookingRabbitMQProperties {
         private String patternEmailPriority;
         private String patternEmailNormal;
         private String patternEmailBooking;
+        private String patternNotificationInApp;
     }
 }

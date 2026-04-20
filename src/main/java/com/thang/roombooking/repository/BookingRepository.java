@@ -92,14 +92,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                                            @Param("date") LocalDate date,
                                                            @Param("statuses") List<BookingStatus> statuses);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
             "WHERE b.id = :id AND b.status = 'PENDING' AND b.version = :expectedVersion")
     int atomicApprove(@Param("id") Long id,
                       @Param("newStatus") BookingStatus newStatus,
                       @Param("expectedVersion") Integer expectedVersion);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = :newStatus, b.rejectionReason = :reason, b.version = b.version + 1 " +
             "WHERE b.id = :id AND b.status = 'PENDING' AND b.version = :expectedVersion")
     int atomicRejectPending(@Param("id") Long id,
@@ -107,7 +107,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                             @Param("reason") String reason,
                             @Param("expectedVersion") Integer expectedVersion);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.checkinTime = :checkinTime, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'APPROVED' " + // Chỉ cho phép check-in khi đã được duyệt
@@ -116,7 +116,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                       @Param("checkinTime") Instant checkinTime,
                       @Param("version") Integer version);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.checkoutTime = :checkoutTime, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'CHECKED_IN' " +
@@ -126,7 +126,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                        @Param("checkoutTime") Instant checkoutTime,
                        @Param("version") Integer version);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = 'COMPLETED', b.checkoutTime = :checkoutTime, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'CHECKED_IN' " +
@@ -163,14 +163,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                       @Param("today") LocalDate today,
                                       @Param("thresholdTime") LocalTime thresholdTime);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
             "WHERE b.id = :id AND b.status = 'APPROVED' AND b.version = :expectedVersion")
     int atomicCancel(@Param("id") Long id,
                      @Param("newStatus") BookingStatus newStatus,
                      @Param("expectedVersion") Integer expectedVersion);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
             "WHERE b.id = :id AND b.version = :expectedVersion AND b.status != 'CANCELLED'")
     int atomicCancelByStudent(@Param("id") Long id,

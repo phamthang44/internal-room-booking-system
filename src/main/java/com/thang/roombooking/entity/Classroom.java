@@ -169,4 +169,19 @@ public class Classroom extends BaseSoftDeleteEntity<Long> {
     public Long getId() {
         return id;
     }
+
+    @Override
+    public String toString() {
+        return "Classroom{" +
+                "id=" + id +
+                ", building=" + building +
+                ", roomName='" + roomName + '\'' +
+                ", capacity=" + capacity +
+                ", status=" + status +
+                ", version=" + version +
+                ", classroomEquipments=" + classroomEquipments +
+                ", roomType=" + roomType +
+                ", roomAssets=" + roomAssets +
+                '}';
+    }
 }

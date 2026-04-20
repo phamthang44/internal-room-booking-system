@@ -65,6 +65,20 @@ public class RabbitMQConfig {
                 .with(properties.getRoutingKeys().getPatternEmailBooking());
     }
 
+    // --- IN-APP LANE: persistent notifications (Bell Icon) ---
+    @Bean
+    public Queue notificationInAppQueue() {
+        return new Queue(properties.getQueues().getNotificationInApp(), true);
+    }
+
+    @Bean
+    public Binding bindingNotificationInApp(Queue notificationInAppQueue, TopicExchange eventExchange) {
+        // Enforce: notification.in-app.* -> notification-in-app
+        return BindingBuilder.bind(notificationInAppQueue)
+                .to(eventExchange)
+                .with(properties.getRoutingKeys().getPatternNotificationInApp());
+    }
+
     // ==================== 3. INFRASTRUCTURE ====================
     @Bean
     public MessageConverter jsonMessageConverter() {

@@ -33,6 +33,8 @@ roombooking:
       pattern-email-normal: "notification.email.*"
       # Booking: booking lifecycle emails (create/approve/reject/cancel)
       pattern-email-booking: "notification.email.booking.*"
+      # In-App: persistent notifications (Bell Icon)
+      pattern-notification-in-app: "notification.in-app.*"
 
     # 3. Queues: Work mailboxes (Defined by consumers)
     # Pattern: <module>.<action>.queue
@@ -42,3 +44,5 @@ roombooking:
       email-normal: notification.send-email.normal.queue
       # Booking notification mailbox (separate to avoid payload type mixing)
       email-booking: notification.send-email.booking.queue
+      # Persistent in-app notifications
+      notification-in-app: notification.in-app.queue
