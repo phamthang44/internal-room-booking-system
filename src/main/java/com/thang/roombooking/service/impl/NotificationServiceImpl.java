@@ -7,6 +7,7 @@ import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.entity.Notification;
 import com.thang.roombooking.entity.UserAccount;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.NotificationRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.service.NotificationService;
@@ -18,6 +19,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,12 +29,13 @@ public class NotificationServiceImpl implements NotificationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationRepository notificationRepository;
     private final UserAccountRepository userAccountRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Override
     public void notifyUser(String userId, String type, String message) {
         messagingTemplate.convertAndSend(
                 "/topic/notifications/" + userId,
-                new NotificationPayload(type, message, null, null, null, null)
+                new NotificationPayload(type, message, message, null, null, Instant.now())
         );
     }
 
@@ -57,7 +61,28 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional(readOnly = true)
     public Page<Notification> getNotificationsByUser(Long userId, Pageable pageable) {
-        return notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<Notification> page = notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
+        // Translate messages on-the-fly based on the requesting user's current locale
+        page.forEach(this::resolveI18n);
+        return page;
+    }
+
+    private void resolveI18n(Notification n) {
+        n.setTitle(resolveText(n.getTitle(), ".title"));
+        n.setMessage(resolveText(n.getMessage(), ".message"));
+    }
+
+    private String resolveText(String storedValue, String suffix) {
+        if (storedValue != null && storedValue.startsWith("I18N:")) {
+            try {
+                String json = storedValue.substring(5);
+                I18nData data = objectMapper.readValue(json, I18nData.class);
+                return I18nUtils.get(data.key() + suffix, data.params());
+            } catch (Exception e) {
+                log.warn("Failed to resolve i18n for: {}", storedValue);
+            }
+        }
+        return storedValue;
     }
 
     @Override
@@ -89,8 +114,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         Notification notification = Notification.builder()
                 .user(user)
-                .title(payload.title())
-                .message(payload.message())
+                .title(wrapI18n(payload.titleKey(), payload.title()))
+                .message(wrapI18n(payload.titleKey(), payload.message(), payload.messageParams()))
                 .type(parseType(payload.type()))
                 .relatedId(payload.bookingId() != null ? String.valueOf(payload.bookingId()) : null)
                 .isRead(false)
@@ -113,8 +138,8 @@ public class NotificationServiceImpl implements NotificationService {
         var notifications = admins.stream()
                 .map(admin -> Notification.builder()
                         .user(admin)
-                        .title(payload.title())
-                        .message(payload.message())
+                        .title(wrapI18n(payload.titleKey(), payload.title()))
+                        .message(wrapI18n(payload.titleKey(), payload.message(), payload.messageParams()))
                         .type(parseType(payload.type()))
                         .relatedId(payload.bookingId() != null ? String.valueOf(payload.bookingId()) : null)
                         .isRead(false)
@@ -125,6 +150,15 @@ public class NotificationServiceImpl implements NotificationService {
         
         // Also broadcast via WebSocket for immediate UI refresh
         this.sendToTopic("/topic/admin/bookings", payload);
+    }
+
+    private String wrapI18n(String key, String fallback, Object... params) {
+        if (key == null) return fallback;
+        try {
+            return "I18N:" + objectMapper.writeValueAsString(new I18nData(key, params));
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     private NotificationType parseType(String type) {
@@ -153,4 +187,6 @@ public class NotificationServiceImpl implements NotificationService {
     public void clearAll(Long userId) {
         notificationRepository.deleteAllByUserId(userId);
     }
+
+    private record I18nData(String key, Object[] params) {}
 }

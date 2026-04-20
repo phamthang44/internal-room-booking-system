@@ -1,6 +1,7 @@
 package com.thang.roombooking.common.dto.response;
 
 import com.thang.roombooking.common.enums.AttendanceStatus;
+import com.thang.roombooking.common.enums.BookingStatus;
 import lombok.*;
 
 import java.time.Instant;
@@ -20,6 +21,7 @@ public class AdminBookingDetailResponse {
     private String purpose;
     private String rejectedReason;
     private LocalDate bookingDate;
+    private BookingStatus status;
     private List<TimeSlotResponse> timeSlots;
     private AuditResponse audit;
     private String cancelledBy;

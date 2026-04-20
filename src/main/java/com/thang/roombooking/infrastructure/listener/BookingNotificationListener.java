@@ -88,24 +88,24 @@ public class BookingNotificationListener {
         String type = "BOOKING_" + event.statusAfter().name();
         String i18nPrefix = isAdmin ? "notification.admin.booking." : "notification.booking.";
         
-        String title = I18nUtils.get(i18nPrefix + keyPrefix + ".title", locale);
-        String message;
-        
+        Object[] params;
         if (isAdmin) {
             // Admin message expects: {0}=Name, {1}=Code, {2}=ID, {3}=Room, {4}=PerformedBy, {5}=Note
-            message = I18nUtils.get(i18nPrefix + keyPrefix + ".message", locale,
+            params = new Object[]{
                     booking.getUser().getFullName(),                   // {0}
                     booking.getUser().getStudentCode(),                 // {1}
                     booking.getId(),                                    // {2}
                     booking.getClassroom().getRoomName(),               // {3}
                     event.performedBy() != null ? event.performedBy() : "System", // {4}
                     event.note() != null ? event.note() : ""            // {5}
-            );
+            };
         } else {
             // Student message expects: {0}=Room Name
-            message = I18nUtils.get(i18nPrefix + keyPrefix + ".message", 
-                    locale, booking.getClassroom().getRoomName());
+            params = new Object[]{booking.getClassroom().getRoomName()};
         }
+
+        String title = I18nUtils.get(i18nPrefix + keyPrefix + ".title", locale);
+        String message = I18nUtils.get(i18nPrefix + keyPrefix + ".message", locale, params);
 
         return new NotificationPayload(
                 type,
@@ -113,7 +113,9 @@ public class BookingNotificationListener {
                 message,
                 booking.getId(),
                 event.statusAfter().name(),
-                Instant.now()
+                Instant.now(),
+                i18nPrefix + keyPrefix, // titleKey and messageKey share the same prefix
+                params
         );
     }
 }
