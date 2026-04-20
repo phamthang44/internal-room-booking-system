@@ -8,6 +8,7 @@ import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +25,9 @@ public class AdminUserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResult<Page<UserBasicResponse>>> getAllUsers(Pageable pageable) {
+    public ResponseEntity<ApiResult<List<UserBasicResponse>>> getAllUsers(Pageable pageable) {
         Page<UserBasicResponse> users = adminUserService.getAllUsers(pageable);
-        return ResponseEntity.ok(ApiResult.success(users, I18nUtils.get("user.profile.retrieve.success")));
+        return ResponseEntity.ok(ApiResult.successPage(users, I18nUtils.get("user.profile.retrieve.success")));
     }
 
     @PostMapping
@@ -48,7 +49,7 @@ public class AdminUserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResult<UserBasicResponse>> updateUserRole(
             @PathVariable Long userId,
-            @RequestParam String roleName) {
+            @RequestBody String roleName) {
             
         UserBasicResponse response = adminUserService.updateUserRole(userId, roleName);
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.upd.success")));

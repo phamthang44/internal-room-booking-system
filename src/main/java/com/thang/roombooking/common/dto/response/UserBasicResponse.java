@@ -14,7 +14,8 @@ public record UserBasicResponse(Long id, String username, String email, String r
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole().getName(),
-                user.getStatus().name()
+                user.getStatus().name(),
+                user.getStudentCode()
         );
     }
 

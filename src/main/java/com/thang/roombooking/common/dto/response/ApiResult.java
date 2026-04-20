@@ -5,6 +5,7 @@ import com.thang.roombooking.common.exception.errorcode.BaseErrorCode;
 import lombok.Builder;
 import lombok.Getter;
 
+import org.springframework.data.domain.Page;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +58,7 @@ public class ApiResult<T> {
 
     @Getter
     @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ErrorDetail {
         private String code;
         private String message;
@@ -114,7 +116,39 @@ public class ApiResult<T> {
                 .build();
     }
 
-    // 6. Trả về Lỗi (Cơ bản)
+    // 6. Success from Spring Data Page
+    public static <T> ApiResult<List<T>> successPage(Page<T> page) {
+        return success(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
+    }
+
+    // 7. Success from Spring Data Page with Message
+    public static <T> ApiResult<List<T>> successPage(Page<T> page, String message) {
+        return ApiResult.<List<T>>builder()
+                .data(page.getContent())
+                .meta(Meta.builder()
+                        .message(message)
+                        .page(page.getNumber())
+                        .size(page.getSize())
+                        .totalElements(page.getTotalElements())
+                        .totalPages(page.getTotalPages())
+                        .build())
+                .build();
+    }
+
+    // 8. Success from Mapped Content and Page Info
+    public static <R, T> ApiResult<List<R>> success(List<R> content, Page<T> pageInfo) {
+        return ApiResult.<List<R>>builder()
+                .data(content)
+                .meta(Meta.builder()
+                        .page(pageInfo.getNumber())
+                        .size(pageInfo.getSize())
+                        .totalElements(pageInfo.getTotalElements())
+                        .totalPages(pageInfo.getTotalPages())
+                        .build())
+                .build();
+    }
+
+    // 9. Trả về Lỗi (Cơ bản)
     public static ApiResult<?> error(String code, String message, String traceId) {
         return ApiResult.builder()
                 .error(ErrorDetail.builder()
@@ -125,7 +159,7 @@ public class ApiResult<T> {
                 .build();
     }
 
-    // 7. Trả về Lỗi (Chi tiết - Dùng cho Validation)
+    // 10. Trả về Lỗi (Chi tiết - Dùng cho Validation)
     public static ApiResult<?> error(String code, String message, String traceId, Object details) {
         return ApiResult.builder()
                 .error(ErrorDetail.builder()
@@ -143,7 +177,7 @@ public class ApiResult<T> {
                 .build();
     }
 
-    // 8. Trả về Lỗi (Dùng BaseErrorCode)
+    // 11. Trả về Lỗi (Dùng BaseErrorCode)
     public static ApiResult<?> error(BaseErrorCode errorCode, Object... args) {
         String message = errorCode != null ? errorCode.format(args) : "Unknown error";
         String code = errorCode != null ? errorCode.getCode() : "UNKNOWN_ERROR";
@@ -156,5 +190,6 @@ public class ApiResult<T> {
                         .build())
                 .build();
     }
+
 
 }

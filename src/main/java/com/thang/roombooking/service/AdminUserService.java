@@ -7,6 +7,8 @@ import com.thang.roombooking.common.enums.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface AdminUserService {
     Page<UserBasicResponse> getAllUsers(Pageable pageable);
     void banUser(Long userId);
