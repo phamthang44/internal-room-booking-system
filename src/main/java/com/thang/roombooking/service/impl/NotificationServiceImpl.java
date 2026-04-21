@@ -4,7 +4,6 @@ import com.thang.roombooking.common.dto.model.NotificationPayload;
 import com.thang.roombooking.common.enums.NotificationType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.AuthErrorCode;
-import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.entity.Notification;
 import com.thang.roombooking.entity.UserAccount;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
@@ -60,8 +59,8 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Notification> getNotificationsByUser(Long userId, Pageable pageable) {
-        Page<Notification> page = notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
+    public Page<Notification> getNotificationsByUser(Long userId, Boolean isRead, Pageable pageable) {
+        Page<Notification> page = notificationRepository.findAllByUserIdAndIsRead(userId, isRead, pageable);
         // Translate messages on-the-fly based on the requesting user's current locale
         page.forEach(this::resolveI18n);
         return page;
@@ -123,8 +122,22 @@ public class NotificationServiceImpl implements NotificationService {
         
         notificationRepository.save(notification);
         
-        // Push real-time
-        this.notifyUser(String.valueOf(userId), payload);
+        // Push real-time with the actual persistence ID and current state
+        NotificationPayload pushPayload = new NotificationPayload(
+                notification.getId(),
+                payload.type(),
+                payload.title(),
+                payload.message(),
+                payload.bookingId(),
+                payload.status(),
+                notification.isRead(),
+                notification.isRead() ? "READ" : "UNREAD",
+                notification.getCreatedAt(),
+                payload.titleKey(),
+                payload.messageParams()
+        );
+        
+        this.notifyUser(String.valueOf(userId), pushPayload);
     }
 
     @Override

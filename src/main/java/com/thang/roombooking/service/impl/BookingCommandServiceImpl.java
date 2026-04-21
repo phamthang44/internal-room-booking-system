@@ -144,26 +144,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
-            // 2) Derive the booking's effective start time from its TimeSlots (source of truth).
-            // The denormalized booking.startTime column is nullable (see V9/V11 migrations) and
-            // cannot be relied upon. We must resolve the earliest start time from the related slots.
-            ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
-
-            LocalTime resolvedStartTime = booking.getBookingTimeSlots().stream()
-                    .map(BookingTimeSlot::getTimeSlot)
-                    .map(TimeSlot::getStartTime)
-                    .min(LocalTime::compareTo)
-                    .orElseGet(() -> {
-                        // Fallback: if slots are not loaded, use the denormalized column
-                        if (booking.getStartTime() != null) {
-                            log.warn("[checkIn] No BookingTimeSlots loaded for booking={}, falling back to denormalized startTime", booking.getId());
-                            return booking.getStartTime();
-                        }
-                        throw new AppException(BookingErrorCode.BOOKING_NOT_FOUND);
-                    });
-
-            LocalDateTime startDateTime = booking.getBookingDate().atTime(resolvedStartTime);
-            Instant startInstant = startDateTime.atZone(vnZone).toInstant();
+            // 2) Derive the booking's effective start time
+            Instant startInstant = getBookingStartInstant(booking);
             bookingPolicyManager.validateCheckInTimePolicy(startInstant);
 
             // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
@@ -210,7 +192,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         log.info("{} | Checkout Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
         try {
-            Booking booking = bookingRepository.findById(request.bookingId())
+            Booking booking = bookingRepository.findByIdWithTimeSlots(request.bookingId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             if (!booking.getUser().getId().equals(currentUser.getId())) {
@@ -220,6 +202,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (booking.getStatus() != BookingStatus.CHECKED_IN) {
                 throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
             }
+
+            // 2. Policy: Chặn trả phòng quá sớm (Trước khi ca bắt đầu)
+            Instant startInstant = getBookingStartInstant(booking);
+            bookingPolicyManager.validateCheckOutTimePolicy(startInstant);
 
             Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
             int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, booking.getVersion());
@@ -450,7 +436,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, bookingId);
         try {
             // lấy booking
-            Booking booking = bookingRepository.findById(bookingId)
+            Booking booking = bookingRepository.findByIdWithTimeSlots(bookingId)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             // 1. Check quyền sở hữu
@@ -458,13 +444,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
-            // 2. Lấy Slot bắt đầu sớm nhất
-            TimeSlot firstSlot = booking.getBookingTimeSlots().stream()
-                    .map(BookingTimeSlot::getTimeSlot)
-                    .min(Comparator.comparing(TimeSlot::getStartTime))
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-            // 3. Gộp thành LocalDateTime để so sánh toàn diện (Ngày + Giờ)
-            LocalDateTime startDateTime = booking.getBookingDate().atTime(firstSlot.getStartTime());
+            // 2. Derive the booking's effective start time
+            Instant startInstant = getBookingStartInstant(booking);
+            LocalDateTime startDateTime = LocalDateTime.ofInstant(startInstant, ZoneId.of("Asia/Ho_Chi_Minh"));
 
             bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startDateTime);
 
@@ -498,6 +480,22 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         }
     }
 
+
+    private Instant getBookingStartInstant(Booking booking) {
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalTime resolvedStartTime = booking.getBookingTimeSlots().stream()
+                .map(BookingTimeSlot::getTimeSlot)
+                .map(TimeSlot::getStartTime)
+                .min(LocalTime::compareTo)
+                .orElseGet(() -> {
+                    if (booking.getStartTime() != null) {
+                        return booking.getStartTime();
+                    }
+                    throw new AppException(BookingErrorCode.BOOKING_NOT_FOUND);
+                });
+
+        return booking.getBookingDate().atTime(resolvedStartTime).atZone(vnZone).toInstant();
+    }
 
     private String cleanString(String data) {
         return data != null ? data.trim() : null;

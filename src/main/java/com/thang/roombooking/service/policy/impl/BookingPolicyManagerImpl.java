@@ -46,6 +46,11 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     }
 
     @Override
+    public void validateCheckOutTimePolicy(Instant bookingStartTime) {
+        bookingFlowPolicy.validateCheckOutTimePolicy(bookingStartTime);
+    }
+
+    @Override
     public void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime) {
         bookingPolicy.validateBookingTimeWorkingHours(bookingDate, bookingTime);
     }

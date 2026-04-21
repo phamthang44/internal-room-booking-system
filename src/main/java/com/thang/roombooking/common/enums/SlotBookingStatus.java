@@ -6,8 +6,11 @@ package com.thang.roombooking.common.enums;
  */
 public enum SlotBookingStatus {
     AVAILABLE,
+    RESERVED,
     PENDING,
     APPROVED,
-    IN_USE
+    OCCUPIED,
+    IN_USE,
+    REJECTED
 }
 

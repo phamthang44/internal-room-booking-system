@@ -31,12 +31,13 @@ public class NotificationController {
     public ResponseEntity<ApiResult<List<NotificationResponse>>> getNotifications(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean isRead,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         
         Long userId = userDetails.getUser().getId();
         Pageable pageable = PageRequest.of(page - 1, size);
         
-        Page<Notification> notificationPage = notificationService.getNotificationsByUser(userId, pageable);
+        Page<Notification> notificationPage = notificationService.getNotificationsByUser(userId, isRead, pageable);
         
         List<NotificationResponse> content = notificationPage.getContent().stream()
                 .map(this::mapToResponse)
@@ -126,6 +127,7 @@ public class NotificationController {
                 .message(notification.getMessage())
                 .type(notification.getType())
                 .isRead(notification.isRead())
+                .readStatus(notification.isRead() ? "READ" : "UNREAD")
                 .relatedId(notification.getRelatedId())
                 .createdAt(notification.getCreatedAt())
                 .build();

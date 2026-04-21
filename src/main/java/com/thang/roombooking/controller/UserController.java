@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Slf4j
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v1/profile")
 @Validated
 public class UserController {
 
     private final UserQueryService userQueryService;
 
-    @GetMapping("/me")
+    @GetMapping
     public ResponseEntity<ApiResult<UserProfileResponse>> getCurrentUser(@AuthenticationPrincipal SecurityUserDetails currentUser) {
 
         var response = userQueryService.getProfile(currentUser);

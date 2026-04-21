@@ -20,6 +20,8 @@ public interface BookingPolicyManager {
 
     void validateCheckInTimePolicy(Instant bookingStartTime);
 
+    void validateCheckOutTimePolicy(Instant bookingStartTime);
+
     void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime);
 
     void validateCheckInStatus(BookingStatus bookingStatus);

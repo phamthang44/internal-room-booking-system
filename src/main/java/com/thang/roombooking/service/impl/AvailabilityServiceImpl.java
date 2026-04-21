@@ -9,12 +9,16 @@ import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.utils.TranslationKeyBuilder;
 import com.thang.roombooking.entity.Booking;
 import com.thang.roombooking.entity.TimeSlot;
+import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.repository.TimeSlotRepository;
 import com.thang.roombooking.service.AvailabilityService;
 import com.thang.roombooking.service.TranslationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,26 +48,30 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             availabilityMap.put(date, createDailySlots(allSlots, translations));
         }
 
-        // NOTE: include CHECKED_IN and COMPLETED to align with database exclusion constraint.
-        List<BookingStatus> blockingStatuses = Arrays.asList(
+        // include REJECTED to show student why their booking was denied.
+        List<BookingStatus> relevantStatuses = Arrays.asList(
                 BookingStatus.APPROVED, 
                 BookingStatus.PENDING, 
                 BookingStatus.CHECKED_IN,
-                BookingStatus.COMPLETED
+                BookingStatus.COMPLETED,
+                BookingStatus.REJECTED
         );
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomAndDateRange(
-                classroomId, startDate, endDate, blockingStatuses
+                classroomId, startDate, endDate, relevantStatuses
         );
 
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDate today = LocalDate.now(vnZone);
         LocalTime nowTime = LocalTime.now(vnZone);
 
+        Long currentUserId = getCurrentUserId();
+        boolean isAdmin = isViewerAdmin();
+
         for (Booking booking : overlappingBookings) {
             LocalDate bDate = booking.getBookingDate();
             List<SlotStatus> daySlots = availabilityMap.get(bDate);
             if (daySlots != null) {
-                applyBookingToDaySlots(booking, daySlots, bDate, today, nowTime);
+                applyBookingToDaySlots(booking, daySlots, bDate, today, nowTime, currentUserId, isAdmin);
             }
         }
 
@@ -85,26 +93,30 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             bulkMap.put(cId, new DateAvailability(date, createDailySlots(allSlots, translations)));
         }
 
-        // NOTE: include CHECKED_IN and COMPLETED to align with database exclusion constraint.
-        List<BookingStatus> blockingStatuses = Arrays.asList(
+        // include REJECTED to show student why their booking was denied.
+        List<BookingStatus> relevantStatuses = Arrays.asList(
                 BookingStatus.APPROVED, 
                 BookingStatus.PENDING, 
                 BookingStatus.CHECKED_IN,
-                BookingStatus.COMPLETED
+                BookingStatus.COMPLETED,
+                BookingStatus.REJECTED
         );
         List<Booking> overlappingBookings = bookingRepository.findBookingsByClassroomIdsAndDate(
-                classroomIds, date, blockingStatuses
+                classroomIds, date, relevantStatuses
         );
 
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDate today = LocalDate.now(vnZone);
         LocalTime nowTime = LocalTime.now(vnZone);
 
+        Long currentUserId = getCurrentUserId();
+        boolean isAdmin = isViewerAdmin();
+
         for (Booking booking : overlappingBookings) {
             Long cId = booking.getClassroom().getId();
             DateAvailability classroomDateGrid = bulkMap.get(cId);
             if (classroomDateGrid != null) {
-                applyBookingToDaySlots(booking, classroomDateGrid.slots(), date, today, nowTime);
+                applyBookingToDaySlots(booking, classroomDateGrid.slots(), date, today, nowTime, currentUserId, isAdmin);
             }
         }
 
@@ -139,8 +151,11 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                     slot.getEndTime(),
                     SlotBookingStatus.AVAILABLE,
                     true,
-                    null
+                    null,
+                    null,
+                    false
             ));
+
         }
         return dailySlots;
     }
@@ -150,44 +165,129 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             List<SlotStatus> daySlots,
             LocalDate bookingDate,
             LocalDate today,
-            LocalTime nowTime
+            LocalTime nowTime,
+            Long currentUserId,
+            boolean isAdmin
     ) {
         booking.getBookingTimeSlots().forEach(bts -> {
             Long bSlotId = Long.valueOf(bts.getTimeSlot().getId());
             LocalTime slotStart = bts.getTimeSlot().getStartTime();
             LocalTime slotEnd = bts.getTimeSlot().getEndTime();
 
-            if (booking.getStatus() == BookingStatus.CHECKED_IN) {
-                // Do not block if already checked out
-                if (booking.getCheckoutTime() != null) return;
-                // Only show IN_USE for today's active time window
-                if (!Objects.equals(bookingDate, today)) return;
-                boolean inUseNow =
-                        (nowTime.equals(slotStart) || nowTime.isAfter(slotStart))
-                                && nowTime.isBefore(slotEnd);
-                if (!inUseNow) return;
+            if (isInactiveCheckedIn(booking, bookingDate, today, nowTime, slotStart, slotEnd)) {
+                return;
             }
 
-            for (int i = 0; i < daySlots.size(); i++) {
-                SlotStatus current = daySlots.get(i);
-                if (current.slotId().equals(bSlotId)) {
-                    SlotBookingStatus statusLabel =
-                            booking.getStatus() == BookingStatus.CHECKED_IN
-                                    ? SlotBookingStatus.IN_USE
-                                    : SlotBookingStatus.valueOf(booking.getStatus().name());
-                    daySlots.set(i, new SlotStatus(
-                            current.slotId(),
-                            current.slotName(),
-                            current.startTime(),
-                            current.endTime(),
-                            statusLabel,
-                            false,
-                            booking.getId()
-                    ));
-                    break;
-                }
-            }
+            updateSlotStatus(daySlots, bSlotId, booking, currentUserId, isAdmin);
         });
+    }
+
+    private boolean isInactiveCheckedIn(
+            Booking booking,
+            LocalDate bookingDate,
+            LocalDate today,
+            LocalTime nowTime,
+            LocalTime slotStart,
+            LocalTime slotEnd
+    ) {
+        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+            return false;
+        }
+        // Do not block if already checked out or not for today
+        if (booking.getCheckoutTime() != null || !Objects.equals(bookingDate, today)) {
+            return true;
+        }
+        // Only show IN_USE for active time window
+        boolean inUseNow = (nowTime.equals(slotStart) || nowTime.isAfter(slotStart))
+                && nowTime.isBefore(slotEnd);
+        return !inUseNow;
+    }
+
+    private void updateSlotStatus(
+            List<SlotStatus> daySlots,
+            Long bSlotId,
+            Booking booking,
+            Long currentUserId,
+            boolean isAdmin
+    ) {
+        for (int i = 0; i < daySlots.size(); i++) {
+            SlotStatus current = daySlots.get(i);
+            if (current.slotId().equals(bSlotId)) {
+                SlotStatusUpdate update = getStatusUpdate(booking, currentUserId, isAdmin);
+                if (update == null) {
+                    return;
+                }
+
+                // Priority logic: if the slot is already blocked (isAvailable=false),
+                // an AVAILABLE status (like REJECTED) should NOT overwrite it.
+                if (!current.isAvailable() && update.isAvailable()) {
+                    return;
+                }
+
+                daySlots.set(i, new SlotStatus(
+                        current.slotId(),
+                        current.slotName(),
+                        current.startTime(),
+                        current.endTime(),
+                        update.status(),
+                        update.isAvailable(),
+                        booking.getId(),
+                        update.rejectionReason(),
+                        update.isMine()
+                ));
+                break;
+            }
+        }
+    }
+
+    private record SlotStatusUpdate(
+            SlotBookingStatus status,
+            boolean isAvailable,
+            String rejectionReason,
+            boolean isMine
+    ) {}
+
+    private SlotStatusUpdate getStatusUpdate(Booking booking, Long currentUserId, boolean isAdmin) {
+        boolean isOwner = currentUserId != null && currentUserId.equals(booking.getUser().getId());
+
+        return switch (booking.getStatus()) {
+            case CHECKED_IN -> new SlotStatusUpdate(SlotBookingStatus.IN_USE, false, null, isOwner);
+            case PENDING -> (isAdmin || isOwner)
+                    ? new SlotStatusUpdate(SlotBookingStatus.PENDING, false, null, isOwner)
+                    : new SlotStatusUpdate(SlotBookingStatus.OCCUPIED, false, null, false);
+            case REJECTED -> isOwner
+                    ? new SlotStatusUpdate(SlotBookingStatus.REJECTED, true, booking.getRejectionReason(), true)
+                    : null; // Don't show other people's rejections in the grid
+            case APPROVED, COMPLETED -> new SlotStatusUpdate(SlotBookingStatus.OCCUPIED, false, null, isOwner);
+            default -> null;
+        };
+    }
+
+
+
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null ||
+                !authentication.isAuthenticated() ||
+                authentication instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof SecurityUserDetails sud) {
+            return sud.getUser().getId();
+        }
+        return null;
+    }
+
+    private boolean isViewerAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                        a.getAuthority().equals("ROLE_STAFF") ||
+                        a.getAuthority().equals("ROLE_MANAGER"));
     }
 
     private ClassroomAvailabilityResponse assembleFinalOutput(LocalDate startDate, Map<LocalDate, List<SlotStatus>> availabilityMap) {

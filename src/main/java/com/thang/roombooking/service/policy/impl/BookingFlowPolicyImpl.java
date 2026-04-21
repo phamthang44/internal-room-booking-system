@@ -47,6 +47,18 @@ public class BookingFlowPolicyImpl implements BookingFlowPolicy {
     }
 
     @Override
+    public void validateCheckOutTimePolicy(Instant bookingStartTime) {
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(vnZone);
+        LocalDateTime startDateTime = LocalDateTime.ofInstant(bookingStartTime, vnZone);
+
+        // Chặn trả phòng trước khi ca bắt đầu
+        if (now.isBefore(startDateTime)) {
+            throw new AppException(BookingErrorCode.BOOKING_CHECK_OUT_TOO_EARLY);
+        }
+    }
+
+    @Override
     public void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime) {
 
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));

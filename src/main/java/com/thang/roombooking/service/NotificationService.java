@@ -13,7 +13,7 @@ public interface NotificationService {
     void sendToTopic(String topic, NotificationPayload payload);
 
     // --- Persistence Methods ---
-    Page<Notification> getNotificationsByUser(Long userId, Pageable pageable);
+    Page<Notification> getNotificationsByUser(Long userId, Boolean isRead, Pageable pageable);
 
     void markAsRead(Long notificationId, Long userId);
 

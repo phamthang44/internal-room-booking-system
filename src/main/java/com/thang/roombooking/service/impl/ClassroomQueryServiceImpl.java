@@ -146,8 +146,9 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                             da.date(),
                             da.slots().stream()
                                     .map(slot -> new SlotStatus(
-                                            slot.slotId(), slot.slotName(), slot.startTime(), slot.endTime(), slot.status(), false, slot.currentBookingId()
+                                            slot.slotId(), slot.slotName(), slot.startTime(), slot.endTime(), slot.status(), false, slot.currentBookingId(), slot.rejectionReason(), slot.isMine()
                                     )).toList()
+
                     )).toList();
             schedule = new ClassroomAvailabilityResponse(schedule.date(), schedule.isFull(), modifiedAvailabilities);
         }

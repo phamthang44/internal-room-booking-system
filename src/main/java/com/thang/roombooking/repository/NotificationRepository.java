@@ -14,7 +14,8 @@ import java.util.Optional;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    Page<Notification> findAllByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("SELECT n FROM Notification n WHERE n.user.id = :userId AND (:isRead IS NULL OR n.isRead = :isRead) ORDER BY n.createdAt DESC")
+    Page<Notification> findAllByUserIdAndIsRead(@Param("userId") Long userId, @Param("isRead") Boolean isRead, Pageable pageable);
 
     long countByUserIdAndIsReadFalse(Long userId);
 

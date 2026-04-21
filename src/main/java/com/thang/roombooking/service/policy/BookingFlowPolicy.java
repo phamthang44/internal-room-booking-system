@@ -9,6 +9,8 @@ public interface BookingFlowPolicy {
 
     void validateCheckInTimePolicy(Instant bookingTime); // check 15 phút đầu + là ca đầu tiên trong ngày 7h sáng
 
+    void validateCheckOutTimePolicy(Instant bookingStartTime);
+
     void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
 
     void validatePenaltyPolicy();

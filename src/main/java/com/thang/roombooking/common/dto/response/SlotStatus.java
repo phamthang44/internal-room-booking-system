@@ -11,5 +11,7 @@ public record SlotStatus(
         LocalTime endTime,
         SlotBookingStatus status,
         boolean isAvailable, // Quan trọng nhất để FE render màu xanh/đỏ
-        Long currentBookingId // (Optional) Để Admin biết ai đang chiếm chỗ
-) {}
+        Long currentBookingId, // (Optional) Để Admin biết ai đang chiếm chỗ
+        String rejectionReason, // (Optional) Lý do từ chối (REJECTED)
+        boolean isMine // Để FE biết booking này là của User hiện tại
+) {}
