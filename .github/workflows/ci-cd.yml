@@ -25,6 +25,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Create dummy env files for Compose parser
+        run: touch .env.prod .env
+
       - name: Build Production Images
         run: make prod-build
 
