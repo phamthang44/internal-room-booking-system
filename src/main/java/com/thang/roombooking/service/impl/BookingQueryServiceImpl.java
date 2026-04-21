@@ -195,7 +195,6 @@ public class BookingQueryServiceImpl implements BookingQueryService {
      */
     private AdminBookingListResponse toAdminBookingListResponse(Booking booking, Map<String, String> translations) {
         List<TimeSlotResponse> slots = buildTranslatedTimeSlots(booking, translations);
-        TimeSlotResponse firstSlot = slots.isEmpty() ? null : slots.getFirst();
 
         return AdminBookingListResponse.builder()
                 .id(booking.getId())
@@ -203,7 +202,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
                 .room(bookingMapper.toAdminBookingRoomRequestedResponse(booking))
                 .purpose(booking.getPurpose())
                 .date(booking.getBookingDate())
-                .timeSlot(firstSlot)
+                .timeSlots(slots)
                 .status(booking.getStatus())
                 .build();
     }

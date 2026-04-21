@@ -140,7 +140,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     SELECT b FROM Booking b
     WHERE b.status = :status
       AND b.checkoutTime IS NULL
-      AND (b.bookingDate < :today OR (b.bookingDate = :today AND b.endTime <= :thresholdTime))
+      AND (
+        b.bookingDate < :today OR 
+        (b.bookingDate = :today AND 
+          (SELECT MAX(ts.endTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b) <= :thresholdTime)
+      )
     """)
     List<Booking> findCheckedInBookingsToAutoCheckout(@Param("status") BookingStatus status,
                                                       @Param("today") LocalDate today,
@@ -149,7 +153,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     @Query("""
     SELECT b FROM Booking b
     WHERE b.status = :status
-      AND (b.bookingDate < :today OR (b.bookingDate = :today AND b.startTime < :thresholdTime))
+      AND (
+        b.bookingDate < :today OR 
+        (b.bookingDate = :today AND 
+          (SELECT MIN(ts.startTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b) < :thresholdTime)
+      )
     """)
     List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
                                       @Param("today") LocalDate today,

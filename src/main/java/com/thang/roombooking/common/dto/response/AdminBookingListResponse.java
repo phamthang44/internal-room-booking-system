@@ -4,7 +4,7 @@ import com.thang.roombooking.common.enums.BookingStatus;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -18,7 +18,7 @@ public class AdminBookingListResponse {
     private AdminBookingRoomRequestedResponse room;
     private String purpose;
     private LocalDate date;
-    private TimeSlotResponse timeSlot;
+    private List<TimeSlotResponse> timeSlots;
     private BookingStatus status;
 
 }
