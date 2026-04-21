@@ -10,20 +10,16 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final String[] DOMAIN_URLS = new String[]{
+            "https://internal-room-booking-system-fronte.vercel.app",
+            "https://roomhub.online"
+    };
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Allows raw WebSocket connections (ws://localhost:8080/api/chat) from frontend
-        registry.addEndpoint("/api/chat")
-                .setAllowedOriginPatterns("*");
-
-        // Allows SockJS fallback over HTTP (http://localhost:8080/api/chat)
-        registry.addEndpoint("/api/chat")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
-                
         // Allows raw WebSocket connections explicitly at /ws (which the frontend actually calls)
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOrigins(DOMAIN_URLS);
                 
     }
 
