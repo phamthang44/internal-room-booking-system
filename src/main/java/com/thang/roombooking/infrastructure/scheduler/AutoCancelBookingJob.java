@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Component
@@ -26,10 +27,10 @@ public class AutoCancelBookingJob {
     public void autoCancelBooking() {
         log.info("{} | Quét đơn quá hạn check-in", LogConstant.ACTION_START);
 
-        // Ngưỡng thời gian: Hiện tại - 15 phút
+        // Ngưỡng thời gian: Hiện tại (UTC) - 15 phút
         // Ví dụ: Bây giờ 8:16 -> Tìm các đơn có Slot bắt đầu trước 8:01 mà chưa check-in
-        LocalTime thresholdTime = LocalTime.now().minusMinutes(15);
-        LocalDate today = LocalDate.now();
+        LocalTime thresholdTime = LocalTime.now(ZoneOffset.UTC).minusMinutes(15);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
         List<Booking> expiredBookings = bookingRepository.findExpiredBookings(
                 BookingStatus.APPROVED,

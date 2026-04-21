@@ -11,7 +11,7 @@ public interface BookingFlowPolicy {
 
     void validateCheckOutTimePolicy(Instant bookingStartTime);
 
-    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
+    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, Instant bookingStartTime);
 
     void validatePenaltyPolicy();
 

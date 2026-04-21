@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Component
@@ -29,9 +29,8 @@ public class AutoCheckoutBookingJob {
      */
     @Scheduled(cron = "15 * * * * *") // every minute at second 15
     public void autoCheckoutBooking() {
-        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
-        LocalDate today = LocalDate.now(vnZone);
-        LocalTime now = LocalTime.now(vnZone);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalTime now = LocalTime.now(ZoneOffset.UTC);
 
         List<Booking> toCheckout = bookingRepository.findCheckedInBookingsToAutoCheckout(
                 BookingStatus.CHECKED_IN,

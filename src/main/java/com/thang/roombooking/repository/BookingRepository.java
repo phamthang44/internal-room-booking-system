@@ -147,18 +147,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                                       @Param("thresholdTime") LocalTime thresholdTime);
 
     @Query("""
-    SELECT b FROM Booking b\s
-    WHERE b.status = :status\s
-    AND (
-        b.bookingDate < :today\s
-        OR (b.bookingDate = :today AND EXISTS (
-            SELECT 1 FROM BookingTimeSlot bts\s
-            JOIN bts.timeSlot ts\s
-            WHERE bts.booking = b\s
-            GROUP BY bts.booking\s
-            HAVING MIN(ts.startTime) < :thresholdTime
-        ))
-    )\s""")
+    SELECT b FROM Booking b
+    WHERE b.status = :status
+      AND (b.bookingDate < :today OR (b.bookingDate = :today AND b.startTime < :thresholdTime))
+    """)
     List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
                                       @Param("today") LocalDate today,
                                       @Param("thresholdTime") LocalTime thresholdTime);

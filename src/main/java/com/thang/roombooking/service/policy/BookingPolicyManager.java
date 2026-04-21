@@ -30,7 +30,7 @@ public interface BookingPolicyManager {
 
     void validateRejectStatus(BookingStatus bookingStatus);
 
-    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime);
+    void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, Instant bookingStartTime);
 
     void validatePenaltyPolicy();
 }

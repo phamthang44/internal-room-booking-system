@@ -77,13 +77,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .max(LocalTime::compareTo)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
+            // Convert to UTC before saving to DB (assuming VN is +7)
+            ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+            LocalTime utcStartTime = request.bookingDate().atTime(bookingStartTime).atZone(vnZone)
+                    .withZoneSameInstant(ZoneOffset.UTC).toLocalTime();
+            LocalTime utcEndTime = request.bookingDate().atTime(bookingEndTime).atZone(vnZone)
+                    .withZoneSameInstant(ZoneOffset.UTC).toLocalTime();
+
             // 4. Build Entity với nguyên tắc XOR
             Booking booking = Booking.builder()
                     .user(currentUser)
                     .classroom(classroomRepository.getReferenceById(request.classroomId()))
                     .bookingDate(request.bookingDate())
-                    .startTime(bookingStartTime)
-                    .endTime(bookingEndTime)
+                    .startTime(utcStartTime)
+                    .endTime(utcEndTime)
                     .attendees(request.attendees())
                     .purpose(cleanString(request.purpose()))
                     .status(BookingStatus.PENDING)
@@ -153,8 +160,16 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), checkinTime, booking.getVersion());
 
             if (updatedRows == 0) {
-                // Nếu đã CHECKED_IN rồi thì status không còn là APPROVED -> updatedRows = 0
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_IN);
+                // Determine actual reason for failure
+                Booking currentBooking = bookingRepository.findById(booking.getId())
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+                if (currentBooking.getStatus() == BookingStatus.CHECKED_IN || currentBooking.getStatus() == BookingStatus.COMPLETED) {
+                    throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_IN);
+                } else if (currentBooking.getStatus() != BookingStatus.APPROVED) {
+                    throw new AppException(BookingErrorCode.BOOKING_NOT_APPROVED);
+                }
+                throw new AppException(BookingErrorCode.BOOKING_STATUS_ALREADY_CANCELLED);
             }
 
             if (updatedRows > 0) {
@@ -210,8 +225,14 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
             int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, booking.getVersion());
             if (updatedRows == 0) {
-                // already checked out or version mismatch
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+                // Determine actual reason for failure
+                Booking currentBooking = bookingRepository.findById(booking.getId())
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+                if (currentBooking.getCheckoutTime() != null || currentBooking.getStatus() == BookingStatus.COMPLETED) {
+                    throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_OUT);
+                }
+                throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
             }
 
             if (updatedRows > 0) {
@@ -446,9 +467,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
             // 2. Derive the booking's effective start time
             Instant startInstant = getBookingStartInstant(booking);
-            LocalDateTime startDateTime = LocalDateTime.ofInstant(startInstant, ZoneId.of("Asia/Ho_Chi_Minh"));
 
-            bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startDateTime);
+            bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startInstant);
 
             int updatedRows = bookingRepository.atomicCancelByStudent(
                     booking.getId(),
@@ -482,7 +502,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
 
     private Instant getBookingStartInstant(Booking booking) {
-        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalTime resolvedStartTime = booking.getBookingTimeSlots().stream()
                 .map(BookingTimeSlot::getTimeSlot)
                 .map(TimeSlot::getStartTime)
@@ -494,7 +513,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     throw new AppException(BookingErrorCode.BOOKING_NOT_FOUND);
                 });
 
-        return booking.getBookingDate().atTime(resolvedStartTime).atZone(vnZone).toInstant();
+        // Since we are standardizing the database to UTC, we no longer need complex Vietnam-to-UTC conversion here.
+        // We assume resolvedStartTime is already in UTC if found in the DB.
+        return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneOffset.UTC).toInstant();
     }
 
     private String cleanString(String data) {

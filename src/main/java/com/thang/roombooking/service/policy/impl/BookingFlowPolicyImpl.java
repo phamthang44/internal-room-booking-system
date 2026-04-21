@@ -59,9 +59,9 @@ public class BookingFlowPolicyImpl implements BookingFlowPolicy {
     }
 
     @Override
-    public void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, LocalDateTime bookingStartDateTime) {
+    public void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, Instant bookingStartTime) {
 
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        Instant now = Instant.now();
 
         // 1. Kiểm tra trạng thái tĩnh (như bạn đã làm)
         if (bookingStatus == BookingStatus.CANCELLED) {
@@ -77,11 +77,11 @@ public class BookingFlowPolicyImpl implements BookingFlowPolicy {
         }
 
         // 3. Logic thời gian linh hoạt (Ví dụ: Chỉ được hủy trước giờ bắt đầu 1 tiếng)
-        if (now.isAfter(bookingStartDateTime)) {
+        if (now.isAfter(bookingStartTime)) {
             throw new AppException(BookingErrorCode.BOOKING_DATE_IN_PAST); // chặn hủy trong quá khứ
         }
 
-        Duration durationUntilStart = Duration.between(now, bookingStartDateTime);
+        Duration durationUntilStart = Duration.between(now, bookingStartTime);
         if (durationUntilStart.toMinutes() < 60) {
             throw new AppException(BookingErrorCode.BOOKING_CANCEL_TOO_LATE);
         }

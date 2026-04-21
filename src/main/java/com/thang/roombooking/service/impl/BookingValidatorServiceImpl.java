@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
@@ -73,12 +75,12 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
     }
 
     public void validateTimeSlots(LocalDate bookingDate, List<TimeSlot> selectedSlots) {
-        LocalTime now = LocalTime.now();
-        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
         if (bookingDate.equals(today)) {
             for (TimeSlot slot : selectedSlots) {
-                // Nếu giờ kết thúc của Slot đã qua so với giờ hiện tại
+                // We assume slot.getEndTime() is already in UTC after data migration.
                 if (slot.getEndTime().isBefore(now)) {
                     throw new AppException(BookingErrorCode.TIMESLOT_ALREADY_ENDED);
                 }
@@ -88,7 +90,7 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
 
     @Override
     public TimeSlot validateAndGetTargetSlot(List<TimeSlot> slots, LocalDate bookingDate, LocalTime now) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
         // 1. Chặn nếu không phải ngày hôm nay
         if (bookingDate.isAfter(today)) {

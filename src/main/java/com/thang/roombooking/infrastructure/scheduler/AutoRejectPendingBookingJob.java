@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Component
@@ -27,8 +28,9 @@ public class AutoRejectPendingBookingJob {
         log.info("{} | Quét đơn chưa duyệt quá hạn (PENDING -> REJECTED)", LogConstant.ACTION_START);
 
         // Ngưỡng thời gian: Hủy khi đơn PENDING đã tới giờ bắt đầu booking (overtime)
-        LocalTime thresholdTime = LocalTime.now();
-        LocalDate today = LocalDate.now();
+        // Dùng UTC đồng bộ với DB
+        LocalTime thresholdTime = LocalTime.now(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
         List<Booking> expiredBookings = bookingRepository.findExpiredBookings(
                 BookingStatus.PENDING,
