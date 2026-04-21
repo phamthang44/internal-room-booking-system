@@ -143,7 +143,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
       AND (
         b.bookingDate < :today OR 
         (b.bookingDate = :today AND 
-          (SELECT MAX(ts.endTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b) <= :thresholdTime)
+          COALESCE((SELECT MAX(ts.endTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b), b.endTime) <= :thresholdTime)
       )
     """)
     List<Booking> findCheckedInBookingsToAutoCheckout(@Param("status") BookingStatus status,
@@ -156,7 +156,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
       AND (
         b.bookingDate < :today OR 
         (b.bookingDate = :today AND 
-          (SELECT MIN(ts.startTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b) < :thresholdTime)
+          COALESCE((SELECT MIN(ts.startTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b), b.startTime) < :thresholdTime)
       )
     """)
     List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
