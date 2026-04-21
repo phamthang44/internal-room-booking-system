@@ -147,8 +147,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             dailySlots.add(new SlotStatus(
                     Long.valueOf(slot.getId()),
                     translatedSlotName,
-                    slot.getStartTime(),
-                    slot.getEndTime(),
+                    slot.getStartTime() != null ? slot.getStartTime().plusHours(7) : null,
+                    slot.getEndTime() != null ? slot.getEndTime().plusHours(7) : null,
                     SlotBookingStatus.AVAILABLE,
                     true,
                     null,
@@ -171,8 +171,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     ) {
         booking.getBookingTimeSlots().forEach(bts -> {
             Long bSlotId = Long.valueOf(bts.getTimeSlot().getId());
-            LocalTime slotStart = bts.getTimeSlot().getStartTime();
-            LocalTime slotEnd = bts.getTimeSlot().getEndTime();
+            LocalTime slotStart = bts.getTimeSlot().getStartTime() != null ? bts.getTimeSlot().getStartTime().plusHours(7) : null;
+            LocalTime slotEnd = bts.getTimeSlot().getEndTime() != null ? bts.getTimeSlot().getEndTime().plusHours(7) : null;
 
             if (isInactiveCheckedIn(booking, bookingDate, today, nowTime, slotStart, slotEnd)) {
                 return;
