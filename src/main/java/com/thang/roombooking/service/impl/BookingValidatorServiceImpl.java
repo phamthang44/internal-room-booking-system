@@ -75,8 +75,8 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
     }
 
     public void validateTimeSlots(LocalDate bookingDate, List<TimeSlot> selectedSlots) {
-        LocalTime now = LocalTime.now(ZoneOffset.UTC);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalTime now = LocalTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
 
         if (bookingDate.equals(today)) {
             for (TimeSlot slot : selectedSlots) {
@@ -90,7 +90,7 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
 
     @Override
     public TimeSlot validateAndGetTargetSlot(List<TimeSlot> slots, LocalDate bookingDate, LocalTime now) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
 
         // 1. Chặn nếu không phải ngày hôm nay
         if (bookingDate.isAfter(today)) {

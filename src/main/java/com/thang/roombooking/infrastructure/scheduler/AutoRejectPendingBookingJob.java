@@ -10,9 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Component
@@ -23,14 +24,17 @@ public class AutoRejectPendingBookingJob {
     private final BookingRepository bookingRepository;
     private final BookingCommandService bookingCommandService;
 
+    @Value("${app.timezone:Asia/Ho_Chi_Minh}")
+    private String appTimeZone;
+
     @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
     public void autoRejectBooking() {
         log.info("{} | Quét đơn chưa duyệt quá hạn (PENDING -> REJECTED)", LogConstant.ACTION_START);
 
         // Ngưỡng thời gian: Hủy khi đơn PENDING đã tới giờ bắt đầu booking (overtime)
         // Dùng UTC đồng bộ với DB
-        LocalTime thresholdTime = LocalTime.now(ZoneOffset.UTC);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalTime thresholdTime = LocalTime.now(ZoneId.of(appTimeZone));
+        LocalDate today = LocalDate.now(ZoneId.of(appTimeZone));
 
         List<Booking> expiredBookings = bookingRepository.findExpiredBookings(
                 BookingStatus.PENDING,

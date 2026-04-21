@@ -80,9 +80,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             // Convert to UTC before saving to DB (assuming VN is +7)
             ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
             LocalTime utcStartTime = request.bookingDate().atTime(bookingStartTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneOffset.UTC).toLocalTime();
+                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalTime();
             LocalTime utcEndTime = request.bookingDate().atTime(bookingEndTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneOffset.UTC).toLocalTime();
+                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalTime();
 
             // 4. Build Entity với nguyên tắc XOR
             Booking booking = Booking.builder()
@@ -515,7 +515,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
         // Since we are standardizing the database to UTC, we no longer need complex Vietnam-to-UTC conversion here.
         // We assume resolvedStartTime is already in UTC if found in the DB.
-        return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneOffset.UTC).toInstant();
+        return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant();
     }
 
     private String cleanString(String data) {

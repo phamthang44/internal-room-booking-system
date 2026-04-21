@@ -21,6 +21,7 @@ app:
   seeder:
     user:
       enabled: ${APP_SEEDER_USER_ENABLED:false}
+  timezone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
 
 jwt:
   signerKey: ${REGISTRATION_KEY}

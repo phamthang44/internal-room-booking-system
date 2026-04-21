@@ -10,9 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Component
@@ -23,14 +24,17 @@ public class AutoCheckoutBookingJob {
     private final BookingRepository bookingRepository;
     private final BookingCommandService bookingCommandService;
 
+    @Value("${app.timezone:Asia/Ho_Chi_Minh}")
+    private String appTimeZone;
+
     /**
      * Auto-checkout CHECKED_IN bookings once their end time has passed.
      * Runs every minute to keep availability accurate.
      */
     @Scheduled(cron = "15 * * * * *") // every minute at second 15
     public void autoCheckoutBooking() {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        LocalTime now = LocalTime.now(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now(ZoneId.of(appTimeZone));
+        LocalTime now = LocalTime.now(ZoneId.of(appTimeZone));
 
         List<Booking> toCheckout = bookingRepository.findCheckedInBookingsToAutoCheckout(
                 BookingStatus.CHECKED_IN,

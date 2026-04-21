@@ -22,7 +22,7 @@ public class BookingPolicyImpl implements BookingPolicy {
 
     @Override
     public void validateLeadTimePolicy(LocalDate date) {
-        if (date.isAfter(LocalDate.now(ZoneOffset.UTC).plusDays(7))) {
+        if (date.isAfter(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(7))) {
             throw new AppException(BookingErrorCode.BOOKING_DATE_OVER_LIMIT);
         }
     }
@@ -53,7 +53,7 @@ public class BookingPolicyImpl implements BookingPolicy {
     public void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime) {
         // Chỉ validate giờ làm việc nếu là đặt cho ngày hôm nay
         // Nếu đặt cho tương lai (ngày mai trở đi), bỏ qua check này
-        if (!bookingDate.equals(LocalDate.now(ZoneOffset.UTC))) {
+        if (!bookingDate.equals(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")))) {
             return;
         }
 

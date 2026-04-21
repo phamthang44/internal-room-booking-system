@@ -21,8 +21,8 @@ public interface BookingMapper {
     // ── TimeSlotResponse ─────────────────────────────────────────────────────
 
     @Mapping(target = "id", source = "timeSlot.id")
-    @Mapping(target = "startTime", expression = "java(bookingTimeSlot.getTimeSlot().getStartTime() != null ? bookingTimeSlot.getTimeSlot().getStartTime().plusHours(7) : null)")
-    @Mapping(target = "endTime", expression = "java(bookingTimeSlot.getTimeSlot().getEndTime() != null ? bookingTimeSlot.getTimeSlot().getEndTime().plusHours(7) : null)")
+    @Mapping(target = "startTime", expression = "java(bookingTimeSlot.getTimeSlot().getStartTime())")
+    @Mapping(target = "endTime", expression = "java(bookingTimeSlot.getTimeSlot().getEndTime())")
     @Mapping(target = "slotName", source = "timeSlot.slotNameKey")
     TimeSlotResponse toTimeSlotResponse(BookingTimeSlot bookingTimeSlot, @Context Map<String, String> translations);
 

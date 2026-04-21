@@ -10,9 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Component
@@ -23,14 +24,17 @@ public class AutoCancelBookingJob {
     private final BookingRepository bookingRepository;
     private final BookingCommandService bookingCommandService;
 
+    @Value("${app.timezone:Asia/Ho_Chi_Minh}")
+    private String appTimeZone;
+
     @Scheduled(cron = "0 */5 * * * *") // Chạy mỗi 5 phút/lần cho nhẹ máy
     public void autoCancelBooking() {
         log.info("{} | Quét đơn quá hạn check-in", LogConstant.ACTION_START);
 
         // Ngưỡng thời gian: Hiện tại (UTC) - 15 phút
         // Ví dụ: Bây giờ 8:16 -> Tìm các đơn có Slot bắt đầu trước 8:01 mà chưa check-in
-        LocalTime thresholdTime = LocalTime.now(ZoneOffset.UTC).minusMinutes(15);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalTime thresholdTime = LocalTime.now(ZoneId.of(appTimeZone)).minusMinutes(15);
+        LocalDate today = LocalDate.now(ZoneId.of(appTimeZone));
 
         List<Booking> expiredBookings = bookingRepository.findExpiredBookings(
                 BookingStatus.APPROVED,
