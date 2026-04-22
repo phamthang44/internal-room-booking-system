@@ -51,8 +51,8 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
         if (TextValidationUtils.containsHtmlTags(cleanPurpose)) {
             throw new AppException(CommonErrorCode.INVALID_REQUEST, "html tags are not allowed in purpose");
         }
-        if (TextValidationUtils.containsScriptTags(cleanPurpose)) {
-            throw new AppException(CommonErrorCode.INVALID_REQUEST, "script tags are not allowed in purpose");
+        if (TextValidationUtils.containsScriptTags(cleanPurpose) || TextValidationUtils.containsJavascript(cleanPurpose)) {
+            throw new AppException(CommonErrorCode.INVALID_REQUEST, "script or executable code are not allowed in purpose");
         }
         if (TextValidationUtils.containsSqlInjection(cleanPurpose)) {
             throw new AppException(CommonErrorCode.INVALID_REQUEST, "SQL injection are not allowed in purpose");

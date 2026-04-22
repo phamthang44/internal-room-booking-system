@@ -23,6 +23,12 @@ public final class TextValidationUtils {
     // Pattern to detect script tags specifically
     private static final Pattern SCRIPT_PATTERN = Pattern.compile("<script[^>]*>.*?</script>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
+    // Pattern to detect common JavaScript execution patterns without tags
+    private static final Pattern JS_PATTERN = Pattern.compile(
+            "\\b(console\\.[a-zA-Z]+|alert|eval|setTimeout|setInterval|prompt|confirm|window\\.|document\\.|javascript:)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+
     // Pattern to detect SQL injection attempts
     private static final Pattern SQL_INJECTION_PATTERN = Pattern.compile(
             "(--|;|'|\"|\\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE)\\b)",
@@ -96,6 +102,19 @@ public final class TextValidationUtils {
     }
 
     /**
+     * Check if text contains potential JavaScript code patterns (security risk).
+     *
+     * @param text The text to check
+     * @return true if JS patterns detected
+     */
+    public static boolean containsJavascript(String text) {
+        if (!StringUtils.hasText(text)) {
+            return false;
+        }
+        return JS_PATTERN.matcher(text).find();
+    }
+
+    /**
      * Check if text contains potential SQL injection patterns.
      *
      * @param text The text to check
@@ -153,6 +172,10 @@ public final class TextValidationUtils {
             return ValidationResult.failure("Name cannot contain HTML tags");
         }
 
+        if (containsScriptTags(trimmedName) || containsJavascript(trimmedName)) {
+            return ValidationResult.failure("Name cannot contain script or executable code");
+        }
+
         if (containsSqlInjection(trimmedName)) {
             return ValidationResult.failure("Name contains invalid characters");
         }
@@ -184,8 +207,8 @@ public final class TextValidationUtils {
             return ValidationResult.failure("Description contains inappropriate word: " + badWord);
         }
 
-        if (containsScriptTags(description)) {
-            return ValidationResult.failure("Description cannot contain script tags");
+        if (containsScriptTags(description) || containsJavascript(description)) {
+            return ValidationResult.failure("Description cannot contain script or executable code");
         }
 
         return ValidationResult.success();

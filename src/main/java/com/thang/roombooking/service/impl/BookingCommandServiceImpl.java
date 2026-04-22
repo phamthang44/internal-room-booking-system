@@ -173,16 +173,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                Booking refetchBooking = bookingRepository.findById(request.bookingId())
+                Booking updated = bookingRepository.findById(request.bookingId())
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-                refetchBooking.setStatus(BookingStatus.CHECKED_IN);
-                refetchBooking.setCheckinTime(checkinTime);
-
-                Booking savedBooking = bookingRepository.save(refetchBooking);
-
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        savedBooking,
+                        updated,
                         BookingStatus.CHECKED_IN,
                         BookingAction.CHECK_IN.name(),
                         currentUser.getEmail(),
@@ -238,13 +233,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                Booking refetchBooking = bookingRepository.findById(request.bookingId())
+                Booking updated = bookingRepository.findById(request.bookingId())
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-                refetchBooking.setStatus(BookingStatus.COMPLETED);
-                refetchBooking.setCheckoutTime(checkoutTime);
-
-                Booking updated = bookingRepository.save(refetchBooking);
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         updated,
                         BookingStatus.COMPLETED,
@@ -351,12 +342,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (updatedRows == 0) {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
-            Booking refetchBooking = bookingRepository.findById(booking.getId())
+            Booking updated = bookingRepository.findById(booking.getId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
             // Update entity in memory for events
-            refetchBooking.setStatus(BookingStatus.REJECTED);
-            refetchBooking.setRejectionReason(cleanReason);
-            Booking updated = bookingRepository.save(refetchBooking);
             log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
             bookingApprovalCommandService.saveApprovalBooking(updated, currentUser);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
@@ -386,24 +374,23 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         int updatedRows = bookingRepository.atomicCancel(
                 booking.getId(),
                 BookingStatus.CANCELLED,
+                SYSTEM_ACTOR,
                 booking.getVersion()
         );
 
         if (updatedRows > 0) {
             // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
+            Booking updated = bookingRepository.findById(booking.getId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
             BookingViolation violation = BookingViolation.builder()
-                    .booking(booking)
+                    .booking(updated)
                     .reason("booking.cancel.reason.no_show")
-                    .user(booking.getUser())
+                    .user(updated.getUser())
                     .type(ViolationType.NO_SHOW)
                     .resolvedAt(Instant.now())
                     .build();
             violationRepository.save(violation);
-            Booking refetchBooking = bookingRepository.findById(booking.getId())
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-            refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
-            Booking updated = bookingRepository.save(refetchBooking);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     updated,
                     BookingStatus.CANCELLED,
@@ -419,19 +406,18 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Override
     public void autoRejectOverduePendingBooking(Booking booking) {
         // Atomic Update: Chỉ từ chối nếu status vẫn đang là PENDING
-        int updatedRows = bookingRepository.atomicRejectPending(
+        int updatedRows = bookingRepository.atomicRejectPendingBySystem(
                 booking.getId(),
                 BookingStatus.REJECTED,
                 "booking.reject.reason.overtime",
+                SYSTEM_ACTOR,
                 booking.getVersion()
         );
 
         if (updatedRows > 0) {
-            Booking refetchBooking = bookingRepository.findById(booking.getId())
+            Booking updated = bookingRepository.findById(booking.getId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
-            Booking updated = bookingRepository.save(refetchBooking);
 
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     updated,
@@ -449,14 +435,15 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public void autoCheckoutExpiredBooking(Booking booking) {
         // Best-effort: checkoutTime = now (server time)
         try {
-            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), Instant.now(), booking.getVersion());
+            int updatedRows = bookingRepository.atomicAutoCheckoutToCompleted(
+                    booking.getId(),
+                    Instant.now(),
+                    SYSTEM_ACTOR,
+                    booking.getVersion()
+            );
             if (updatedRows > 0) {
-                Booking refetchBooking = bookingRepository.findById(booking.getId())
+                Booking updated = bookingRepository.findById(booking.getId())
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                refetchBooking.setCheckoutTime(Instant.now());
-                refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
-                Booking updated = bookingRepository.save(refetchBooking);
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         updated,
@@ -480,6 +467,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             // lấy booking
             Long bookingId = req.bookingId();
             String cleanCancelReason = cleanString(req.cancelReason());
+
+            bookingValidatorService.validatePurpose(cleanCancelReason);
+
             Booking booking = bookingRepository.findByIdWithTimeSlots(bookingId)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
@@ -496,6 +486,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             int updatedRows = bookingRepository.atomicCancelByStudent(
                     booking.getId(),
                     BookingStatus.CANCELLED,
+                    userAccount.getUsername(),
+                    userAccount.getUsername(),
                     booking.getVersion()
             );
 
@@ -504,13 +496,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
             log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
             if (updatedRows > 0) {
-                Booking refetchBooking = bookingRepository.findByIdWithTimeSlots(bookingId)
+                Booking updated = bookingRepository.findById(bookingId)
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                refetchBooking.setCancelledBy(userAccount.getUsername());
-                refetchBooking.setUpdatedBy(userAccount.getEmail());
-
-                Booking updated = bookingRepository.save(refetchBooking);
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
                         updated,

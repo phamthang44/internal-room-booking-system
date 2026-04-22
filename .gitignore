@@ -63,6 +63,7 @@ certs/
 room-booking-collections/
 .gitnexus/
 .claude/
+.agents/
 .nginx.conf
 .roomhub.online.txt
 roomhub.online.txt

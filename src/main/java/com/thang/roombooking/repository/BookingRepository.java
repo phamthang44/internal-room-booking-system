@@ -108,6 +108,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                             @Param("expectedVersion") Integer expectedVersion);
 
     @Modifying(clearAutomatically = true)
+    @Query("""
+        UPDATE Booking b
+           SET b.status = :newStatus,
+               b.rejectionReason = :reason,
+               b.updatedBy = :updatedBy,
+               b.version = b.version + 1
+         WHERE b.id = :id
+           AND b.status = 'PENDING'
+           AND b.version = :expectedVersion
+    """)
+    int atomicRejectPendingBySystem(@Param("id") Long id,
+                                    @Param("newStatus") BookingStatus newStatus,
+                                    @Param("reason") String reason,
+                                    @Param("updatedBy") String updatedBy,
+                                    @Param("expectedVersion") Integer expectedVersion);
+
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.checkinTime = :checkinTime, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'APPROVED' " + // Chỉ cho phép check-in khi đã được duyệt
@@ -135,6 +152,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     int atomicCheckoutToCompleted(@Param("id") Long id,
                                   @Param("checkoutTime") Instant checkoutTime,
                                   @Param("version") Integer version);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+        UPDATE Booking b
+           SET b.status = 'COMPLETED',
+               b.checkoutTime = :checkoutTime,
+               b.updatedBy = :updatedBy,
+               b.version = b.version + 1
+         WHERE b.id = :id
+           AND b.status = 'CHECKED_IN'
+           AND b.checkoutTime IS NULL
+           AND b.version = :version
+    """)
+    int atomicAutoCheckoutToCompleted(@Param("id") Long id,
+                                      @Param("checkoutTime") Instant checkoutTime,
+                                      @Param("updatedBy") String updatedBy,
+                                      @Param("version") Integer version);
 
     @Query("""
     SELECT b FROM Booking b
@@ -164,17 +198,35 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                       @Param("thresholdTime") LocalTime thresholdTime);
 
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
-            "WHERE b.id = :id AND b.status = 'APPROVED' AND b.version = :expectedVersion")
+    @Query("""
+        UPDATE Booking b
+           SET b.status = :newStatus,
+               b.updatedBy = :updatedBy,
+               b.version = b.version + 1
+         WHERE b.id = :id
+           AND b.status = 'APPROVED'
+           AND b.version = :expectedVersion
+    """)
     int atomicCancel(@Param("id") Long id,
                      @Param("newStatus") BookingStatus newStatus,
+                     @Param("updatedBy") String updatedBy,
                      @Param("expectedVersion") Integer expectedVersion);
 
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Booking b SET b.status = :newStatus, b.version = b.version + 1 " +
-            "WHERE b.id = :id AND b.version = :expectedVersion AND b.status != 'CANCELLED'")
+    @Query("""
+    UPDATE Booking b
+       SET b.status = :newStatus,
+           b.cancelledBy = :cancelledBy,
+           b.updatedBy = :updatedBy,
+           b.version = b.version + 1
+     WHERE b.id = :id
+       AND b.version = :expectedVersion
+       AND b.status <> 'CANCELLED'
+    """)
     int atomicCancelByStudent(@Param("id") Long id,
                               @Param("newStatus") BookingStatus newStatus,
+                              @Param("cancelledBy") String cancelledBy,
+                              @Param("updatedBy") String updatedBy,
                               @Param("expectedVersion") Integer expectedVersion);
 
     @Query("""
