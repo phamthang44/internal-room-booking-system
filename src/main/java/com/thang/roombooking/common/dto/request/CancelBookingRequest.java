@@ -11,6 +11,9 @@ public record CancelBookingRequest(
         @NotNull(message = "{validation.booking.id.required}")
         Long bookingId,
 
+        @NotNull(message = "{cancel.booking.reason.required}")
+        String cancelReason,
+
         @NotNull(message = "{validation.booking.cancel.time_booking.required}")
         @Schema(description = "Time at the cancel moment")
         Instant cancelTime

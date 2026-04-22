@@ -25,6 +25,8 @@ public class BookingHistoryCommandServiceImpl implements BookingHistoryCommandSe
                 .performedBy(performedBy)
                 .statusAfter(bookingStatus)
                 .build();
+        history.setCreatedBy(booking.getCreatedBy());
+        history.setUpdatedBy(booking.getUpdatedBy());
         bookingHistoryRepository.save(history);
     }
 }

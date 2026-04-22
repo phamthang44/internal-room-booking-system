@@ -1,10 +1,7 @@
 package com.thang.roombooking.service.impl;
 
 import com.thang.roombooking.common.constant.LogConstant;
-import com.thang.roombooking.common.dto.request.BookingApprovalRequest;
-import com.thang.roombooking.common.dto.request.CheckInRequest;
-import com.thang.roombooking.common.dto.request.CheckoutRequest;
-import com.thang.roombooking.common.dto.request.CreateBookingRequest;
+import com.thang.roombooking.common.dto.request.*;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
 import com.thang.roombooking.common.enums.*;
 import com.thang.roombooking.common.event.BookingStatusChangedEvent;
@@ -28,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
 import java.util.*;
+
+import static com.thang.roombooking.common.constant.SystemConstant.SYSTEM_ACTOR;
+import static com.thang.roombooking.common.constant.SystemConstant.SYSTEM_REGION_TIMEZONE;
 
 @Service
 @Slf4j
@@ -78,11 +78,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             // Convert to UTC before saving to DB (assuming VN is +7)
-            ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+            ZoneId vnZone = ZoneId.of(SYSTEM_REGION_TIMEZONE);
             LocalTime utcStartTime = request.bookingDate().atTime(bookingStartTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalTime();
+                    .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
             LocalTime utcEndTime = request.bookingDate().atTime(bookingEndTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalTime();
+                    .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
 
             // 4. Build Entity với nguyên tắc XOR
             Booking booking = Booking.builder()
@@ -173,13 +173,16 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                // Update entity in memory to ensure events/logs have fresh data
-                booking.setStatus(BookingStatus.CHECKED_IN);
-                booking.setCheckinTime(checkinTime);
-                booking.setVersion(booking.getVersion() + 1);
+                Booking refetchBooking = bookingRepository.findById(request.bookingId())
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+                refetchBooking.setStatus(BookingStatus.CHECKED_IN);
+                refetchBooking.setCheckinTime(checkinTime);
+
+                Booking savedBooking = bookingRepository.save(refetchBooking);
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        booking,
+                        savedBooking,
                         BookingStatus.CHECKED_IN,
                         BookingAction.CHECK_IN.name(),
                         currentUser.getEmail(),
@@ -189,7 +192,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
-            //notificationService.sendCheckInSuccess(booking, targetSlot); TODO: future feature notification service
         } catch (AppException e) {
             log.warn("{}: Failed to checkin booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
                     currentUser.getId(), e.getErrorCode());
@@ -236,13 +238,15 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                // Update entity in memory
-                booking.setStatus(BookingStatus.COMPLETED);
-                booking.setCheckoutTime(checkoutTime);
-                booking.setVersion(booking.getVersion() + 1);
+                Booking refetchBooking = bookingRepository.findById(request.bookingId())
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
+                refetchBooking.setStatus(BookingStatus.COMPLETED);
+                refetchBooking.setCheckoutTime(checkoutTime);
+
+                Booking updated = bookingRepository.save(refetchBooking);
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        booking,
+                        updated,
                         BookingStatus.COMPLETED,
                         BookingAction.CHECK_OUT.name(),
                         currentUser.getEmail(),
@@ -315,7 +319,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             log.error("{} | Unexpected System Error |", LogConstant.SYS_ERROR, e);
             throw e;
         }
-        //notificationService.sendBookingApproveSuccess(booking, targetSlot); TODO: future feature notification service
     }
 
     @Override
@@ -348,20 +351,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (updatedRows == 0) {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
-
+            Booking refetchBooking = bookingRepository.findById(booking.getId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
             // Update entity in memory for events
-            booking.setStatus(BookingStatus.REJECTED);
-            booking.setRejectionReason(cleanReason);
-            booking.setVersion(booking.getVersion() + 1);
-
+            refetchBooking.setStatus(BookingStatus.REJECTED);
+            refetchBooking.setRejectionReason(cleanReason);
+            Booking updated = bookingRepository.save(refetchBooking);
             log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
-            bookingApprovalCommandService.saveApprovalBooking(booking, currentUser);
+            bookingApprovalCommandService.saveApprovalBooking(updated, currentUser);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    booking,
+                    updated,
                     BookingStatus.REJECTED,
                     BookingAction.REJECT_BOOKING.name(),
                     currentUser.getEmail(),
-                    "booking.reject.reason.staff",
+                    cleanReason.isBlank() ? "booking.reject.reason.staff" : cleanReason,
                     LocaleContextHolder.getLocale().toString()
             ));
         } catch (AppException e) {
@@ -396,11 +399,16 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     .resolvedAt(Instant.now())
                     .build();
             violationRepository.save(violation);
+            Booking refetchBooking = bookingRepository.findById(booking.getId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
+            Booking updated = bookingRepository.save(refetchBooking);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    booking,
+                    updated,
                     BookingStatus.CANCELLED,
                     BookingAction.CANCEL_BOOKING.name(),
-                    "SYSTEM",
+                    SYSTEM_ACTOR,
                     "booking.cancel.reason.no_show",
                     Locale.getDefault().toString()
             ));
@@ -419,11 +427,17 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         );
 
         if (updatedRows > 0) {
+            Booking refetchBooking = bookingRepository.findById(booking.getId())
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
+            Booking updated = bookingRepository.save(refetchBooking);
+
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    booking,
+                    updated,
                     BookingStatus.REJECTED,
                     BookingAction.SYSTEM_REJECT.name(),
-                    "SYSTEM",
+                    SYSTEM_ACTOR,
                     "booking.reject.reason.overtime",
                     Locale.getDefault().toString()
             ));
@@ -437,11 +451,18 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         try {
             int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), Instant.now(), booking.getVersion());
             if (updatedRows > 0) {
+                Booking refetchBooking = bookingRepository.findById(booking.getId())
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+                refetchBooking.setCheckoutTime(Instant.now());
+                refetchBooking.setUpdatedBy(SYSTEM_ACTOR);
+                Booking updated = bookingRepository.save(refetchBooking);
+
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        booking,
+                        updated,
                         BookingStatus.COMPLETED,
                         BookingAction.CHECK_OUT.name(),
-                        "SYSTEM",
+                        SYSTEM_ACTOR,
                         "booking.checkout.reason.auto",
                         Locale.getDefault().toString()
                 ));
@@ -453,10 +474,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional
-    public void cancelBooking(Long bookingId, UserAccount userAccount) {
-        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, bookingId);
+    public void cancelBooking(CancelBookingRequest req, UserAccount userAccount) {
+        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, req.bookingId());
         try {
             // lấy booking
+            Long bookingId = req.bookingId();
+            String cleanCancelReason = cleanString(req.cancelReason());
             Booking booking = bookingRepository.findByIdWithTimeSlots(bookingId)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
@@ -481,12 +504,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
             log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
             if (updatedRows > 0) {
+                Booking refetchBooking = bookingRepository.findByIdWithTimeSlots(bookingId)
+                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+                refetchBooking.setCancelledBy(userAccount.getUsername());
+                refetchBooking.setUpdatedBy(userAccount.getEmail());
+
+                Booking updated = bookingRepository.save(refetchBooking);
+
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        booking,
+                        updated,
                         BookingStatus.CANCELLED,
                         BookingAction.CANCEL_BOOKING.name(),
-                        booking.getUser().getEmail(),
-                        booking.getCancelledBy(),
+                        updated.getUser().getEmail(),
+                        cleanCancelReason,
                         LocaleContextHolder.getLocale().toString()
                 ));
             }
@@ -515,7 +546,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
         // Since we are standardizing the database to UTC, we no longer need complex Vietnam-to-UTC conversion here.
         // We assume resolvedStartTime is already in UTC if found in the DB.
-        return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant();
+        return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toInstant();
     }
 
     private String cleanString(String data) {
@@ -525,7 +556,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     private Map<TranslatableEntityType, Set<Long>> getBuildingTranslationIds(Building building) {
         if (building == null) return Collections.emptyMap();
 
-        Map<TranslatableEntityType, Set<Long>> idsByType = new HashMap<>();
+        Map<TranslatableEntityType, Set<Long>> idsByType = new EnumMap<>(TranslatableEntityType.class);
         // Ép kiểu ID từ Integer/Long sang Set<Long> để khớp với tham số của Service
         idsByType.put(TranslatableEntityType.BUILDING, Set.of(building.getId()));
 

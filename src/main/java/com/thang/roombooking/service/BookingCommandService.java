@@ -1,9 +1,6 @@
 package com.thang.roombooking.service;
 
-import com.thang.roombooking.common.dto.request.BookingApprovalRequest;
-import com.thang.roombooking.common.dto.request.CheckInRequest;
-import com.thang.roombooking.common.dto.request.CheckoutRequest;
-import com.thang.roombooking.common.dto.request.CreateBookingRequest;
+import com.thang.roombooking.common.dto.request.*;
 import com.thang.roombooking.common.dto.response.CreateBookingResponse;
 import com.thang.roombooking.entity.Booking;
 import com.thang.roombooking.entity.UserAccount;
@@ -23,5 +20,5 @@ public interface BookingCommandService {
     void autoRejectOverduePendingBooking(Booking booking);
     void autoCheckoutExpiredBooking(Booking booking);
 
-    void cancelBooking(Long bookingId, UserAccount userAccount);
+    void cancelBooking(CancelBookingRequest req, UserAccount userAccount);
 }

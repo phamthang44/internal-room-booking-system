@@ -33,6 +33,7 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     @Override
     public void validatePenalty(Long userId) {
         // TODO tạm thời bỏ qua tính năng policy này
+        bookingPolicy.validatePenalty(userId);
     }
 
     @Override

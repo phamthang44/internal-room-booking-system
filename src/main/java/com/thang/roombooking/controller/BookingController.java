@@ -98,7 +98,7 @@ public class BookingController {
         log.info("Received request to cancel booking id {}, student id {}, cancel time: {}",
                 req.bookingId(), userDetails.getUser().getEmail(), req.cancelTime());
 
-        bookingCommandService.cancelBooking(req.bookingId(), userDetails.getUser());
+        bookingCommandService.cancelBooking(req, userDetails.getUser());
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.cancel.success"))
