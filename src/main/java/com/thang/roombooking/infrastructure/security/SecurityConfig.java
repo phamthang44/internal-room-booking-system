@@ -1,5 +1,6 @@
 package com.thang.roombooking.infrastructure.security;
 
+import com.thang.roombooking.infrastructure.configuration.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -17,11 +18,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import java.util.Arrays;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
+
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Configuration
 @RequiredArgsConstructor
@@ -34,6 +41,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final AppProperties appProperties;
 
     protected static final String[] PUBLIC_LIST = {
             "/api/v1/auth/login",
@@ -88,9 +96,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        // Using setAllowedOriginPatterns instead of setAllowedOrigins
-        // This allows any domain while still supporting allowCredentials(true)
-        config.setAllowedOriginPatterns(Arrays.asList("*"));
+        config.setAllowedOrigins(resolveAllowedOrigins());
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList(
                 "Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin",
@@ -103,5 +109,24 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        return Stream.of(
+                        appProperties.getFrontendUrl(),
+                        appProperties.getUrl(),
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173"
+                )
+                .filter(StringUtils::hasText)
+                .map(this::normalizeOrigin)
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
+    }
+
+    private String normalizeOrigin(String origin) {
+        return origin.endsWith("/") ? origin.substring(0, origin.length() - 1) : origin;
     }
 }
