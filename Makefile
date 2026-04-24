@@ -61,7 +61,7 @@ prod-build:
 	docker compose -f $(BASE) -f $(PROD) build
 
 prod-restart:
-	docker compose -f $(BASE) -f $(PROD) restart backend-app
+	docker compose -f $(BASE) -f $(PROD) up -d
 
 prod-pull:
 	docker compose -f $(BASE) -f $(PROD) pull
