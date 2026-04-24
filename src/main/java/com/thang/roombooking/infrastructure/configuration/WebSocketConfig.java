@@ -12,7 +12,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final String[] DOMAIN_URLS = new String[]{
             "https://internal-room-booking-system-fronte.vercel.app",
-            "https://www.roomhub.online"
+            "https://www.roomhub.online",
+            "https://roomhub.online"
     };
 
     @Override
