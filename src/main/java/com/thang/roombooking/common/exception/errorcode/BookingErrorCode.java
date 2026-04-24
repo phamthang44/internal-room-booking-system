@@ -57,7 +57,10 @@ public enum BookingErrorCode implements BaseErrorCode {
     BOOKING_CANCEL_TOO_LATE(HttpStatus.BAD_REQUEST, "BK_021", "error.booking.cancel.too_late"),
     BOOKING_REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "BK_024", "error.booking.reject.reason.required"),
     BOOKING_CHECK_OUT_TOO_EARLY(HttpStatus.BAD_REQUEST, "BK_025", "error.booking.check_out_too_early"),
-    BOOKING_ALREADY_CHECKED_OUT(HttpStatus.BAD_REQUEST, "BK_026", "error.booking.already_checked_out")
+    BOOKING_ALREADY_CHECKED_OUT(HttpStatus.BAD_REQUEST, "BK_026", "error.booking.already_checked_out"),
+
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "BK_027", "error.booking.user_suspended"),
+    TOO_MANY_PENDING_BOOKINGS(HttpStatus.TOO_MANY_REQUESTS, "BK_028", "error.booking.too_many_pending"),
     ;
 
 

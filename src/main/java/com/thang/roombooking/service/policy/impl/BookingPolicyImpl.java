@@ -1,11 +1,20 @@
 package com.thang.roombooking.service.policy.impl;
 
-import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.common.enums.*;
+import com.thang.roombooking.common.event.ViolationCreatedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
+import com.thang.roombooking.entity.Booking;
+import com.thang.roombooking.entity.BookingViolation;
+import com.thang.roombooking.entity.PenaltyRecord;
+import com.thang.roombooking.infrastructure.configuration.PenaltyProperties;
 import com.thang.roombooking.repository.BookingRepository;
+import com.thang.roombooking.repository.BookingViolationRepository;
+import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.policy.BookingPolicy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.*;
@@ -17,9 +26,44 @@ import static com.thang.roombooking.common.constant.TimeConstant.OPENING_TIME;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class BookingPolicyImpl implements BookingPolicy {
-
     private final BookingRepository bookingRepository;
+    private final PenaltyRecordRepository penaltyRecordRepository;
+    private final BookingViolationRepository violationRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final PenaltyProperties penaltyProperties;
+
+    @Override
+    public void validatePenalty(Long userId) {
+        List<PenaltyRecord> activePenalties = penaltyRecordRepository.findByUserIdAndIsActiveTrue(userId);
+        
+        for (PenaltyRecord penalty : activePenalties) {
+            if (penalty.getPenaltyAction() == PenaltyAction.BAN_TEMP || 
+                penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN) {
+                
+                String reason = penalty.getReason();
+                String startDateStr = penalty.getStartDate().toString();
+                String endDateStr = penalty.getEndDate() != null ? penalty.getEndDate().toString() : "N/A";
+                
+                // Trả về mã lỗi đình chỉ kèm thông tin chi tiết
+                throw new AppException(BookingErrorCode.USER_SUSPENDED, reason, startDateStr, endDateStr);
+            }
+        }
+    }
+
+    // @Override
+    // public void validatePenalty(Long userId) {
+    //     List<PenaltyRecord> penaltyRecords = penaltyRecordRepository.findByUserIdAndIsActiveTrue(userId);
+    //     for (PenaltyRecord penaltyRecord : penaltyRecords) {
+    //         if (penaltyRecord.getPenaltyAction() == PenaltyAction.BAN_TEMP || penaltyRecord.getPenaltyAction() == PenaltyAction.PERMANENT_BAN) {
+    //             throw new AppException(BookingErrorCode.USER_SUSPENDED,
+    //                     penaltyRecord.getReason(),
+    //                     penaltyRecord.getStartDate(),
+    //                     penaltyRecord.getEndDate());
+    //         }
+    //     }
+    // }
 
     @Override
     public void validateLeadTimePolicy(LocalDate date) {
@@ -45,9 +89,14 @@ public class BookingPolicyImpl implements BookingPolicy {
         }
     }
 
-    @Override
-    public void validatePenalty(Long userId) {
+    
 
+    @Override
+    public void validatePendingQuota(Long userId) {
+        Long pendingCount = bookingRepository.countPendingByUser(userId);
+        if (pendingCount >= 3) {
+            throw new AppException(BookingErrorCode.TOO_MANY_PENDING_BOOKINGS);
+        }
     }
 
     @Override
@@ -83,5 +132,44 @@ public class BookingPolicyImpl implements BookingPolicy {
         }
     }
 
+    @Override
+    public void checkCancellationSpam(Booking booking) {
+        Instant startOfDay = LocalDate.now(ZoneId.of(SYSTEM_REGION_TIMEZONE)).atStartOfDay(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toInstant();
+        long cancelledToday = bookingRepository.countCancelledBookingsByUserToday(booking.getUser().getId(), startOfDay);
+        
+        if (cancelledToday >= penaltyProperties.getCancellationSpamThreshold()) {
+            log.warn("User {} has excessive cancellations ({}). Logging Violation.", booking.getUser().getId(), cancelledToday);
+            BookingViolation violation = BookingViolation.builder()
+                    .booking(booking)
+                    .reason("booking.cancel.reason.excessive")
+                    .user(booking.getUser())
+                    .type(ViolationType.EXCESSIVE_CANCELLATION)
+                    .resolvedAt(Instant.now())
+                    .source(ViolationSource.SYSTEM)
+                    .severityPoints(1)
+                    .build();
+            violationRepository.save(violation);
+            eventPublisher.publishEvent(new ViolationCreatedEvent(violation.getId(), violation.getUser().getId()));
+        }
+    }
 
+    @Override
+    public void handleNoShowViolation(Booking booking) {
+        log.info("Recording NO_SHOW violation for user {} on booking {}", booking.getUser().getId(), booking.getId());
+        
+        int points = penaltyProperties.getPoints().getOrDefault(ViolationType.NO_SHOW, 1);
+        
+        BookingViolation violation = BookingViolation.builder()
+                .booking(booking)
+                .reason("booking.cancel.reason.no_show")
+                .user(booking.getUser())
+                .type(ViolationType.NO_SHOW)
+                .resolvedAt(Instant.now())
+                .source(ViolationSource.SYSTEM)
+                .severityPoints(points)
+                .build();
+                
+        violationRepository.save(violation);
+        eventPublisher.publishEvent(new ViolationCreatedEvent(violation.getId(), violation.getUser().getId()));
+    }
 }

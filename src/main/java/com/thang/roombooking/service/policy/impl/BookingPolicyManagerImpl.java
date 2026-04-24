@@ -1,6 +1,7 @@
 package com.thang.roombooking.service.policy.impl;
 
 import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.entity.Booking;
 import com.thang.roombooking.service.policy.BookingFlowPolicy;
 import com.thang.roombooking.service.policy.BookingPolicy;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
@@ -9,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -32,8 +32,12 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
 
     @Override
     public void validatePenalty(Long userId) {
-        // TODO tạm thời bỏ qua tính năng policy này
         bookingPolicy.validatePenalty(userId);
+    }
+
+    @Override
+    public void validatePendingQuota(Long userId) {
+        bookingPolicy.validatePendingQuota(userId);
     }
 
     @Override
@@ -77,7 +81,13 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     }
 
     @Override
-    public void validatePenaltyPolicy() {
-
+    public void checkCancellationSpam(Booking booking) {
+        bookingPolicy.checkCancellationSpam(booking);
     }
+
+    @Override
+    public void handleNoShowViolation(Booking booking) {
+        bookingPolicy.handleNoShowViolation(booking);
+    }
+
 }

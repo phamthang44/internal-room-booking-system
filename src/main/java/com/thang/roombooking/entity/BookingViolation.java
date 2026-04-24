@@ -1,6 +1,7 @@
 package com.thang.roombooking.entity;
 
 import com.thang.roombooking.common.entity.BaseSoftDeleteEntity;
+import com.thang.roombooking.common.enums.ViolationSource;
 import com.thang.roombooking.common.enums.ViolationType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,9 +29,20 @@ public class BookingViolation extends BaseSoftDeleteEntity<Long> {
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "booking_id", nullable = true)
     private Booking booking;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", length = 20)
+    private ViolationSource source = ViolationSource.SYSTEM;
+
+    @Column(name = "severity_points")
+    private Integer severityPoints = 1;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "penalty_id")
+    private PenaltyRecord penalty;
 
     @Enumerated(EnumType.STRING)
     private ViolationType type;

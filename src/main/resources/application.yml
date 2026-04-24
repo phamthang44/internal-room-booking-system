@@ -46,3 +46,22 @@ roombooking:
       email-booking: notification.send-email.booking.queue
       # Persistent in-app notifications
       notification-in-app: notification.in-app.queue
+
+penalty:
+  rules:
+    window-days: 30 # Look back period
+    points:
+      LATE_CHECK_IN: 1
+      NO_SHOW: 2
+      DAMAGED_EQUIPMENT: 5
+      MISCONDUCT: 10
+      EXCESSIVE_CANCELLATION: 1
+    thresholds:
+      - min-points: 2
+        action: WARNING
+      - min-points: 3
+        action: REQUIRE_APPROVAL
+        duration-days: 7
+      - min-points: 5
+        action: BAN_TEMP
+        duration-days: 14

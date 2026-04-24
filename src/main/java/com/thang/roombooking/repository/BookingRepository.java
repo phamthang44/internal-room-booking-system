@@ -241,6 +241,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
         SELECT COUNT(b)
         FROM Booking b
         WHERE b.user.id = :userId
+        AND b.status = 'CANCELLED'
+        AND b.updatedAt >= :startOfDay
+        """)
+    Long countCancelledBookingsByUserToday(@Param("userId") Long userId, @Param("startOfDay") Instant startOfDay);
+
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.user.id = :userId
         AND b.bookingDate >= :today
         AND b.status IN ('APPROVED', 'PENDING', 'CHECKED_IN')
         """)

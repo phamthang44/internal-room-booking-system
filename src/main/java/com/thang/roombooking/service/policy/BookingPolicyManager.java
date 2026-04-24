@@ -1,6 +1,7 @@
 package com.thang.roombooking.service.policy;
 
 import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.entity.Booking;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,6 +16,8 @@ public interface BookingPolicyManager {
     void validateQuotaPolicy(Long userId, LocalDate date, int requestedSlots);
 
     void validatePenalty(Long userId);
+
+    void validatePendingQuota(Long userId);
 
     void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
 
@@ -32,5 +35,7 @@ public interface BookingPolicyManager {
 
     void validateCancelConditionPolicy(Instant bookingCreatedAt, BookingStatus bookingStatus, Instant bookingStartTime);
 
-    void validatePenaltyPolicy();
+    void checkCancellationSpam(Booking booking);
+
+    void handleNoShowViolation(Booking booking);
 }

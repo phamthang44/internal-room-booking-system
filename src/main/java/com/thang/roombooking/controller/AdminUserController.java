@@ -2,10 +2,13 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
+import com.thang.roombooking.common.dto.response.PenaltyRecordResponse;
 import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.service.AdminUserService;
+import com.thang.roombooking.service.PenaltyQueryService;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.util.List;
@@ -53,5 +56,17 @@ public class AdminUserController {
             
         UserBasicResponse response = adminUserService.updateUserRole(userId, roleName);
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.upd.success")));
+    }
+
+    private final PenaltyQueryService penaltyQueryService;
+
+    @GetMapping("/{userId}/penalties")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResult<Page<PenaltyRecordResponse>>> getPenaltiesAndHistoryViolation(
+            @PathVariable @Positive Long userId,
+            Pageable pageable) {
+
+        Page<PenaltyRecordResponse> response = penaltyQueryService.getUserPenaltyHistory(userId, pageable);
+        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.profile.retrieve.success")));
     }
 }

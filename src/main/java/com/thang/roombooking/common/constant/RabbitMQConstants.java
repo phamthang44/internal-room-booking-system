@@ -11,4 +11,5 @@ public class RabbitMQConstants {
     public static final String RK_EMAIL_BOOKING_CANCELLED = "notification.email.booking.cancelled";
     public static final String RK_EMAIL_BOOKING_CHECKIN = "notification.email.booking.checkin";
     public static final String RK_EMAIL_BOOKING_CHECKOUT = "notification.email.booking.checkout";
+    public static final String RK_NOTIFICATION_IN_APP = "notification.in-app.general";
 }
