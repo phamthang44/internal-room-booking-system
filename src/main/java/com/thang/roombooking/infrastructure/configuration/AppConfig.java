@@ -24,8 +24,10 @@ public class AppConfig {
                                 "http://localhost:8080",
                                 "https://internal-room-booking-system-fronte.vercel.app"
                         )
-                        .allowedMethods("*")
-                        .allowedHeaders("*");
+                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                        .allowedHeaders("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers", "x-idempotency-key")
+                        .exposedHeaders("Authorization", "Content-Disposition")
+                        .maxAge(3600L);
             }
         };
     }
