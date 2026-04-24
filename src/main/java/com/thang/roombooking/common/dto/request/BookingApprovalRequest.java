@@ -6,9 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record BookingApprovalRequest(
-        @NotNull(message = "{validation.booking.id.required}")
-        @Schema(description = "Booking id", example = "1")
-        Long bookingId,
 
         @NotNull(message = "{validation.booking.action.required}")
         @Schema(description = "Hành động: APPROVE hoặc REJECT", example = "REJECT")

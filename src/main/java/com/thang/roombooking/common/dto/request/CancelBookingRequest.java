@@ -7,10 +7,6 @@ import java.time.Instant;
 
 public record CancelBookingRequest(
 
-        @Schema(description = "Booking ID", example = "1")
-        @NotNull(message = "{validation.booking.id.required}")
-        Long bookingId,
-
         @NotNull(message = "{cancel.booking.reason.required}")
         String cancelReason,
 

@@ -10,6 +10,7 @@ import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.BookingCommandService;
 import com.thang.roombooking.service.BookingQueryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,33 +31,35 @@ public class AdminBookingController {
 
     private final BookingCommandService bookingCommandService;
     private final BookingQueryService bookingQueryService;
-
-    @PatchMapping("/approve")
+        
+    @PatchMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> approveBooking(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody BookingApprovalRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to approve booking id {}, staff/admin id {}",
-                req.bookingId(), userDetails.getUser().getEmail());
+                id, userDetails.getUser().getEmail());
 
-        var bookingId = bookingCommandService.approveBooking(req, userDetails.getUser());
+        var bookingId = bookingCommandService.approveBooking(id, req, userDetails.getUser());
 
         return  ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.approved.success", bookingId))
         );
     }
 
-    @PatchMapping("/reject")
+    @PatchMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> rejectBooking(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody BookingApprovalRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to reject booking id {}, staff/admin id {}",
-                req.bookingId(), userDetails.getUser().getEmail());
+                id, userDetails.getUser().getEmail());
 
-        bookingCommandService.rejectBooking(req, userDetails.getUser());
+        bookingCommandService.rejectBooking(id, req, userDetails.getUser());
 
-        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("booking.rejected.success", req.bookingId())));
+        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("booking.rejected.success", id)));
     }
 
     /**
@@ -86,7 +89,7 @@ public class AdminBookingController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<AdminBookingDetailResponse>> getAdminBookingDetail(
-            @PathVariable Long id,
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Admin booking detail | bookingId={} | adminUserId={}", id, userDetails.getUser().getId());
         return ResponseEntity.ok(ApiResult.success(bookingQueryService.getAdminBookingDetail(id, userDetails.getUser())));

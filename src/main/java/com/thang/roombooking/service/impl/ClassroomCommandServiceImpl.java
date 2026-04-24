@@ -102,20 +102,21 @@ public class ClassroomCommandServiceImpl implements ClassroomCommandService {
 
     @Override
     @Transactional
-    public UpdateClassroomResponse updateClassroom(UpdateClassroomRequest req) {
-        log.info("{} | Update Classroom | Data: {}", LogConstant.ACTION_START, req);
+    public UpdateClassroomResponse updateClassroom(Long id, UpdateClassroomRequest req) {
+        log.info("{} | Update Classroom | ID: {}, Data: {}", LogConstant.ACTION_START, id, req);
         try {
-            // 1. Tìm bản ghi cũ trong DB (Bắt buộc)
-            Classroom existingClassroom = classroomRepository.findById(req.classroomId())
-                    .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + req.classroomId()));
+            // 1. Tìm bản ghi cũ trong DB (Dùng id từ URL)
+            Classroom existingClassroom = classroomRepository.findById(id)
+                    .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
 
             // 2. Validate (Truyền ID hiện tại để không tự chặn chính mình khi check trùng tên)
             ClassroomValidatorService.ValidationResult res = classroomValidatorService.validateAndGetEntities(req, existingClassroom.getId());
 
-            // 3. Update dữ liệu từ Request vào Entity cũ (Dùng Mapper với @MappingTarget)
+            // 3. Update dữ liệu từ Request vào Entity cũ
             classroomMapper.updateEntityFromRequest(req, existingClassroom);
             Map<Equipment, Integer> equipmentMap = processEquipmentRequest(req);
-            // 4. Cập nhật lại các mối quan hệ (Building, RoomType, Equipments)
+            
+            // 4. Cập nhật lại các mối quan hệ
             existingClassroom.updateDetails(res.building(), res.roomType(), equipmentMap,
                     req.isActive() ? RoomStatus.AVAILABLE : RoomStatus.INACTIVE, req.imageUrls());
 

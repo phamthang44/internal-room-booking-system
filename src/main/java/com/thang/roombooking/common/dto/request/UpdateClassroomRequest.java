@@ -8,9 +8,6 @@ import java.util.List;
 
 public record UpdateClassroomRequest(
 
-        @NotNull(message = "{validation.classroom.room.id.required}")
-        Long classroomId,
-
         @Schema(description = "Classroom name", example = "Athena-204")
         @NotBlank(message = "{validation.classroom.room.name.required}")
         @Size(min = 1, max = 50, message = "{validation.classroom.room.name.size}")

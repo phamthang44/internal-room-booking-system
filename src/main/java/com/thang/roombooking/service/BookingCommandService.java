@@ -8,17 +8,17 @@ import com.thang.roombooking.entity.UserAccount;
 public interface BookingCommandService {
 
     CreateBookingResponse createBooking(CreateBookingRequest request, UserAccount currentUser);
-    void checkIn(CheckInRequest request, UserAccount currentUser);
-    void checkout(CheckoutRequest request, UserAccount currentUser);
+    void checkIn(Long id, CheckInRequest request, UserAccount currentUser);
+    void checkout(Long id, CheckoutRequest request, UserAccount currentUser);
 
-    Long approveBooking(BookingApprovalRequest request, UserAccount currentUser);
+    Long approveBooking(Long id, BookingApprovalRequest request, UserAccount currentUser);
 
-    void rejectBooking(BookingApprovalRequest request, UserAccount currentUser);
+    void rejectBooking(Long id, BookingApprovalRequest request, UserAccount currentUser);
 
     void cancelExpiredBooking(Booking booking);
     
     void autoRejectOverduePendingBooking(Booking booking);
     void autoCheckoutExpiredBooking(Booking booking);
 
-    void cancelBooking(CancelBookingRequest req, UserAccount userAccount);
+    void cancelBooking(Long id, CancelBookingRequest req, UserAccount userAccount);
 }

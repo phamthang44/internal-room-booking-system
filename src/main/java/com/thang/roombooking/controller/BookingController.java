@@ -14,6 +14,8 @@ import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.BookingCommandService;
 import com.thang.roombooking.service.BookingQueryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,15 +57,16 @@ public class BookingController {
     // ── CHECK-IN ─────────────────────────────────────────────────────────────
 
     @Idempotent(keyPrefix = "booking-checkin")
-    @PatchMapping("/checkin")
+    @PatchMapping("/{id}/check-in")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> checkIn(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody CheckInRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to checkin booking id {}, student id {}",
-                req.bookingId(), userDetails.getUser().getEmail());
+                id, userDetails.getUser().getEmail());
 
-        bookingCommandService.checkIn(req, userDetails.getUser());
+        bookingCommandService.checkIn(id, req, userDetails.getUser());
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.checkin.success"))
@@ -73,15 +76,16 @@ public class BookingController {
     // ── CHECK-OUT ────────────────────────────────────────────────────────────
 
     @Idempotent(keyPrefix = "booking-checkout")
-    @PatchMapping("/checkout")
+    @PatchMapping("/{id}/check-out")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> checkout(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody CheckoutRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to checkout booking id {}, student id {}",
-                req.bookingId(), userDetails.getUser().getEmail());
+                id, userDetails.getUser().getEmail());
 
-        bookingCommandService.checkout(req, userDetails.getUser());
+        bookingCommandService.checkout(id, req, userDetails.getUser());
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.checkout.success"))
@@ -90,15 +94,16 @@ public class BookingController {
 
     //
     @Idempotent(keyPrefix = "booking-cancel")
-    @PatchMapping("/cancel")
+    @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<String>> cancelBooking(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody CancelBookingRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to cancel booking id {}, student id {}, cancel time: {}",
-                req.bookingId(), userDetails.getUser().getEmail(), req.cancelTime());
+                id, userDetails.getUser().getEmail(), req.cancelTime());
 
-        bookingCommandService.cancelBooking(req, userDetails.getUser());
+        bookingCommandService.cancelBooking(id, req, userDetails.getUser());
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResult.success(I18nUtils.get("booking.cancel.success"))
@@ -118,7 +123,7 @@ public class BookingController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResult<BookingDetailResponse>> getBookingDetail(
-            @PathVariable Long id,
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to get booking detail | bookingId={} | userId={}",
                 id, userDetails.getUser().getEmail());

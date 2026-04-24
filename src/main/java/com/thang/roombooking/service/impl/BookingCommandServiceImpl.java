@@ -11,7 +11,6 @@ import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
 import com.thang.roombooking.repository.BookingRepository;
-import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.ClassroomRepository;
 import com.thang.roombooking.service.*;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
@@ -42,7 +41,6 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     private final TranslationService translationService;
     private final BookingMapper bookingMapper;
     private final BookingApprovalCommandService bookingApprovalCommandService;
-    private final BookingViolationRepository violationRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -58,7 +56,8 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             bookingPolicyManager.validateBookingTimeWorkingHours(request.bookingDate(), request.timeBooking());
 
             // 2. Policy Quota & Penalty
-            bookingPolicyManager.validatePenalty(currentUser.getId()); //TODO: tạm thời luôn cho qua chưa tính tới
+            bookingPolicyManager.validatePenalty(currentUser.getId());
+            bookingPolicyManager.validatePendingQuota(currentUser.getId());
             bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
             bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
 
@@ -136,12 +135,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void checkIn(CheckInRequest request, UserAccount currentUser) {
-        log.info("{} | Check in Booking | User: {} | Data: {}",
-                LogConstant.ACTION_START, currentUser.getId(), request);
+    public void checkIn(Long id, CheckInRequest request, UserAccount currentUser) {
+        log.info("{} | Check in Booking | ID: {} | User: {} | Data: {}",
+                LogConstant.ACTION_START, id, currentUser.getId(), request);
         try {
             // 1) Load booking WITH time slots in one query (source of truth for start time)
-            Booking booking = bookingRepository.findByIdWithTimeSlots(request.bookingId())
+            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             bookingPolicyManager.validateCheckInStatus(booking.getStatus());
@@ -150,6 +149,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (!booking.getUser().getId().equals(currentUser.getId())) {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
+
+            // 1.5) Ban check: Even if booking was approved, a banned user cannot check in.
+            bookingPolicyManager.validatePenalty(currentUser.getId());
 
             // 2) Derive the booking's effective start time
             Instant startInstant = getBookingStartInstant(booking);
@@ -173,7 +175,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(request.bookingId())
+                Booking updated = bookingRepository.findById(id)
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
@@ -186,7 +188,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 ));
             }
 
-            log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
+            log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, id, currentUser.getId());
         } catch (AppException e) {
             log.warn("{}: Failed to checkin booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
                     currentUser.getId(), e.getErrorCode());
@@ -200,11 +202,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void checkout(CheckoutRequest request, UserAccount currentUser) {
-        log.info("{} | Checkout Booking | User: {} | Data: {}",
-                LogConstant.ACTION_START, currentUser.getId(), request);
+    public void checkout(Long id, CheckoutRequest request, UserAccount currentUser) {
+        log.info("{} | Checkout Booking | ID: {} | User: {} | Data: {}",
+                LogConstant.ACTION_START, id, currentUser.getId(), request);
         try {
-            Booking booking = bookingRepository.findByIdWithTimeSlots(request.bookingId())
+            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             if (!booking.getUser().getId().equals(currentUser.getId())) {
@@ -215,7 +217,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
             }
 
-            // 2. Policy: Chặn trả phòng quá sớm (Trước khi ca bắt đầu)
+            // 2. Policy: Chặn trả phòng quá sớm
             Instant startInstant = getBookingStartInstant(booking);
             bookingPolicyManager.validateCheckOutTimePolicy(startInstant);
 
@@ -233,7 +235,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(request.bookingId())
+                Booking updated = bookingRepository.findById(id)
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
@@ -246,7 +248,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 ));
             }
 
-            log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
+            log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, id, currentUser.getId());
         } catch (AppException e) {
             log.warn("{}: Failed to checkout booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
                     currentUser.getId(), e.getErrorCode());
@@ -260,11 +262,11 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long approveBooking(BookingApprovalRequest request, UserAccount currentUser) {
-        log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_START, request.bookingId(), currentUser.getId());
+    public Long approveBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
+        log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_START, id, currentUser.getId());
         try {
             // lấy booking
-            Booking booking = bookingRepository.findById(request.bookingId())
+            Booking booking = bookingRepository.findById(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             bookingPolicyManager.validateApproveStatus(booking.getStatus());
@@ -273,22 +275,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
             }
 
-            // 3. Thực hiện Atomic Update (Kết hợp Optimistic Locking)
-            // Truyền booking.getVersion() vào để DB đối chiếu
+            // 3. Thực hiện Atomic Update
             int updatedRows = bookingRepository.atomicApprove(
-                    booking.getId(),
+                    id,
                     BookingStatus.APPROVED,
                     booking.getVersion()
             );
             if (updatedRows == 0) {
-                // Nếu trả về 0, nghĩa là giữa lúc Select và Update đã có Admin khác nhanh tay hơn
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
 
-            Booking approvedBooking = bookingRepository.findById(request.bookingId())
+            Booking approvedBooking = bookingRepository.findById(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
+            log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, id);
             bookingApprovalCommandService.saveApprovalBooking(approvedBooking, currentUser);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     approvedBooking,
@@ -314,10 +314,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void rejectBooking(BookingApprovalRequest request, UserAccount currentUser) {
-        log.info("{}: Booking reject with ID: {} by STAFF: {}", LogConstant.ACTION_START, request.bookingId(), currentUser.getId());
+    public void rejectBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
+        log.info("{}: Booking reject with ID: {} by STAFF: {}", LogConstant.ACTION_START, id, currentUser.getId());
         try {
-            Booking booking = bookingRepository.findById(request.bookingId())
+            Booking booking = bookingRepository.findById(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             bookingPolicyManager.validateRejectStatus(booking.getStatus());
@@ -333,7 +333,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
             // Perform Atomic Update
             int updatedRows = bookingRepository.atomicRejectPending(
-                    booking.getId(),
+                    id,
                     BookingStatus.REJECTED,
                     cleanReason,
                     booking.getVersion()
@@ -342,10 +342,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (updatedRows == 0) {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
-            Booking updated = bookingRepository.findById(booking.getId())
+            Booking updated = bookingRepository.findById(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
             // Update entity in memory for events
-            log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, request.bookingId());
+            log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, id);
             bookingApprovalCommandService.saveApprovalBooking(updated, currentUser);
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     updated,
@@ -379,18 +379,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         );
 
         if (updatedRows > 0) {
-            // Ghi nhận vi phạm vào bảng booking_violations để sau này xử phạt (Penalty)
             Booking updated = bookingRepository.findById(booking.getId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            BookingViolation violation = BookingViolation.builder()
-                    .booking(updated)
-                    .reason("booking.cancel.reason.no_show")
-                    .user(updated.getUser())
-                    .type(ViolationType.NO_SHOW)
-                    .resolvedAt(Instant.now())
-                    .build();
-            violationRepository.save(violation);
+            // 3. Delegation to Policy Layer for Violation & Penalty logic
+            bookingPolicyManager.handleNoShowViolation(updated);
+
             eventPublisher.publishEvent(new BookingStatusChangedEvent(
                     updated,
                     BookingStatus.CANCELLED,
@@ -461,16 +455,15 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional
-    public void cancelBooking(CancelBookingRequest req, UserAccount userAccount) {
-        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, req.bookingId());
+    public void cancelBooking(Long id, CancelBookingRequest req, UserAccount userAccount) {
+        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, id);
         try {
             // lấy booking
-            Long bookingId = req.bookingId();
             String cleanCancelReason = cleanString(req.cancelReason());
 
             bookingValidatorService.validatePurpose(cleanCancelReason);
 
-            Booking booking = bookingRepository.findByIdWithTimeSlots(bookingId)
+            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
             // 1. Check quyền sở hữu
@@ -478,7 +471,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                 throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
             }
 
-            // 2. Derive the booking's effective start time
+            // 2. Policy
             Instant startInstant = getBookingStartInstant(booking);
 
             bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startInstant);
@@ -494,9 +487,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             if (updatedRows == 0) {
                 throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
             }
-            log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, bookingId);
+            log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, id);
             if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(bookingId)
+                Booking updated = bookingRepository.findById(id)
                         .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
                 eventPublisher.publishEvent(new BookingStatusChangedEvent(
@@ -507,6 +500,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                         cleanCancelReason,
                         LocaleContextHolder.getLocale().toString()
                 ));
+
+                // 3. Spam Prevention
+                bookingPolicyManager.checkCancellationSpam(updated);
             }
         } catch (AppException e) {
             log.warn("{} | cancelBooking | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());

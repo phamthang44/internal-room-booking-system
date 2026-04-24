@@ -7,10 +7,6 @@ import java.time.Instant;
 
 public record CheckInRequest(
 
-        @Schema(description = "Booking ID", example = "1")
-        @NotNull(message = "{validation.booking.id.required}")
-        Long bookingId,
-
         @NotNull(message = "{validation.booking.check_in.time_booking.required}")
         @Schema(description = "Time at the check in booking moment")
         Instant checkInTime

@@ -11,6 +11,7 @@ import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.service.ClassroomCommandService;
 import com.thang.roombooking.service.ClassroomQueryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -39,27 +40,30 @@ public class AdminRoomController {
         );
     }
 
-    @PutMapping
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResult<UpdateClassroomResponse>> updateClassroom(@Valid @RequestBody UpdateClassroomRequest req) {
-        log.info("Received request to update classroom {}", req.classroomId());
-        var response = classroomCommandService.updateClassroom(req);
+    public ResponseEntity<ApiResult<UpdateClassroomResponse>> updateClassroom(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
+            @Valid @RequestBody UpdateClassroomRequest req) {
+        log.info("Received request to update classroom {}", id);
+        var response = classroomCommandService.updateClassroom(id, req);
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.updated.success", response.roomName())));
     }
 
-    @PatchMapping("/status")
+    @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResult<UpdateClassroomResponse>> updateClassroomStatus(
+            @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id,
             @Valid @RequestBody UpdateClassroomStatusRequest req) {
-        log.info("Received request to change classroom status {}", req.classroomId());
-        var response = classroomCommandService.updateStatusClassroom(req.classroomId(),  req.status());
+        log.info("Received request to change classroom status {}", id);
+        var response = classroomCommandService.updateStatusClassroom(id, req.status());
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.updated.success", response.roomName())));
     }
 
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResult<AdminDetailClassroomResponse>> getClassRoomDetail(@Valid @PathVariable Long id) {
+    public ResponseEntity<ApiResult<AdminDetailClassroomResponse>> getClassRoomDetail(@Valid @PathVariable @Positive(message = "{validation.id.must_be_positive}") Long id) {
         log.info("Received request to get information detail classroom {}", id);
         var response = classroomQueryService.getClassroomDetail(id);
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("classroom.retrieved.success", response.getRoomName())));

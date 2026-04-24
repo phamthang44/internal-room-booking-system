@@ -9,7 +9,7 @@ import com.thang.roombooking.common.enums.RoomStatus;
 public interface ClassroomCommandService {
 
     CreateClassroomResponse createAnClassroom(CreateClassroomRequest req);
-    UpdateClassroomResponse updateClassroom(UpdateClassroomRequest req);
+    UpdateClassroomResponse updateClassroom(Long id, UpdateClassroomRequest req);
     void removeClassroom(Long id);
     UpdateClassroomResponse updateStatusClassroom(Long id, RoomStatus status);
 }
