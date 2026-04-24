@@ -93,7 +93,8 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://localhost:8080",
                 "https://thang.tail704409.ts.net",
-                "https://internal-room-booking-system-fronte.vercel.app"
+                "https://internal-room-booking-system-fronte.vercel.app",
+                "https://www.roomhub.online"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList(
