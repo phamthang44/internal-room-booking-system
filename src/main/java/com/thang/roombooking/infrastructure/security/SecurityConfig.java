@@ -88,14 +88,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:8080",
-                "https://thang.tail704409.ts.net",
-                "https://internal-room-booking-system-fronte.vercel.app",
-                "https://www.roomhub.online"
-        ));
+        // Using setAllowedOriginPatterns instead of setAllowedOrigins
+        // This allows any domain while still supporting allowCredentials(true)
+        config.setAllowedOriginPatterns(Arrays.asList("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList(
                 "Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin",
