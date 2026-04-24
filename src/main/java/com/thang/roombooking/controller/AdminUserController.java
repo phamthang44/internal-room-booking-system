@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final PenaltyQueryService penaltyQueryService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -58,7 +59,6 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.upd.success")));
     }
 
-    private final PenaltyQueryService penaltyQueryService;
 
     @GetMapping("/{userId}/penalties")
     @PreAuthorize("hasRole('ADMIN')")
