@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     auth.requestMatchers(PUBLIC_LIST).permitAll();
                     auth.requestMatchers(SWAGGER_LIST).permitAll();
                     auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated();
