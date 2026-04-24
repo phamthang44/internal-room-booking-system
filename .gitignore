@@ -53,6 +53,7 @@ desktop.ini
 logs/
 *.log
 *.sql
+!**/src/main/resources/db/migration/*.sql
 *.txt
 !**/src/main/resources/**/*.txt
 !**/src/test/resources/**/*.txt
