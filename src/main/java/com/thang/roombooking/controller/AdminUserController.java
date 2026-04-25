@@ -4,8 +4,10 @@ import com.thang.roombooking.common.dto.request.RegisterRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.PenaltyRecordResponse;
 import com.thang.roombooking.common.dto.response.UserBasicResponse;
+import com.thang.roombooking.common.dto.response.ViolationResponse;
 import com.thang.roombooking.service.AdminUserService;
 import com.thang.roombooking.service.PenaltyQueryService;
+import com.thang.roombooking.service.ViolationQueryService;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -26,6 +28,7 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
     private final PenaltyQueryService penaltyQueryService;
+    private final ViolationQueryService violationQueryService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -68,5 +71,15 @@ public class AdminUserController {
 
         Page<PenaltyRecordResponse> response = penaltyQueryService.getUserPenaltyHistory(userId, pageable);
         return ResponseEntity.ok(ApiResult.successPage(response, I18nUtils.get("user.profile.retrieve.success")));
+    }
+
+    @GetMapping("/{userId}/violations")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResult<List<ViolationResponse>>> getViolationHistory(
+            @PathVariable @Positive Long userId,
+            Pageable pageable) {
+
+        Page<ViolationResponse> response = violationQueryService.getUserViolationHistory(userId, pageable);
+        return ResponseEntity.ok(ApiResult.successPage(response, I18nUtils.get("violation.retrieve.success")));
     }
 }
