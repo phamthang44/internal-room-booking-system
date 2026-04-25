@@ -97,4 +97,5 @@ services:
       - WATCHTOWER_INCLUDE_STOPPED=true
       - WATCHTOWER_REVIVE_STOPPED=true
       - WATCHTOWER_DEBUG=true
+      - DOCKER_API_VERSION=1.41
 
