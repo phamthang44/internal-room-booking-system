@@ -231,17 +231,17 @@ public class GlobalHandlerError {
     public ResponseEntity<ApiResult<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String rootMsg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : "";
 
-        // Kiểm tra xem có đúng là vi phạm cái Constraint "exclude_booking_overlap" không
-        if (rootMsg.contains("exclude_booking_overlap")) {
-            log.warn("{} | Overlap detected by DB Constraint |", LogConstant.BIZ_ERROR);
+        // Check for specific booking overlap constraints
+        if (rootMsg.contains("exclude_booking_overlap") || rootMsg.contains("uq_booking_active_timerange")) {
+            log.warn("{} | Overlap detected by DB Constraint: {} |", LogConstant.BIZ_ERROR, rootMsg);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResult.error(BookingErrorCode.BOOKING_SLOT_OVERLAP));
         }
 
-        // Các lỗi Integrity khác (ví dụ Foreign Key, Unique...)
+        // Other Integrity errors (e.g., Foreign Key, Unique...)
         log.error("{} | Data Integrity Error: {}", LogConstant.SYS_ERROR, rootMsg);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResult.error(CommonErrorCode.DATA_INTEGRITY_ERROR, ex.getMessage()));
+                .body(ApiResult.error(CommonErrorCode.DATA_INTEGRITY_ERROR));
     }
 
     private String extractFieldFromPath(Throwable ex) {
