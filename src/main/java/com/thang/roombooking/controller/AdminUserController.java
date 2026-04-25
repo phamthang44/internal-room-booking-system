@@ -62,11 +62,11 @@ public class AdminUserController {
 
     @GetMapping("/{userId}/penalties")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResult<Page<PenaltyRecordResponse>>> getPenaltiesAndHistoryViolation(
+    public ResponseEntity<ApiResult<List<PenaltyRecordResponse>>> getPenaltiesAndHistoryViolation(
             @PathVariable @Positive Long userId,
             Pageable pageable) {
 
         Page<PenaltyRecordResponse> response = penaltyQueryService.getUserPenaltyHistory(userId, pageable);
-        return ResponseEntity.ok(ApiResult.success(response, I18nUtils.get("user.profile.retrieve.success")));
+        return ResponseEntity.ok(ApiResult.successPage(response, I18nUtils.get("user.profile.retrieve.success")));
     }
 }
