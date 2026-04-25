@@ -47,4 +47,5 @@ jobs:
           script: |
             cd room-booking/
             make prod-pull
+            make prod-down
             make prod
