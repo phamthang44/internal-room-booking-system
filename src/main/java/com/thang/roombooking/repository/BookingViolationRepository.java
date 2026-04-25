@@ -12,7 +12,7 @@ import java.util.List;
 @Repository
 public interface BookingViolationRepository extends JpaRepository<BookingViolation, Long> {
 
-    List<BookingViolation> findByUserIdAndCreatedAtAfter(Long userId, Instant after);
+    List<BookingViolation> findByUserIdAndPenaltyIsNullAndCreatedAtAfter(Long userId, Instant after);
 
     Page<BookingViolation> findAllByUserId(Long userId, Pageable pageable);
 }

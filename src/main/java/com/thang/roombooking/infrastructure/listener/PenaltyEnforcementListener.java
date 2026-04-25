@@ -54,7 +54,7 @@ public class PenaltyEnforcementListener {
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, event.getUserId()));
 
         Instant cutoffTime = Instant.now().minus(penaltyProperties.getWindowDays(), ChronoUnit.DAYS);
-        List<BookingViolation> recentViolations = violationRepository.findByUserIdAndCreatedAtAfter(user.getId(), cutoffTime);
+        List<BookingViolation> recentViolations = violationRepository.findByUserIdAndPenaltyIsNullAndCreatedAtAfter(user.getId(), cutoffTime);
 
         int totalPoints = recentViolations.stream()
                 .mapToInt(v -> v.getSeverityPoints() != null ? v.getSeverityPoints() : 0)
@@ -101,11 +101,9 @@ public class PenaltyEnforcementListener {
 
             penaltyRepository.save(penalty);
             
-            // Optionally update the violation to link to this penalty
-            violationRepository.findById(event.getViolationId()).ifPresent(v -> {
-                v.setPenalty(penalty);
-                violationRepository.save(v);
-            });
+            // Link all contributing violations to this penalty so they aren't counted again
+            recentViolations.forEach(v -> v.setPenalty(penalty));
+            violationRepository.saveAll(recentViolations);
 
             // --- RABBITMQ INTEGRATION: Send In-App Notification ---
             try {
