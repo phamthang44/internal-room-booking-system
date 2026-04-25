@@ -1,5 +1,6 @@
 package com.thang.roombooking.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.dto.request.PenaltyExtendRequest;
 import com.thang.roombooking.common.dto.request.PenaltyRevokeRequest;
@@ -10,6 +11,7 @@ import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.PenaltyErrorCode;
 import com.thang.roombooking.entity.PenaltyRecord;
 import com.thang.roombooking.entity.UserAccount;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.PenaltyCommandService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,9 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -28,6 +32,7 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
 
     private final PenaltyRecordRepository penaltyRecordRepository;
     private final MessageSource messageSource;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -48,8 +53,9 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
     }
 
     private PenaltyRecordResponse getPenaltyRecordResponse(UserAccount admin, PenaltyRecord penalty, String reason, String actionKey) {
+        String originalReason = translateReason(penalty.getReason());
         String appendReason = appendReason(reason, admin, actionKey);
-        penalty.setReason(penalty.getReason() + appendReason);
+        penalty.setReason(originalReason + appendReason);
 
         PenaltyRecord saved = penaltyRecordRepository.save(penalty);
 
@@ -62,6 +68,24 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
                 .reason(saved.getReason())
                 .userBasicResponse(UserBasicResponse.fromEntity(saved.getUser()))
                 .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String translateReason(String reason) {
+        if (reason == null || !reason.startsWith("{")) {
+            return reason;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(reason, Map.class);
+            String key = (String) map.get("key");
+            List<Object> args = (List<Object>) map.get("args");
+            if (key != null) {
+                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse/translate penalty reason in command service: {}", reason);
+        }
+        return reason;
     }
 
     @Override
