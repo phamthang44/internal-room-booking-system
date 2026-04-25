@@ -16,7 +16,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 @SQLRestriction("deleted_at IS NULL")
-@SQLDelete(sql = "UPDATE public.booking_violations SET deleted_at = NOW()")
+@SQLDelete(sql = "UPDATE public.booking_violations SET deleted_at = NOW() WHERE id = ?")
 @Entity
 @Table(name = "booking_violations")
 public class BookingViolation extends BaseSoftDeleteEntity<Long> {
