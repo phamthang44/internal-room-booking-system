@@ -12,6 +12,8 @@ import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.infrastructure.configuration.RoomBookingRabbitMQProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.common.constant.RabbitMQConstants;
 import com.thang.roombooking.common.dto.model.NotificationPayload;
 import com.thang.roombooking.common.dto.request.InAppNotificationRequest;
@@ -27,6 +29,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -39,6 +42,7 @@ public class PenaltyEnforcementListener {
     private final UserAccountRepository userRepository;
     private final RabbitTemplate rabbitTemplate;
     private final RoomBookingRabbitMQProperties rabbitMQProperties;
+    private final ObjectMapper objectMapper;
 
     @Async
     @EventListener
@@ -107,13 +111,16 @@ public class PenaltyEnforcementListener {
             try {
                 NotificationPayload payload = new NotificationPayload(
                         "PENALTY_APPLIED",
-                        "notification.penalty.applied.title", // Default/Fallback title (though titleKey is used)
-                        "notification.penalty.applied.message", // Default/Fallback message
+                        "Penalty Applied", // Fallback text
+                        "Your account has been penalized.", // Fallback text
                         null, // No specific booking ID linked to the penalty overall
                         "URGENT",
                         Instant.now(),
-                        "notification.penalty.applied.title",
-                        new Object[]{totalPoints, appliedThreshold.getAction().name()}
+                        "notification.penalty.applied", // Fixed prefix
+                        new Object[]{
+                                translateReason(reasonPayload), 
+                                I18nUtils.get("penalty.action." + appliedThreshold.getAction().name().toLowerCase())
+                        }
                 );
 
                 InAppNotificationRequest notificationRequest = new InAppNotificationRequest(user.getId(), payload);
@@ -128,5 +135,26 @@ public class PenaltyEnforcementListener {
                 log.error("Failed to send penalty notification to RabbitMQ", e);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String translateReason(String reason) {
+        if (reason == null || !reason.startsWith("{")) {
+            return reason;
+        }
+        try {
+            // objectMapper is likely not available here, but I can use standard I18nUtils 
+            // if I have a similar helper or just add it.
+            // Wait, I should add ObjectMapper to this listener too.
+            Map<String, Object> map = objectMapper  .readValue(reason, Map.class);
+            String key = (String) map.get("key");
+            List<Object> args = (List<Object>) map.get("args");
+            if (key != null) {
+                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse penalty reason in listener: {}", reason);
+        }
+        return reason;
     }
 }

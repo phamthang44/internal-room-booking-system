@@ -1,6 +1,8 @@
 package com.thang.roombooking.service.policy.impl;
 
 import com.thang.roombooking.common.enums.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thang.roombooking.common.utils.DateUtils;
 import com.thang.roombooking.common.event.ViolationCreatedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
@@ -8,6 +10,7 @@ import com.thang.roombooking.entity.Booking;
 import com.thang.roombooking.entity.BookingViolation;
 import com.thang.roombooking.entity.PenaltyRecord;
 import com.thang.roombooking.infrastructure.configuration.PenaltyProperties;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingRepository;
 import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.*;
 import java.util.List;
+import java.util.Map;
 
 import static com.thang.roombooking.common.constant.SystemConstant.SYSTEM_REGION_TIMEZONE;
 import static com.thang.roombooking.common.constant.TimeConstant.CLOSING_TIME;
@@ -33,23 +37,52 @@ public class BookingPolicyImpl implements BookingPolicy {
     private final BookingViolationRepository violationRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PenaltyProperties penaltyProperties;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void validatePenalty(Long userId) {
         List<PenaltyRecord> activePenalties = penaltyRecordRepository.findByUserIdAndIsActiveTrue(userId);
-        
+        Instant now = Instant.now();
+
         for (PenaltyRecord penalty : activePenalties) {
-            if (penalty.getPenaltyAction() == PenaltyAction.BAN_TEMP || 
-                penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN) {
-                
+            // Check for expiration even if isActive is true (safety check)
+            if (penalty.getEndDate() != null && penalty.getEndDate().isBefore(now)) {
+                continue;
+            }
+
+            if (penalty.getPenaltyAction() == PenaltyAction.BAN_TEMP ||
+                penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN ||
+                penalty.getPenaltyAction() == PenaltyAction.REQUIRE_APPROVAL) {
+
                 String reason = penalty.getReason();
-                String startDateStr = penalty.getStartDate().toString();
-                String endDateStr = penalty.getEndDate() != null ? penalty.getEndDate().toString() : "N/A";
-                
-                // Trả về mã lỗi đình chỉ kèm thông tin chi tiết
-                throw new AppException(BookingErrorCode.USER_SUSPENDED, reason, startDateStr, endDateStr);
+                String translatedReason = translateReason(reason);
+                String translatedAction = I18nUtils.get("penalty.action." + penalty.getPenaltyAction().name().toLowerCase());
+
+                String startDateStr = DateUtils.formatDateToString(penalty.getStartDate());
+                String endDateStr = penalty.getEndDate() != null ? DateUtils.formatDateToString(penalty.getEndDate()) : "N/A";
+
+                // Return suspension error with detailed info (Action, Reason, Start, End)
+                throw new AppException(BookingErrorCode.USER_SUSPENDED, translatedAction, translatedReason, startDateStr, endDateStr);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String translateReason(String reason) {
+        if (reason == null || !reason.startsWith("{")) {
+            return reason;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(reason, Map.class);
+            String key = (String) map.get("key");
+            List<Object> args = (List<Object>) map.get("args");
+            if (key != null) {
+                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse/translate penalty reason: {}", reason);
+        }
+        return reason;
     }
 
     // @Override
