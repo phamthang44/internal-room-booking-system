@@ -64,68 +64,13 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             // 3. Lấy thực thể TimeSlot (Dùng chung một hàm List cho gọn)
             List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
 
-            bookingValidatorService.validateTimeSlots(request.bookingDate(),  timeSlots);
+            bookingValidatorService.validateTimeSlots(request.bookingDate(), timeSlots);
 
-            if (!timeSlots.isEmpty()) {
-                return createSplitBookingResponses(request, currentUser, timeSlots);
-            }
-
-            LocalTime bookingStartTime = timeSlots.stream()
-                    .map(TimeSlot::getStartTime)
-                    .min(LocalTime::compareTo)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-            
-            LocalTime bookingEndTime = timeSlots.stream()
-                    .map(TimeSlot::getEndTime)
-                    .max(LocalTime::compareTo)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-            // Convert to UTC before saving to DB (assuming VN is +7)
-            ZoneId vnZone = ZoneId.of(SYSTEM_REGION_TIMEZONE);
-            LocalTime utcStartTime = request.bookingDate().atTime(bookingStartTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
-            LocalTime utcEndTime = request.bookingDate().atTime(bookingEndTime).atZone(vnZone)
-                    .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
-
-            // 4. Build Entity với nguyên tắc XOR
-            Booking booking = Booking.builder()
-                    .user(currentUser)
-                    .classroom(classroomRepository.getReferenceById(request.classroomId()))
-                    .bookingDate(request.bookingDate())
-                    .startTime(utcStartTime)
-                    .endTime(utcEndTime)
-                    .attendees(request.attendees())
-                    .purpose(cleanString(request.purpose()))
-                    .status(BookingStatus.PENDING)
-                    .build();
-
-            // 5. Mapping bảng trung gian (Tránh lỗi Casting của Thắng)
-            List<BookingTimeSlot> bookingTimeSlots = timeSlots.stream()
-                    .map(slot -> BookingTimeSlot.builder()
-                            .booking(booking)
-                            .timeSlot(slot)
-                            .build())
-                    .toList();
-            booking.setBookingTimeSlots(bookingTimeSlots);
-
-            // LOG SUCCESS: Xác nhận hoàn tất
-            Booking savedBooking = bookingRepository.save(booking);
-
-            eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    savedBooking,
-                    BookingStatus.PENDING,
-                    BookingAction.CREATE_BOOKING.name(),
-                    currentUser.getEmail(),
-                    "booking.create.reason.pending",
-                    LocaleContextHolder.getLocale().toString()
-            ));
-
-            log.info("{}: Booking created with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, booking.getId(), currentUser.getId());
-            Map<String, String> timeSlotTranslations = translationService.getAllTimeSlotTranslations();
-            Map<String, String> buildingTranslations = translationService.getTranslations(getBuildingTranslationIds(booking.getClassroom().getBuilding()));
-            Map<String, String> combinedTranslations = new HashMap<>(timeSlotTranslations);
-            combinedTranslations.putAll(buildingTranslations);
-            return List.of(bookingMapper.toCreateBookingResponse(booking, combinedTranslations));
+            // Delegate to createSplitBookingResponses for ALL cases:
+            // - Single slot      → 1 booking  (one group of 1)
+            // - Consecutive slots → 1 merged booking (e.g. Slot 1+2 or Slot 3+4)
+            // - Non-consecutive   → N separate bookings (e.g. Slot 1 + Slot 4)
+            return createSplitBookingResponses(request, currentUser, timeSlots);
         } catch (AppException e) {
             log.warn("{}: Failed to create booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
                     currentUser.getId(), e.getErrorCode());

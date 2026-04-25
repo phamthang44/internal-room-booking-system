@@ -9,9 +9,11 @@ import com.thang.roombooking.common.dto.response.UserBasicResponse;
 import com.thang.roombooking.common.enums.PenaltyAction;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.PenaltyErrorCode;
+import com.thang.roombooking.entity.BookingViolation;
 import com.thang.roombooking.entity.PenaltyRecord;
 import com.thang.roombooking.entity.UserAccount;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
+import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.PenaltyCommandService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.Map;
 public class PenaltyCommandServiceImpl implements PenaltyCommandService {
 
     private final PenaltyRecordRepository penaltyRecordRepository;
+    private final BookingViolationRepository violationRepository;
     private final MessageSource messageSource;
     private final ObjectMapper objectMapper;
 
@@ -48,6 +51,17 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
 
         penalty.setActive(false);
         penalty.setPenaltyAction(PenaltyAction.REVOKED);
+
+        // Reset the user's violation point slate: soft-delete all violations linked to this
+        // penalty so they are invisible to future point calculations. Without this step, the
+        // user's accumulated points still count toward the next threshold, causing an immediate
+        // re-penalty on their very next violation even after an admin pardon.
+        List<BookingViolation> linkedViolations = violationRepository.findByPenalty(penalty);
+        if (!linkedViolations.isEmpty()) {
+            violationRepository.deleteAll(linkedViolations); // triggers @SQLDelete (soft-delete)
+            log.info("{} | Soft-deleted {} violation(s) linked to revoked penalty ID: {} for user: {}",
+                    LogConstant.ACTION_SUCCESS, linkedViolations.size(), id, penalty.getUser().getId());
+        }
 
         return getPenaltyRecordResponse(admin, penalty, request.reason(), "penalty.append.revoked_by");
     }

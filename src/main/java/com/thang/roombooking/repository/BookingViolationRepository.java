@@ -1,6 +1,7 @@
 package com.thang.roombooking.repository;
 
 import com.thang.roombooking.entity.BookingViolation;
+import com.thang.roombooking.entity.PenaltyRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +16,10 @@ public interface BookingViolationRepository extends JpaRepository<BookingViolati
     List<BookingViolation> findByUserIdAndPenaltyIsNullAndCreatedAtAfter(Long userId, Instant after);
 
     Page<BookingViolation> findAllByUserId(Long userId, Pageable pageable);
+
+    /**
+     * Find all violations that were linked to the given penalty record.
+     * Used during penalty revoke to soft-delete them and reset the user's point slate.
+     */
+    List<BookingViolation> findByPenalty(PenaltyRecord penalty);
 }
