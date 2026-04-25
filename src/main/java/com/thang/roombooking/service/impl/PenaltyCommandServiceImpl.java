@@ -70,22 +70,30 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     private String translateReason(String reason) {
-        if (reason == null || !reason.startsWith("{")) {
+        if (reason == null) return null;
+
+        // 1. Try parsing as JSON (structured automated reasons)
+        if (reason.startsWith("{")) {
+            try {
+                Map<String, Object> map = objectMapper.readValue(reason, Map.class);
+                String key = (String) map.get("key");
+                List<Object> args = (List<Object>) map.get("args");
+                if (key != null) {
+                    return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse penalty reason JSON: {}", reason);
+            }
+        }
+
+        // 2. Try translating as a plain key
+        try {
+            return I18nUtils.get(reason);
+        } catch (Exception e) {
+            // Not a translation key, return original string (e.g. manual admin note)
             return reason;
         }
-        try {
-            Map<String, Object> map = objectMapper.readValue(reason, Map.class);
-            String key = (String) map.get("key");
-            List<Object> args = (List<Object>) map.get("args");
-            if (key != null) {
-                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse/translate penalty reason in command service: {}", reason);
-        }
-        return reason;
     }
 
     @Override
