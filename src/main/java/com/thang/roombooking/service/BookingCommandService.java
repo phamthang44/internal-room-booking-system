@@ -5,9 +5,11 @@ import com.thang.roombooking.common.dto.response.CreateBookingResponse;
 import com.thang.roombooking.entity.Booking;
 import com.thang.roombooking.entity.UserAccount;
 
+import java.util.List;
+
 public interface BookingCommandService {
 
-    CreateBookingResponse createBooking(CreateBookingRequest request, UserAccount currentUser);
+    List<CreateBookingResponse> createBooking(CreateBookingRequest request, UserAccount currentUser);
     void checkIn(Long id, CheckInRequest request, UserAccount currentUser);
     void checkout(Long id, CheckoutRequest request, UserAccount currentUser);
 

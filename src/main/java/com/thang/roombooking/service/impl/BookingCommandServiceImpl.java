@@ -45,7 +45,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public CreateBookingResponse createBooking(CreateBookingRequest request, UserAccount currentUser) {
+    public List<CreateBookingResponse> createBooking(CreateBookingRequest request, UserAccount currentUser) {
         log.info("{} | Create Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
         try {
@@ -65,6 +65,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
 
             bookingValidatorService.validateTimeSlots(request.bookingDate(),  timeSlots);
+
+            if (!timeSlots.isEmpty()) {
+                return createSplitBookingResponses(request, currentUser, timeSlots);
+            }
 
             LocalTime bookingStartTime = timeSlots.stream()
                     .map(TimeSlot::getStartTime)
@@ -121,7 +125,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             Map<String, String> buildingTranslations = translationService.getTranslations(getBuildingTranslationIds(booking.getClassroom().getBuilding()));
             Map<String, String> combinedTranslations = new HashMap<>(timeSlotTranslations);
             combinedTranslations.putAll(buildingTranslations);
-            return bookingMapper.toCreateBookingResponse(booking, combinedTranslations);
+            return List.of(bookingMapper.toCreateBookingResponse(booking, combinedTranslations));
         } catch (AppException e) {
             log.warn("{}: Failed to create booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
                     currentUser.getId(), e.getErrorCode());
@@ -530,6 +534,112 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         // Since we are standardizing the database to UTC, we no longer need complex Vietnam-to-UTC conversion here.
         // We assume resolvedStartTime is already in UTC if found in the DB.
         return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toInstant();
+    }
+
+    private List<CreateBookingResponse> createSplitBookingResponses(CreateBookingRequest request,
+                                                                    UserAccount currentUser,
+                                                                    List<TimeSlot> timeSlots) {
+        List<List<TimeSlot>> groupedTimeSlots = splitIntoContiguousGroups(timeSlots);
+        Classroom classroom = classroomRepository.getReferenceById(request.classroomId());
+
+        Map<String, String> timeSlotTranslations = translationService.getAllTimeSlotTranslations();
+        Map<String, String> buildingTranslations = translationService.getTranslations(getBuildingTranslationIds(classroom.getBuilding()));
+        Map<String, String> combinedTranslations = new HashMap<>(timeSlotTranslations);
+        combinedTranslations.putAll(buildingTranslations);
+
+        List<CreateBookingResponse> createdBookings = new ArrayList<>();
+        for (List<TimeSlot> slotGroup : groupedTimeSlots) {
+            Booking booking = buildBooking(request, currentUser, classroom, slotGroup);
+            Booking savedBooking = bookingRepository.save(booking);
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    savedBooking,
+                    BookingStatus.PENDING,
+                    BookingAction.CREATE_BOOKING.name(),
+                    currentUser.getEmail(),
+                    "booking.create.reason.pending",
+                    LocaleContextHolder.getLocale().toString()
+            ));
+
+            createdBookings.add(bookingMapper.toCreateBookingResponse(savedBooking, combinedTranslations));
+            log.info("{}: Booking created with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, savedBooking.getId(), currentUser.getId());
+        }
+
+        return createdBookings;
+    }
+
+    private List<List<TimeSlot>> splitIntoContiguousGroups(List<TimeSlot> timeSlots) {
+        List<TimeSlot> sortedSlots = timeSlots.stream()
+                .sorted(Comparator.comparing(TimeSlot::getStartTime))
+                .toList();
+
+        List<List<TimeSlot>> groups = new ArrayList<>();
+        List<TimeSlot> currentGroup = new ArrayList<>();
+
+        for (TimeSlot slot : sortedSlots) {
+            if (currentGroup.isEmpty()) {
+                currentGroup.add(slot);
+                continue;
+            }
+
+            TimeSlot previousSlot = currentGroup.getLast();
+            if (previousSlot.getEndTime().equals(slot.getStartTime())) {
+                currentGroup.add(slot);
+                continue;
+            }
+
+            groups.add(List.copyOf(currentGroup));
+            currentGroup = new ArrayList<>();
+            currentGroup.add(slot);
+        }
+
+        if (!currentGroup.isEmpty()) {
+            groups.add(List.copyOf(currentGroup));
+        }
+
+        return groups;
+    }
+
+    private Booking buildBooking(CreateBookingRequest request,
+                                 UserAccount currentUser,
+                                 Classroom classroom,
+                                 List<TimeSlot> timeSlots) {
+        LocalTime bookingStartTime = timeSlots.stream()
+                .map(TimeSlot::getStartTime)
+                .min(LocalTime::compareTo)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        LocalTime bookingEndTime = timeSlots.stream()
+                .map(TimeSlot::getEndTime)
+                .max(LocalTime::compareTo)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        ZoneId vnZone = ZoneId.of(SYSTEM_REGION_TIMEZONE);
+        LocalTime utcStartTime = request.bookingDate().atTime(bookingStartTime).atZone(vnZone)
+                .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
+        LocalTime utcEndTime = request.bookingDate().atTime(bookingEndTime).atZone(vnZone)
+                .withZoneSameInstant(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toLocalTime();
+
+        Booking booking = Booking.builder()
+                .user(currentUser)
+                .classroom(classroom)
+                .bookingDate(request.bookingDate())
+                .startTime(utcStartTime)
+                .endTime(utcEndTime)
+                .attendees(request.attendees())
+                .purpose(cleanString(request.purpose()))
+                .status(BookingStatus.PENDING)
+                .build();
+
+        List<BookingTimeSlot> bookingTimeSlots = timeSlots.stream()
+                .map(slot -> BookingTimeSlot.builder()
+                        .booking(booking)
+                        .timeSlot(slot)
+                        .build())
+                .toList();
+        booking.setBookingTimeSlots(bookingTimeSlots);
+
+        return booking;
     }
 
     private String cleanString(String data) {

@@ -36,7 +36,7 @@ public class AutoRejectPendingBookingJob {
         LocalTime thresholdTime = LocalTime.now(ZoneId.of(appTimeZone));
         LocalDate today = LocalDate.now(ZoneId.of(appTimeZone));
 
-        List<Booking> expiredBookings = bookingRepository.findExpiredBookings(
+        List<Booking> expiredBookings = bookingRepository.findPendingBookingsToAutoReject(
                 BookingStatus.PENDING,
                 today,
                 thresholdTime

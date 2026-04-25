@@ -41,7 +41,7 @@ public class BookingController {
     @Idempotent(keyPrefix = "booking-create")
     @PostMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResult<CreateBookingResponse>> createBooking(
+    public ResponseEntity<ApiResult<List<CreateBookingResponse>>> createBooking(
             @Valid @RequestBody CreateBookingRequest req,
             @AuthenticationPrincipal SecurityUserDetails userDetails) {
         log.info("Received request to create booking for classroom id {}, student id {}, timeslot id {}, booking date {}",
@@ -50,7 +50,7 @@ public class BookingController {
         var response = bookingCommandService.createBooking(req, userDetails.getUser());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResult.success(response, I18nUtils.get("booking.created.success", response.getBookingId()))
+                ApiResult.success(response, I18nUtils.get("booking.created.success"))
         );
     }
 

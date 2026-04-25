@@ -188,14 +188,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     SELECT b FROM Booking b
     WHERE b.status = :status
       AND (
-        b.bookingDate < :today OR 
-        (b.bookingDate = :today AND 
-          COALESCE((SELECT MIN(ts.startTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b), b.startTime) < :thresholdTime)
+        b.bookingDate < :today OR
+        (b.bookingDate = :today AND
+          COALESCE((SELECT MIN(ts.startTime) FROM BookingTimeSlot bts JOIN bts.timeSlot ts WHERE bts.booking = b), b.startTime) <= :thresholdTime)
       )
     """)
-    List<Booking> findExpiredBookings(@Param("status") BookingStatus status,
-                                      @Param("today") LocalDate today,
-                                      @Param("thresholdTime") LocalTime thresholdTime);
+    List<Booking> findPendingBookingsToAutoReject(@Param("status") BookingStatus status,
+                                                  @Param("today") LocalDate today,
+                                                  @Param("thresholdTime") LocalTime thresholdTime);
+
+    @Query("""
+    SELECT DISTINCT b FROM Booking b
+    LEFT JOIN FETCH b.bookingTimeSlots bts
+    LEFT JOIN FETCH bts.timeSlot ts
+    WHERE b.status = :status
+      AND b.bookingDate <= :today
+    """)
+    List<Booking> findApprovedBookingsForAutoCancel(@Param("status") BookingStatus status,
+                                                    @Param("today") LocalDate today);
 
     @Modifying(clearAutomatically = true)
     @Query("""
