@@ -34,8 +34,10 @@ services:
       dockerfile: Dockerfile
       args:
         BUILD_PROFILE: prod   # ← Maven -Pprod
-    image: twinthang44/room-booking-be:latest
+    image: ghcr.io/phamthang44/room-booking-be:latest
     container_name: room_booking_be
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     env_file: .env.prod
     environment:
       - SPRING_PROFILES_ACTIVE=prod
@@ -66,8 +68,10 @@ services:
     build:
       context: .
       dockerfile: ./nginx/Dockerfile
-    image: twinthang44/room-booking-nginx:latest
+    image: ghcr.io/phamthang44/room-booking-nginx:latest
     container_name: room_booking_nginx
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "80:80"
       - "443:443"
@@ -77,3 +81,18 @@ services:
     depends_on:
       - backend-app
     restart: unless-stopped
+
+  # --- WATCHTOWER (automated deployment) ---
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_LABEL_ENABLE=true # Only watch containers with the label
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_REVIVE_STOPPED=true
+

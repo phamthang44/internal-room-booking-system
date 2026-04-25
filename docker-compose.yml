@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # OR use pre-built image for EC2 deployment:
-    # image: twinthang44/room-booking-be:latest
+    # image: ghcr.io/phamthang44/room-booking-be:latest
     container_name: room_booking_be
     env_file: .env
     environment:
@@ -37,7 +37,7 @@ services:
     build:
       context: .
       dockerfile: ./nginx/Dockerfile
-    image: twinthang44/room-booking-nginx:latest
+    image: ghcr.io/phamthang44/room-booking-nginx:latest
     container_name: room_booking_nginx
     ports:
       - "80:80"
