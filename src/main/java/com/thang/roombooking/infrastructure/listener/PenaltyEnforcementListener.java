@@ -76,7 +76,17 @@ public class PenaltyEnforcementListener {
                     .anyMatch(p -> p.getPenaltyAction() == appliedThreshold.getAction());
 
             if (alreadyApplied) {
-                log.info("Penalty {} is already active for user {}. Skipping creation.", appliedThreshold.getAction(), user.getId());
+                log.info("Penalty {} is already active for user {}. Linking new violations to the existing penalty.", appliedThreshold.getAction(), user.getId());
+                
+                // Still link these violations to one of the active penalties of the same type
+                // so they are "consumed" and don't count towards future penalty increments.
+                penaltyRepository.findByUserIdAndIsActiveTrue(user.getId()).stream()
+                        .filter(p -> p.getPenaltyAction() == appliedThreshold.getAction())
+                        .findFirst()
+                        .ifPresent(p -> {
+                            recentViolations.forEach(v -> v.setPenalty(p));
+                            violationRepository.saveAll(recentViolations);
+                        });
                 return;
             }
             
