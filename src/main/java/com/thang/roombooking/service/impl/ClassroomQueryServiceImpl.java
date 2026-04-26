@@ -79,35 +79,56 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         //req.setRoomStatus(RoomStatus.AVAILABLE);
 
         if (req.getBookingDate() == null) req.setBookingDate(LocalDate.now());
-        if (req.getTimeSlotId() == null) req.setTimeSlotId(4);
+        // Note: no default slot injection — null timeSlotIds means "show all slots, no filter"
 
         Specification<Classroom> spec = buildSpecification(req);
         Pageable pageable = buildPageable(req);
 
         Page<Classroom> classrooms = classroomRepository.findAll(spec, pageable);
 
-        // 1. Thu thập ID đã phân loại theo Type
+        // 1. Collect entity IDs classified by type for bulk translation
         Map<TranslatableEntityType, Set<Long>> idsByType = handleEntityIdsByType(classrooms);
 
-        // 2. Gọi service dịch dựa trên Map phân loại (Giải quyết triệt để lỗi trùng ID=7)
+        // 2. Bulk-translate building / roomType / equipment names
         Map<String, String> translations = translationService.getTranslations(idsByType);
 
-        // 3. Fetch bulk availability safely avoiding N+1
+        // 3. Fetch bulk availability — avoids N+1 queries
         List<Long> classroomIds = classrooms.getContent().stream().map(Classroom::getId).toList();
         Map<Long, DateAvailability> bulkSchedule = availabilityService.getBulkClassroomsAvailabilityForDate(classroomIds, req.getBookingDate());
+
+        // Snapshot queried slot IDs for use in the lambda (must be effectively final)
+        List<Integer> queriedSlotIds = (req.getTimeSlotIds() != null && !req.getTimeSlotIds().isEmpty())
+                ? req.getTimeSlotIds()
+                : List.of();
 
         return classrooms.map(c -> {
             ClassroomListResponse res = classroomMapper.toBasicResponse(c, translations);
             DateAvailability dailySchedule = bulkSchedule.get(c.getId());
             res.setDailySchedule(dailySchedule);
-            
-            boolean isAvailable = false;
-            if (dailySchedule != null && dailySchedule.slots() != null) {
-                isAvailable = dailySchedule.slots().stream()
-                        .anyMatch(s -> s.slotId().intValue() == req.getTimeSlotId() && s.isAvailable());
+
+            if (!queriedSlotIds.isEmpty() && dailySchedule != null && dailySchedule.slots() != null) {
+                // Extract only the slots the user cares about
+                List<SlotStatus> queriedSlotsStatus = dailySchedule.slots().stream()
+                        .filter(s -> queriedSlotIds.contains(s.slotId().intValue()))
+                        .toList();
+
+                long availableCount = queriedSlotsStatus.stream().filter(SlotStatus::isAvailable).count();
+
+                res.setQueriedSlotsStatus(queriedSlotsStatus);
+                res.setAvailableSlotCount((int) availableCount);
+                res.setTotalQueriedSlots(queriedSlotIds.size());
+                // A room is "available for query" only when ALL requested slots are free
+                res.setAvailableForQuery(availableCount == queriedSlotIds.size());
+            } else {
+                // No slot filter applied: mark as available if any slot is free in the day
+                boolean anyFree = dailySchedule != null && dailySchedule.slots() != null
+                        && dailySchedule.slots().stream().anyMatch(SlotStatus::isAvailable);
+                res.setAvailableForQuery(anyFree);
+                res.setQueriedSlotsStatus(List.of());
+                res.setAvailableSlotCount(0);
+                res.setTotalQueriedSlots(0);
             }
-            res.setAvailableForQuery(isAvailable);
-            
+
             return res;
         });
     }
@@ -319,32 +340,27 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
             });
         }
 
-        // Implement booking availability check for bookingDate and timeSlotId 
-        // This calculates if overlapping bookings exist for the given timeslot and ignores those rooms.
-        //TODO: future implementation of bookingService, and availabilityService for the algo search available date, time slot, overlap as well
-
-        if (req.getBookingDate() != null && req.getTimeSlotId() != null) {
-//            TimeSlot slot = timeSlotRepository.findById(req.getTimeSlotId()).orElse(null);
-//            if (slot != null && slot.getStartTime() != null && slot.getEndTime() != null) {
-//                Instant startInstant = ZonedDateTime.of(req.getBookingDate(), slot.getStartTime(), ZoneId.systemDefault()).toInstant();
-//                Instant endInstant = ZonedDateTime.of(req.getBookingDate(), slot.getEndTime(), ZoneId.systemDefault()).toInstant();
-//
-//                builder.addSpecification((root, query, cb) -> {
-//                    Subquery<Long> subquery = query.subquery(Long.class);
-//                    Root<Booking> booking = subquery.from(Booking.class);
-//                    subquery.select(booking.get("classroom").get("id"));
-//
-//                    Predicate overlap = cb.and(
-//                            cb.lessThan(booking.get("startTime"), endInstant),
-//                            cb.greaterThan(booking.get("endTime"), startInstant),
-//                            booking.get("status").in(List.of(BookingStatus.PENDING, BookingStatus.APPROVED))
-//                    );
-//                    subquery.where(overlap);
-//
-//                    return cb.not(cb.in(root.get("id")).value(subquery));
-//                });
-//            }
-        }
+        // ── Availability filtering ────────────────────────────────────────────────
+        // We intentionally do NOT filter rooms at the SQL/Spec level here.
+        // AvailabilityServiceImpl.getBulkClassroomsAvailabilityForDate() already
+        // calls BookingRepository.findBookingsByClassroomIdsAndDate() and stamps
+        // each room's slots with the correct SlotBookingStatus (OCCUPIED, PENDING,
+        // IN_USE, etc.).  The mapping step in searchPublic() then derives:
+        //   • queriedSlotsStatus  – per-slot breakdown for the requested slot IDs
+        //   • isAvailableForQuery – true only when ALL requested slots are free
+        //   • availableSlotCount  – "2/3 slots available" counter for FE badges
+        //
+        // This design intentionally returns ALL rooms with their availability state
+        // so the FE can render unavailable rooms as greyed-out/locked cards rather
+        // than hiding them entirely (better UX for room discovery).
+        //
+        // If strict server-side pre-filtering is required in the future (e.g. an
+        // ?onlyAvailable=true flag), the correct approach is:
+        //   1. Add a lightweight query to BookingRepository:
+        //      findBookedClassroomIdsForDateAndSlots(date, slotIds, activeStatuses)
+        //   2. Pass the result into the spec as: root.get("id").not().in(bookedIds)
+        //   Note: this keeps the AvailabilityServiceImpl logic unchanged and avoids
+        //   duplicating the booking-overlap logic in a JPA Criteria subquery.
 
         return builder.build();
     }

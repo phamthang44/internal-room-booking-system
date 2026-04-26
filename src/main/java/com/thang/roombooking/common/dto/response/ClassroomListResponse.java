@@ -19,8 +19,24 @@ public class ClassroomListResponse {
     private List<EquipmentResponse> equipments;
     private String roomType;
 
-    // Added metrics for schedule checking directly in Public List queries
+    // ─── Availability metrics for the queried date ─────────────────────────────
+    /** True when ALL queried time-slots are free on the given bookingDate. */
     private boolean isAvailableForQuery;
+
+    /**
+     * Per-slot breakdown for only the slots the user selected.
+     * Empty when no timeSlotIds filter was applied (show full dailySchedule instead).
+     */
+    private List<SlotStatus> queriedSlotsStatus;
+
+    /** How many of the queried slots are still available (quick badge helper). */
+    private int availableSlotCount;
+
+    /** Total number of slots queried (= timeSlotIds.size(), 0 when not filtered). */
+    private int totalQueriedSlots;
+
+    /** Full daily schedule for all slots on the bookingDate. */
     private DateAvailability dailySchedule;
+
     private String imageUrl;
 }

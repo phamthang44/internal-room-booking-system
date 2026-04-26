@@ -33,8 +33,8 @@ public class RoomController {
     @GetMapping
     public ResponseEntity<ApiResult<List<ClassroomListResponse>>> searchPublic(
             @ModelAttribute RoomSearchRequest request) {
-        log.info("Public search - keyword: {}, status: {}, capacity : {}, time slot id : {}, booking date : {}, filter by equipment : {}, sort: {}, page: {}, size: {}",
-                request.getKeyword(), request.getRoomStatus(), request.getCapacity(), request.getTimeSlotId(), request.getBookingDate(), request.getEquipmentId(), request.getSort(), request.getPage(), request.getSize());
+        log.info("Public search - keyword: {}, status: {}, capacity: {}, timeSlotIds: {}, bookingDate: {}, equipmentId: {}, sort: {}, page: {}, size: {}",
+                request.getKeyword(), request.getRoomStatus(), request.getCapacity(), request.getTimeSlotIds(), request.getBookingDate(), request.getEquipmentId(), request.getSort(), request.getPage(), request.getSize());
 
         Page<ClassroomListResponse> roomPage = classroomService.searchPublic(request);
 

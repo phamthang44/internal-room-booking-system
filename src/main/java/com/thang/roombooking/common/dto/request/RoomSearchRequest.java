@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -16,7 +17,7 @@ public class RoomSearchRequest {
     private RoomStatus roomStatus;
     @FutureOrPresent(message = "{validation.date.future_or_present}")
     private LocalDate bookingDate;
-    private Integer timeSlotId;
+    private List<Integer> timeSlotIds;
     private int capacity;
     private int equipmentId;
 
