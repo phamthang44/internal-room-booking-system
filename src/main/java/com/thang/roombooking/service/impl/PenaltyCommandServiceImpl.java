@@ -1,7 +1,7 @@
 package com.thang.roombooking.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.constant.LogConstant;
+import com.thang.roombooking.common.utils.PenaltyReasonUtils;
 import com.thang.roombooking.common.dto.request.PenaltyExtendRequest;
 import com.thang.roombooking.common.dto.request.PenaltyRevokeRequest;
 import com.thang.roombooking.common.dto.response.PenaltyRecordResponse;
@@ -12,20 +12,15 @@ import com.thang.roombooking.common.exception.errorcode.PenaltyErrorCode;
 import com.thang.roombooking.entity.BookingViolation;
 import com.thang.roombooking.entity.PenaltyRecord;
 import com.thang.roombooking.entity.UserAccount;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.PenaltyCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 @Service
 @Slf4j
@@ -34,8 +29,7 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
 
     private final PenaltyRecordRepository penaltyRecordRepository;
     private final BookingViolationRepository violationRepository;
-    private final MessageSource messageSource;
-    private final ObjectMapper objectMapper;
+    private final PenaltyReasonUtils penaltyReasonUtils;
 
     @Override
     @Transactional
@@ -67,9 +61,14 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
     }
 
     private PenaltyRecordResponse getPenaltyRecordResponse(UserAccount admin, PenaltyRecord penalty, String reason, String actionKey) {
-        String originalReason = translateReason(penalty.getReason());
-        String appendReason = appendReason(reason, admin, actionKey);
-        penalty.setReason(originalReason + appendReason);
+        // Use structured appending instead of string concatenation to support i18n
+        String updatedReason = penaltyReasonUtils.appendReason(penalty.getReason(), actionKey, admin.getEmail());
+        
+        if (reason != null && !reason.isBlank()) {
+            updatedReason = penaltyReasonUtils.appendReason(updatedReason, "penalty.append.reason", reason);
+        }
+        
+        penalty.setReason(updatedReason);
 
         PenaltyRecord saved = penaltyRecordRepository.save(penalty);
 
@@ -79,35 +78,9 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
                 .action(saved.getPenaltyAction())
                 .startDate(saved.getStartDate())
                 .endDate(saved.getEndDate())
-                .reason(saved.getReason())
+                .reason(penaltyReasonUtils.translate(saved.getReason()))
                 .userBasicResponse(UserBasicResponse.fromEntity(saved.getUser()))
                 .build();
-    }
-
-    private String translateReason(String reason) {
-        if (reason == null) return null;
-
-        // 1. Try parsing as JSON (structured automated reasons)
-        if (reason.startsWith("{")) {
-            try {
-                Map<String, Object> map = objectMapper.readValue(reason, Map.class);
-                String key = (String) map.get("key");
-                List<Object> args = (List<Object>) map.get("args");
-                if (key != null) {
-                    return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse penalty reason JSON: {}", reason);
-            }
-        }
-
-        // 2. Try translating as a plain key
-        try {
-            return I18nUtils.get(reason);
-        } catch (Exception e) {
-            // Not a translation key, return original string (e.g. manual admin note)
-            return reason;
-        }
     }
 
     @Override
@@ -130,16 +103,9 @@ public class PenaltyCommandServiceImpl implements PenaltyCommandService {
 
         return getPenaltyRecordResponse(admin, penalty, request.reason(), "penalty.append.extended_by");
     }
-
-    private String appendReason(String reason, UserAccount admin, String actionKey) {
-        Locale locale = LocaleContextHolder.getLocale();
-        String appendReason = messageSource.getMessage(actionKey, new Object[]{admin.getEmail()}, locale);
-        if (reason != null && !reason.isBlank()) {
-            appendReason += messageSource.getMessage("penalty.append.reason", new Object[]{reason}, locale);
-        }
-        return appendReason;
-    }
-
-
-
 }
+
+
+
+
+

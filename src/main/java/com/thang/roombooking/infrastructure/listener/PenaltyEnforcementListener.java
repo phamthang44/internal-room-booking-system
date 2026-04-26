@@ -12,8 +12,7 @@ import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.infrastructure.configuration.RoomBookingRabbitMQProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.thang.roombooking.infrastructure.i18n.I18nUtils;
+import com.thang.roombooking.common.utils.PenaltyReasonUtils;
 import com.thang.roombooking.common.constant.RabbitMQConstants;
 import com.thang.roombooking.common.dto.model.NotificationPayload;
 import com.thang.roombooking.common.dto.request.InAppNotificationRequest;
@@ -43,6 +42,7 @@ public class PenaltyEnforcementListener {
     private final RabbitTemplate rabbitTemplate;
     private final RoomBookingRabbitMQProperties rabbitMQProperties;
     private final ObjectMapper objectMapper;
+    private final PenaltyReasonUtils penaltyReasonUtils;
 
     @Async
     @EventListener
@@ -95,9 +95,8 @@ public class PenaltyEnforcementListener {
                 endTime = Instant.now().plus(appliedThreshold.getDurationDays(), ChronoUnit.DAYS);
             }
 
-            // Store a structured JSON or delimited string so the frontend/API can translate it dynamically
-            // Alternatively, if you want it translated immediately on the server, you could use I18nUtils
-            String reasonPayload = String.format("{\"key\": \"penalty.reason.accumulated_points\", \"args\": [%d, %d]}", 
+            // Store a structured JSON array so the frontend/API can translate it dynamically
+            String reasonPayload = penaltyReasonUtils.createInitialReason("penalty.reason.accumulated_points", 
                     totalPoints, penaltyProperties.getWindowDays());
 
             PenaltyRecord penalty = PenaltyRecord.builder()
@@ -126,7 +125,7 @@ public class PenaltyEnforcementListener {
                         Instant.now(),
                         "notification.penalty.applied", // Fixed prefix
                         new Object[]{
-                                translateReason(reasonPayload), 
+                                penaltyReasonUtils.translate(reasonPayload), 
                                 I18nUtils.get("penalty.action." + appliedThreshold.getAction().name().toLowerCase())
                         }
                 );
@@ -145,24 +144,8 @@ public class PenaltyEnforcementListener {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private String translateReason(String reason) {
-        if (reason == null || !reason.startsWith("{")) {
-            return reason;
-        }
-        try {
-            // objectMapper is likely not available here, but I can use standard I18nUtils 
-            // if I have a similar helper or just add it.
-            // Wait, I should add ObjectMapper to this listener too.
-            Map<String, Object> map = objectMapper  .readValue(reason, Map.class);
-            String key = (String) map.get("key");
-            List<Object> args = (List<Object>) map.get("args");
-            if (key != null) {
-                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse penalty reason in listener: {}", reason);
-        }
-        return reason;
+        return penaltyReasonUtils.translate(reason);
     }
 }
+

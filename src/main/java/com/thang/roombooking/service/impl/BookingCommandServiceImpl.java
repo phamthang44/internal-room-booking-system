@@ -61,15 +61,16 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
             bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
 
-            // 3. Lấy thực thể TimeSlot (Dùng chung một hàm List cho gọn)
+            // 3. Fetch TimeSlot entities
             List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
 
             bookingValidatorService.validateTimeSlots(request.bookingDate(), timeSlots);
 
-            // Delegate to createSplitBookingResponses for ALL cases:
-            // - Single slot      → 1 booking  (one group of 1)
-            // - Consecutive slots → 1 merged booking (e.g. Slot 1+2 or Slot 3+4)
-            // - Non-consecutive   → N separate bookings (e.g. Slot 1 + Slot 4)
+            // Always produce exactly ONE booking regardless of whether the selected
+            // slots are time-adjacent or not.  The user consciously chose these slots
+            // together, so we merge them into a single record whose startTime = min
+            // of all selected slots' startTimes and endTime = max of all endTimes.
+            // The individual slot associations are preserved via BookingTimeSlot rows.
             return createSplitBookingResponses(request, currentUser, timeSlots);
         } catch (AppException e) {
             log.warn("{}: Failed to create booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
@@ -481,6 +482,48 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         return booking.getBookingDate().atTime(resolvedStartTime).atZone(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toInstant();
     }
 
+    /**
+     * @deprecated Replaced by createSplitBookingResponses.
+     * Kept only as a fallback reference; safe to delete.
+     */
+    @Deprecated(forRemoval = true)
+    private List<CreateBookingResponse> createMergedBookingResponse(CreateBookingRequest request,
+                                                                     UserAccount currentUser,
+                                                                     List<TimeSlot> timeSlots) {
+        Classroom classroom = classroomRepository.getReferenceById(request.classroomId());
+
+        Map<String, String> timeSlotTranslations = translationService.getAllTimeSlotTranslations();
+        Map<String, String> buildingTranslations = translationService.getTranslations(getBuildingTranslationIds(classroom.getBuilding()));
+        Map<String, String> combinedTranslations = new HashMap<>(timeSlotTranslations);
+        combinedTranslations.putAll(buildingTranslations);
+
+        Booking booking = buildBooking(request, currentUser, classroom, timeSlots);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                savedBooking,
+                BookingStatus.PENDING,
+                BookingAction.CREATE_BOOKING.name(),
+                currentUser.getEmail(),
+                "booking.create.reason.pending",
+                LocaleContextHolder.getLocale().toString()
+        ));
+
+        log.info("{}: Booking created with ID: {} for User: {} covering {} slot(s)",
+                LogConstant.ACTION_SUCCESS, savedBooking.getId(), currentUser.getId(), timeSlots.size());
+
+        return List.of(bookingMapper.toCreateBookingResponse(savedBooking, combinedTranslations));
+    }
+
+    /**
+     * Groups the selected time slots by consecutive slot-ID runs, then creates one
+     * Booking record per group.
+     *
+     * Examples (slot IDs 1–4, each 2 h with a 30-min break between them):
+     *   [3, 4]    → ids are consecutive (3+1==4)  → 1 merged booking
+     *   [1, 4]    → ids are NOT consecutive        → 2 separate bookings
+     *   [1, 2, 4] → 1+2 consecutive, 4 separate   → 2 bookings (slots 1+2 merged, slot 4 alone)
+     */
     private List<CreateBookingResponse> createSplitBookingResponses(CreateBookingRequest request,
                                                                     UserAccount currentUser,
                                                                     List<TimeSlot> timeSlots) {
@@ -513,9 +556,20 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         return createdBookings;
     }
 
+    /**
+     * Splits a list of TimeSlots into groups of consecutively-ID'd slots.
+     * "Consecutive" means: slot B immediately follows slot A in the master
+     * time-slot sequence, i.e. {@code slotA.id + 1 == slotB.id}.
+     *
+     * Slots are sorted by ID before grouping so the caller does not need to
+     * guarantee ordering.  Because slot IDs and startTimes share the same
+     * ascending order in the current data model, sorting by ID is equivalent
+     * to sorting by startTime.
+     */
     private List<List<TimeSlot>> splitIntoContiguousGroups(List<TimeSlot> timeSlots) {
+        // Sort by slot ID to make consecutive-ID detection reliable
         List<TimeSlot> sortedSlots = timeSlots.stream()
-                .sorted(Comparator.comparing(TimeSlot::getStartTime))
+                .sorted(Comparator.comparing(TimeSlot::getId))
                 .toList();
 
         List<List<TimeSlot>> groups = new ArrayList<>();
@@ -528,7 +582,10 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             }
 
             TimeSlot previousSlot = currentGroup.getLast();
-            if (previousSlot.getEndTime().equals(slot.getStartTime())) {
+            // Contiguous = the next slot immediately follows in the ID sequence.
+            // e.g. slot 3 (id=3) and slot 4 (id=4): 3+1 == 4 → merge.
+            // e.g. slot 1 (id=1) and slot 4 (id=4): 1+1 != 4 → split.
+            if (previousSlot.getId() + 1 == slot.getId()) {
                 currentGroup.add(slot);
                 continue;
             }
