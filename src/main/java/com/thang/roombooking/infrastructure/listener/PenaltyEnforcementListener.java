@@ -1,5 +1,6 @@
 package com.thang.roombooking.infrastructure.listener;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.event.ViolationCreatedEvent;
 import com.thang.roombooking.common.exception.AppException;
@@ -12,6 +13,7 @@ import com.thang.roombooking.repository.BookingViolationRepository;
 import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.repository.UserAccountRepository;
 import com.thang.roombooking.infrastructure.configuration.RoomBookingRabbitMQProperties;
+import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.common.utils.PenaltyReasonUtils;
 import com.thang.roombooking.common.constant.RabbitMQConstants;
 import com.thang.roombooking.common.dto.model.NotificationPayload;
