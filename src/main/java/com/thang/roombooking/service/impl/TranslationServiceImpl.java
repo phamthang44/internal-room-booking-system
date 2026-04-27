@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -51,6 +52,19 @@ public class TranslationServiceImpl implements TranslationService {
         });
 
         return results;
+    }
+
+    @Override
+    @Transactional
+    public void saveTranslations(TranslatableEntityType type, Long entityId,
+                                 List<TranslationInput> inputs) {
+        for (TranslationInput input : inputs) {
+            if (input.content() == null || input.content().isBlank()) continue;
+            translationRepository.upsertTranslation(
+                type.name(), entityId,
+                input.locale(), input.fieldName(), input.content()
+            );
+        }
     }
 
     @Cacheable(value = "timeSlotTranslations", key = "#root.methodName + '_' + T(org.springframework.context.i18n.LocaleContextHolder).getLocale().getLanguage()")

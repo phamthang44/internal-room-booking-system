@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
@@ -99,3 +103,105 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+---
+
+## Project Overview
+
+Spring Boot 4.x / Java 25 REST API for an internal university room-booking system. Students book classrooms; admins approve/reject. The system enforces concurrency-safe availability grids, automated lifecycle jobs, a penalty/violation engine, and real-time WebSocket notifications.
+
+**Stack:** Spring Boot 4 · Java 25 · PostgreSQL · Flyway · Redis · RabbitMQ · Spring Security (JWT/OAuth2) · MapStruct · Lombok · ShedLock · Bucket4j · Cloudinary · Mailjet · Thymeleaf · SpringDoc (OpenAPI)
+
+## Common Commands
+
+```bash
+# Start infra only (recommended) — then run Spring from IntelliJ with profile=dev
+make infra
+
+# Full dev stack in Docker
+make dev && make dev-down
+
+# Build with Maven (from project root)
+./mvnw clean package -DskipTests
+./mvnw clean package                    # with tests
+
+# Run single test class
+./mvnw test -Dtest=MyServiceTest
+
+# Follow app logs (dev)
+make dev-logs
+```
+
+Active Spring profiles: `local` | `dev` (default) | `test` | `prod`. Config files: `application-{profile}.yml`.
+
+## Architecture
+
+### Package Layout (`com.thang.roombooking`)
+
+```
+controller/          REST endpoints — one controller per domain
+service/             Business logic interfaces
+  impl/              Service implementations
+  policy/            Strategy pattern: BookingFlowPolicy, RoomPolicy, etc.
+  listener/          Spring event listeners (@EventListener)
+  notification/      Notification dispatch logic
+common/
+  dto/request|response/  API contracts (no entity exposure)
+  entity/            JPA entities (shared for controllers and services)
+  enums/             Domain enums (BookingStatus, RoomStatus, etc.)
+  mapper/            MapStruct mappers (entity ↔ DTO)
+  exception/         GlobalExceptionHandler + typed error codes
+  constant/          BookingMessageKeys, RabbitMQConstants, TimeConstant
+  search/            Search/filter spec builders
+  validator/         Custom JSR-303 validators
+entity/              JPA entities: UserAccount, Booking, Classroom, etc.
+repository/          Spring Data JPA repositories
+infrastructure/
+  security/          SecurityConfig, JwtAuthenticationFilter, etc.
+  scheduler/         ShedLock-protected background jobs
+  messaging/         RabbitMQ publishers
+  listener/          RabbitMQ consumers (email, in-app notifications)
+  mail/              Mailjet + Spring Mail email senders
+  redis/             Token blacklist, rate limiting (Bucket4j)
+  oauth/google/      Google OAuth2 token verification
+  storage/           Cloudinary image upload, CSV importer
+  idempotency/       Idempotency key tracking (prevent duplicate submissions)
+  i18n/              MessageSource wrappers
+seeder/              Database seeders (dev/local only)
+```
+
+### Key Domain Concepts
+
+**Booking lifecycle:** `PENDING → APPROVED/REJECTED → IN_USE → COMPLETED/CANCELLED`. Slot statuses on the `BookingTimeSlot` join table drive the availability grid.
+
+**Concurrency:** PostgreSQL exclusion constraints on `booking_time_slots` prevent double-booking at the DB level. Application-level locks guard the critical section in `BookingCommandService`.
+
+**Scheduler jobs** (ShedLock-protected, run on schedule):
+- `AutoRejectPendingBookingJob` — rejects bookings admins didn't approve in time
+- `AutoCancelBookingJob` — cancels when user didn't check in
+- `AutoCheckoutBookingJob` — auto-checks out after session end
+- `PenaltyExpirationJob` — expires temporary bans / requirement-for-approval states
+
+**Penalty engine:** Configurable in `application.yml` under `penalty.rules`. Points accumulate per violation type (`NO_SHOW`, `LATE_CHECK_IN`, etc.) within a rolling `window-days`. Thresholds trigger `WARNING`, `REQUIRE_APPROVAL`, or `BAN_TEMP` actions on the user.
+
+**Messaging (RabbitMQ):** A single topic exchange (`roombooking.core.exchange`) fans out to four queues — priority email, normal email, booking email, and in-app notifications. Publishers live in `infrastructure/messaging`; consumers in `infrastructure/listener`.
+
+**i18n:** All user-facing messages use `MessageSource` keys. Translatable entities (room types, etc.) are stored via a `Translation` entity keyed by `TranslatableEntityType`. Do not flatten translations to plain strings.
+
+**Idempotency:** Booking submission is idempotency-key protected. The key is stored in the DB and cleaned up by a scheduler. Check `infrastructure/idempotency` before adding any other mutation-safe endpoints.
+
+**Security:** JWT issued by the app (RS256, keys under `src/main/resources/certs/`). Google OAuth2 login supported via `OAuthService`. Refresh tokens stored in DB. Token blacklist in Redis. Rate limiting via Bucket4j backed by Redis.
+
+### API Conventions
+
+- All responses wrap in `ApiResult<T>`.
+- Pagination uses Spring Data `Pageable`.
+- Controllers are split admin (`/api/admin/**`) vs user (`/api/**`).
+- OpenAPI docs available at `/swagger-ui.html` when running locally.
+
+## Domain Rules
+
+1. **Bilingual content is required.** All i18n structures (translation table, `messages.properties`, `MessageSource` keys) must be preserved. Do not simplify to English-only.
+2. **Roles live in the database.** The `roles` table and `role_id` FK must not be replaced with a string enum field.
+3. **UTC internally, GMT+7 at presentation.** Never store or compare times in local timezone — use UTC throughout the service layer and convert only in response mappers.
+4. **Simple RBAC only.** No wildcard permissions, no dynamic permission system — keep it `ROLE_STUDENT` / `ROLE_ADMIN`.

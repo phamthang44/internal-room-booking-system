@@ -3,7 +3,10 @@ package com.thang.roombooking.entity;
 import com.thang.roombooking.common.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +15,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE equipments SET deleted_at = NOW() WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Entity
 @Table(name = "equipments")
 public class Equipment extends BaseCreatedEntity {
@@ -25,6 +30,9 @@ public class Equipment extends BaseCreatedEntity {
 
     @Column(name = "description_key", length = 255)
     private String descriptionKey;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     // OneToMany mapping back to the join entity
     @Builder.Default
