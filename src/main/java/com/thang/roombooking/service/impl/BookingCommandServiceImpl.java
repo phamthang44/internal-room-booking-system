@@ -172,7 +172,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
             bookingPolicyManager.validateCheckOutTimePolicy(startInstant);
 
             Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
-            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, booking.getVersion());
+            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, request.actualAttendees(), booking.getVersion());
             if (updatedRows == 0) {
                 // Determine actual reason for failure
                 Booking currentBooking = bookingRepository.findById(booking.getId())

@@ -22,4 +22,7 @@ public interface PenaltyRecordRepository extends JpaRepository<PenaltyRecord, Lo
     @Modifying(clearAutomatically = true)
     @Query("UPDATE PenaltyRecord p SET p.isActive = false, p.updatedAt = :now WHERE p.isActive = true AND p.endDate IS NOT NULL AND p.endDate < :now")
     int deactivateExpiredPenalties(@org.springframework.data.repository.query.Param("now") java.time.Instant now);
+
+    @Query("SELECT COUNT(p) FROM PenaltyRecord p WHERE p.isActive = true")
+    long countActivePenalties();
 }

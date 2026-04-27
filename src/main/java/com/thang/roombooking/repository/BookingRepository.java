@@ -125,10 +125,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                     @Param("expectedVersion") Integer expectedVersion);
 
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.checkinTime = :checkinTime, b.version = b.version + 1 " +
+    @Query("UPDATE Booking b SET b.status = 'CHECKED_IN', b.checkinTime = :checkinTime, b.attendanceStatus = 'ATTENDED', b.version = b.version + 1 " +
             "WHERE b.id = :id " +
-            "AND b.status = 'APPROVED' " + // Chỉ cho phép check-in khi đã được duyệt
-            "AND b.version = :version")    // Chống duplicate/conflict request
+            "AND b.status = 'APPROVED' " +
+            "AND b.version = :version")
     int atomicCheckIn(@Param("id") Long id,
                       @Param("checkinTime") Instant checkinTime,
                       @Param("version") Integer version);
@@ -144,13 +144,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                        @Param("version") Integer version);
 
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Booking b SET b.status = 'COMPLETED', b.checkoutTime = :checkoutTime, b.version = b.version + 1 " +
+    @Query("UPDATE Booking b SET b.status = 'COMPLETED', b.checkoutTime = :checkoutTime, b.actualAttendees = :actualAttendees, b.version = b.version + 1 " +
             "WHERE b.id = :id " +
             "AND b.status = 'CHECKED_IN' " +
             "AND b.checkoutTime IS NULL " +
             "AND b.version = :version")
     int atomicCheckoutToCompleted(@Param("id") Long id,
                                   @Param("checkoutTime") Instant checkoutTime,
+                                  @Param("actualAttendees") Integer actualAttendees,
                                   @Param("version") Integer version);
 
     @Modifying(clearAutomatically = true)
@@ -211,6 +212,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     @Query("""
         UPDATE Booking b
            SET b.status = :newStatus,
+               b.attendanceStatus = 'NO_SHOW',
                b.updatedBy = :updatedBy,
                b.version = b.version + 1
          WHERE b.id = :id
@@ -226,6 +228,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     @Query("""
     UPDATE Booking b
        SET b.status = :newStatus,
+           b.attendanceStatus = 'CANCELLED',
            b.cancelledBy = :cancelledBy,
            b.updatedBy = :updatedBy,
            b.version = b.version + 1
@@ -317,5 +320,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     List<Booking> findBookingsByClassroomIdsAndDate(
             @Param("classroomIds") List<Long> classroomIds,
             @Param("date") LocalDate date,
+            @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("SELECT b.status, COUNT(b) FROM Booking b WHERE b.deletedAt IS NULL GROUP BY b.status")
+    List<Object[]> countGroupedByStatus();
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.bookingDate = :today AND b.deletedAt IS NULL")
+    long countByBookingDate(@Param("today") LocalDate today);
+
+    @Query("SELECT b.status, COUNT(b) FROM Booking b WHERE b.bookingDate = :date AND b.deletedAt IS NULL GROUP BY b.status")
+    List<Object[]> countByDateGroupedByStatus(@Param("date") LocalDate date);
+
+    @Query("""
+        SELECT b.classroom.id, COUNT(DISTINCT b.id), COUNT(bts.id), AVG(CAST(COALESCE(b.actualAttendees, b.attendees) AS double))
+        FROM Booking b JOIN b.bookingTimeSlots bts
+        WHERE b.bookingDate BETWEEN :from AND :to
+          AND b.status IN :statuses
+          AND b.deletedAt IS NULL
+        GROUP BY b.classroom.id
+    """)
+    List<Object[]> countSlotsByClassroomForRange(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
             @Param("statuses") List<BookingStatus> statuses);
 }

@@ -1,5 +1,6 @@
 package com.thang.roombooking.repository;
 
+import com.thang.roombooking.common.enums.RoomStatus;
 import com.thang.roombooking.entity.Classroom;
 import com.thang.roombooking.entity.Equipment;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,4 +28,7 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long>, Jpa
     List<Equipment> findEquipmentsByNativeSql(@Param("classroomIds") List<Long> classroomIds);
 
     boolean existsByBuildingIdAndRoomNameAndIdNot(Long buildingId, String roomName, Long currentId);
+
+    @Query("SELECT COUNT(c) FROM Classroom c WHERE c.status = :status AND c.deletedAt IS NULL")
+    long countActiveByStatus(@Param("status") RoomStatus status);
 }
