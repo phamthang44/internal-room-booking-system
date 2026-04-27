@@ -4,9 +4,11 @@ import com.thang.roombooking.common.constant.BookingMessageKeys;
 import com.thang.roombooking.common.dto.request.AdminBookingSearchRequest;
 import com.thang.roombooking.common.dto.request.BookingSearchRequest;
 import com.thang.roombooking.common.dto.response.*;
+import com.thang.roombooking.common.enums.AttendanceStatus;
 import com.thang.roombooking.common.enums.BookingAction;
 import com.thang.roombooking.common.enums.BookingSort;
 import com.thang.roombooking.common.enums.BookingStatus;
+import com.thang.roombooking.common.enums.PenaltyAction;
 import com.thang.roombooking.common.enums.TranslatableEntityType;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
@@ -15,6 +17,7 @@ import com.thang.roombooking.entity.*;
 import com.thang.roombooking.infrastructure.i18n.I18nUtils;
 import com.thang.roombooking.repository.BookingHistoryRepository;
 import com.thang.roombooking.repository.BookingRepository;
+import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.BookingQueryService;
 import com.thang.roombooking.service.TranslationService;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +30,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +47,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
 
     private final BookingRepository bookingRepository;
     private final BookingHistoryRepository bookingHistoryRepository;
+    private final PenaltyRecordRepository penaltyRecordRepository;
     private final TranslationService translationService;
     private final BookingMapper bookingMapper;
 
@@ -132,22 +139,61 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StudentDashboardResponse getStudentDashboard(Long userId) {
         LocalDate today = LocalDate.now();
         Pageable top5 = PageRequest.of(0, 5);
 
-        // 1. Lấy dữ liệu Entity (đã được JOIN FETCH ở Repo)
         List<Booking> upcomingEntities = bookingRepository.findUpcomingBookings(userId, today, top5);
         List<Booking> recentActivities = bookingRepository.findRecentBookings(userId, today, top5);
 
-        // 2. Trả về Dashboard DTO
+        // Attendance stats
+        long attendedCount = bookingRepository.countByUserIdAndAttendanceStatus(userId, AttendanceStatus.ATTENDED);
+        long noShowCount   = bookingRepository.countByUserIdAndAttendanceStatus(userId, AttendanceStatus.NO_SHOW);
+        Double attendanceRate = (attendedCount + noShowCount) > 0
+                ? (double) attendedCount / (attendedCount + noShowCount)
+                : null;
+        Long cancelledThisMonthCount = bookingRepository.countCancelledBookingsByUserToday(
+                userId, Instant.now().minus(30, ChronoUnit.DAYS));
+
+        // Booking quality
+        Double avgActualAttendees = bookingRepository.avgActualAttendeesByUser(userId);
+
+        // Penalty awareness — find worst active penalty by severity
+        PenaltyRecord worstPenalty = penaltyRecordRepository.findByUserIdAndIsActiveTrue(userId).stream()
+                .filter(p -> penaltySeverity(p.getPenaltyAction()) > 0)
+                .max(Comparator.comparingInt(p -> penaltySeverity(p.getPenaltyAction())))
+                .orElse(null);
+
         return StudentDashboardResponse.builder()
                 .totalBookings(bookingRepository.countTotalByUser(userId))
                 .upcomingBookings(bookingRepository.countUpcomingByUser(userId, today))
                 .pendingBookings(bookingRepository.countPendingByUser(userId))
                 .upcomingList(upcomingEntities.stream().map(this::mapToSummary).toList())
                 .historyList(recentActivities.stream().map(this::mapToHistorySummary).toList())
+                .attendanceRate(attendanceRate)
+                .noShowCount(noShowCount)
+                .cancelledThisMonthCount(cancelledThisMonthCount)
+                .hasPenalty(worstPenalty != null)
+                .penaltyLevel(worstPenalty != null ? worstPenalty.getPenaltyAction() : null)
+                .penaltyExpiresAt(penaltyExpiry(worstPenalty))
+                .avgActualAttendees(avgActualAttendees)
                 .build();
+    }
+
+    private static int penaltySeverity(PenaltyAction action) {
+        return switch (action) {
+            case PERMANENT_BAN    -> 4;
+            case BAN_TEMP         -> 3;
+            case REQUIRE_APPROVAL -> 2;
+            case WARNING          -> 1;
+            default               -> 0; // RESOLVED, ACTIVE, REVOKED are lifecycle markers
+        };
+    }
+
+    private static Instant penaltyExpiry(PenaltyRecord penalty) {
+        if (penalty == null || penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN) return null;
+        return penalty.getEndDate();
     }
 
     @Transactional(readOnly = true)

@@ -31,4 +31,14 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long>, Jpa
 
     @Query("SELECT COUNT(c) FROM Classroom c WHERE c.status = :status AND c.deletedAt IS NULL")
     long countActiveByStatus(@Param("status") RoomStatus status);
+
+    @Query("""
+            SELECT DISTINCT c FROM Classroom c
+            JOIN FETCH c.building
+            JOIN FETCH c.roomType
+            WHERE c.status = 'AVAILABLE'
+              AND c.capacity >= :minCapacity
+              AND c.deletedAt IS NULL
+            """)
+    List<Classroom> findAvailableWithMinCapacity(@Param("minCapacity") int minCapacity);
 }

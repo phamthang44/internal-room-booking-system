@@ -1,0 +1,13 @@
+package com.thang.roombooking.common.enums;
+
+public enum BehaviorEventType {
+    ROOM_VIEWED,
+    RECOMMENDATION_CLICKED,
+    RECOMMENDATION_DISMISSED,
+    BOOKING_ABANDONED,
+    EQUIPMENT_FILTER_APPLIED,
+    BUILDING_FILTER_APPLIED,
+    CAPACITY_SEARCHED,
+    ROOM_RATED,
+    ROOM_BLOCKLISTED
+}

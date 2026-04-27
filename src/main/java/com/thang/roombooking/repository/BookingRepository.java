@@ -1,5 +1,6 @@
 package com.thang.roombooking.repository;
 
+import com.thang.roombooking.common.enums.AttendanceStatus;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.entity.Booking;
 import org.springframework.data.domain.Pageable;
@@ -330,6 +331,46 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
 
     @Query("SELECT b.status, COUNT(b) FROM Booking b WHERE b.bookingDate = :date AND b.deletedAt IS NULL GROUP BY b.status")
     List<Object[]> countByDateGroupedByStatus(@Param("date") LocalDate date);
+
+    // ── Recommendation & Dashboard enrichment ──────────────────────────────
+
+    @Query("""
+            SELECT b.classroom.id,
+                   COUNT(b.id),
+                   AVG(CAST(COALESCE(b.actualAttendees, b.attendees) AS double))
+            FROM Booking b
+            WHERE b.user.id = :userId
+              AND b.status IN :statuses
+              AND b.deletedAt IS NULL
+            GROUP BY b.classroom.id
+            ORDER BY COUNT(b.id) DESC
+            """)
+    List<Object[]> findTopClassroomsByUser(
+            @Param("userId") Long userId,
+            @Param("statuses") List<BookingStatus> statuses,
+            Pageable pageable);
+
+    @Query("""
+            SELECT bts.timeSlot.id, COUNT(bts.id)
+            FROM Booking b JOIN b.bookingTimeSlots bts
+            WHERE b.user.id = :userId
+              AND b.status IN :statuses
+              AND b.deletedAt IS NULL
+            GROUP BY bts.timeSlot.id
+            ORDER BY COUNT(bts.id) DESC
+            """)
+    List<Object[]> findTopTimeSlotsByUser(
+            @Param("userId") Long userId,
+            @Param("statuses") List<BookingStatus> statuses,
+            Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.user.id = :userId AND b.attendanceStatus = :status AND b.deletedAt IS NULL")
+    long countByUserIdAndAttendanceStatus(
+            @Param("userId") Long userId,
+            @Param("status") AttendanceStatus status);
+
+    @Query("SELECT AVG(CAST(b.actualAttendees AS double)) FROM Booking b WHERE b.user.id = :userId AND b.status = 'COMPLETED' AND b.actualAttendees IS NOT NULL AND b.deletedAt IS NULL")
+    Double avgActualAttendeesByUser(@Param("userId") Long userId);
 
     @Query("""
         SELECT b.classroom.id, COUNT(DISTINCT b.id), COUNT(bts.id), AVG(CAST(COALESCE(b.actualAttendees, b.attendees) AS double))
