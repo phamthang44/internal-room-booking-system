@@ -28,7 +28,7 @@ public class StudentDashboardController {
     private final BehaviorTrackingService behaviorTrackingService;
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'STAFF', 'ADMIN')")
     public ResponseEntity<ApiResult<StudentDashboardResponse>> getDashboard(
             @AuthenticationPrincipal SecurityUserDetails currentUser) {
         return ResponseEntity.ok(
@@ -37,7 +37,7 @@ public class StudentDashboardController {
     }
 
     @GetMapping("/recommendations")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'STAFF', 'ADMIN')")
     public ResponseEntity<ApiResult<List<RoomRecommendationResponse>>> getRecommendations(
             @AuthenticationPrincipal SecurityUserDetails currentUser,
             @RequestParam(required = false) Integer attendees,
@@ -49,7 +49,7 @@ public class StudentDashboardController {
     }
 
     @PostMapping("/recommendations/{classroomId}/click")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'STAFF', 'ADMIN')")
     public ResponseEntity<ApiResult<Void>> trackRecommendationClick(
             @AuthenticationPrincipal SecurityUserDetails currentUser,
             @PathVariable Long classroomId) {
@@ -59,7 +59,7 @@ public class StudentDashboardController {
     }
 
     @PostMapping("/recommendations/{classroomId}/dismiss")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'STAFF', 'ADMIN')")
     public ResponseEntity<ApiResult<Void>> trackRecommendationDismiss(
             @AuthenticationPrincipal SecurityUserDetails currentUser,
             @PathVariable Long classroomId) {
@@ -67,4 +67,4 @@ public class StudentDashboardController {
                 BehaviorEventType.RECOMMENDATION_DISMISSED, "CLASSROOM", classroomId);
         return ResponseEntity.ok(ApiResult.success(null));
     }
-}
+}
