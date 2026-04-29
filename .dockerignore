@@ -37,3 +37,8 @@ logs/
 prompts/
 room-booking-collections/
 init-scripts/
+.agents/
+graphify-out/
+raw/
+.graphifyignore
+.graphify_python

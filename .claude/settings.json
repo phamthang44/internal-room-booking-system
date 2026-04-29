@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw*)",
+      "Bash(make infra)",
+      "Bash(make dev*)",
+      "Bash(make dev-down)",
+      "Bash(make dev-logs)",
+      "Bash(make ps)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add src/*)",
+      "Bash(git add .claude/*)",
+      "Bash(find src/**)",
+      "Bash(ls src/**)",
+      "Bash(ls .claude/**)",
+      "mcp__gitnexus__query",
+      "mcp__gitnexus__context",
+      "mcp__gitnexus__impact",
+      "mcp__gitnexus__detect_changes",
+      "mcp__gitnexus__group_list",
+      "mcp__gitnexus__route_map",
+      "PowerShell(python*)",
+      "PowerShell(Get-Content*)",
+      "PowerShell(New-Item*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"$CLAUDE_TOOL_INPUT\" | grep -q \"git commit\" && npx gitnexus analyze --quiet 2>/dev/null & true'"
+          }
+        ]
+      }
+    ]
+  }
+}

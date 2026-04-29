@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__gitnexus__query",
+      "PowerShell(python -c $script)",
+      "PowerShell(python graphify_ast_extract.py)",
+      "PowerShell(python graphify_merge.py)",
+      "mcp__gitnexus__impact"
+    ]
+  }
+}

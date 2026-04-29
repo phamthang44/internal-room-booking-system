@@ -63,10 +63,26 @@ logs/
 certs/
 room-booking-collections/
 .gitnexus/
-.claude/
 .agents/
 .nginx.conf
 .roomhub.online.txt
 roomhub.online.txt
 room-booking-backup.sql
 .room-booking-backup.sql
+
+
+# keep graph outputs, skip heavy/local-only files
+
+# optional: commit for shared extraction speed, skip to keep repo small
+graphify-out/cache/
+
+# mtime-based, invalid after git clone - always gitignore this
+graphify-out/manifest.json
+
+# local token tracking, not useful to share
+graphify-out/cost.json
+
+# temporary scripts and raw watch folder
+graphify-out/*.py
+graphify-out/.graphify_*
+raw/
