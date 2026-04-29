@@ -117,6 +117,7 @@ Spring Boot 4.x / Java 25 REST API for an internal university room-booking syste
 ```bash
 # Start infra only (recommended) — then run Spring from IntelliJ with profile=dev
 make infra
+# Infra URLs: MailDev http://localhost:1080 · RabbitMQ http://localhost:15672 (guest/guest) · Postgres :5432 · Redis :6379
 
 # Full dev stack in Docker
 make dev && make dev-down
@@ -132,7 +133,20 @@ make dev && make dev-down
 make dev-logs
 ```
 
+> **Windows:** Use Git Bash for `make` commands, or use `run.ps1` in PowerShell instead.
+
 Active Spring profiles: `local` | `dev` (default) | `test` | `prod`. Config files: `application-{profile}.yml`.
+
+### Required env vars (dev profile)
+
+Set these in your IntelliJ run config or a `.env` file:
+
+```
+CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+POSTGRES_USER, POSTGRES_PASSWORD        # default: postgres / root
+MAIL_FROM_EMAIL, MAIL_ADMIN_EMAIL       # can be any string in local dev (MailDev catches all)
+```
 
 ## Architecture
 
@@ -141,30 +155,34 @@ Active Spring profiles: `local` | `dev` (default) | `test` | `prod`. Config file
 ```
 controller/          REST endpoints — one controller per domain
 service/             Business logic interfaces
-  impl/              Service implementations
+  impl/              Service implementations (Command/Query split — see below)
   policy/            Strategy pattern: BookingFlowPolicy, RoomPolicy, etc.
-  listener/          Spring event listeners (@EventListener)
+  listener/          Spring @EventListener handlers (booking, OTP, violations)
   notification/      Notification dispatch logic
 common/
   dto/request|response/  API contracts (no entity exposure)
-  entity/            JPA entities (shared for controllers and services)
-  enums/             Domain enums (BookingStatus, RoomStatus, etc.)
+  dto/model/         Shared DTO models reused across request/response
+  enums/             Domain enums (BookingStatus, RoomStatus, ViolationType, etc.)
+  event/             Spring ApplicationEvent definitions (published by services)
   mapper/            MapStruct mappers (entity ↔ DTO)
-  exception/         GlobalExceptionHandler + typed error codes
+  exception/         GlobalExceptionHandler + BaseErrorCode interface
+    errorcode/       Domain error code enums (AuthErrorCode, BookingErrorCode, etc.)
   constant/          BookingMessageKeys, RabbitMQConstants, TimeConstant
-  search/            Search/filter spec builders
+  search/            Search/filter Specification builders
+  utils/             Utility helpers
   validator/         Custom JSR-303 validators
 entity/              JPA entities: UserAccount, Booking, Classroom, etc.
 repository/          Spring Data JPA repositories
 infrastructure/
   security/          SecurityConfig, JwtAuthenticationFilter, etc.
+  configuration/     App-wide config beans (scheduler config, etc.)
   scheduler/         ShedLock-protected background jobs
   messaging/         RabbitMQ publishers
   listener/          RabbitMQ consumers (email, in-app notifications)
-  mail/              Mailjet + Spring Mail email senders
+  mail/              Mailjet + Spring Mail email senders (booking/, core/, spring/)
   redis/             Token blacklist, rate limiting (Bucket4j)
   oauth/google/      Google OAuth2 token verification
-  storage/           Cloudinary image upload, CSV importer
+  storage/           Cloudinary image upload, Supabase storage, CSV importer
   idempotency/       Idempotency key tracking (prevent duplicate submissions)
   i18n/              MessageSource wrappers
 seeder/              Database seeders (dev/local only)
@@ -192,11 +210,20 @@ seeder/              Database seeders (dev/local only)
 
 **Security:** JWT issued by the app (RS256, keys under `src/main/resources/certs/`). Google OAuth2 login supported via `OAuthService`. Refresh tokens stored in DB. Token blacklist in Redis. Rate limiting via Bucket4j backed by Redis.
 
+**WebSocket:** `/ws/**` is public (no JWT required at handshake). The `WebSocketTestController` under `/api/v1/ws-test/**` is for dev testing only.
+
+**Command/Query service split:** Services handling mutations are named `*CommandService` (e.g. `BookingCommandService`, `BookingApprovalCommandService`); read-only services are `*QueryService`. Both have an interface in `service/` and an `impl/` class. Prefer this split when adding new service pairs.
+
+**Spring Events:** Side effects are decoupled from the main request via Spring `ApplicationEvent`. Services publish events from `common/event/`; `service/listener/` classes consume them (e.g. `BookingStatusChangedEvent` triggers notification dispatch; `ViolationCreatedEvent` triggers penalty calculation). Do not call notification or penalty logic directly from command services — publish an event instead.
+
+**Error codes:** All typed errors implement `BaseErrorCode` (code, message, HttpStatus, format). Add domain-specific codes to the matching enum in `common/exception/errorcode/` (e.g. `BookingErrorCode`, `AuthErrorCode`). `GlobalExceptionHandler` handles all `AppException` instances centrally.
+
 ### API Conventions
 
-- All responses wrap in `ApiResult<T>`.
+- All responses wrap in `ApiResult<T>` (data, meta, error fields).
 - Pagination uses Spring Data `Pageable`.
-- Controllers are split admin (`/api/admin/**`) vs user (`/api/**`).
+- URL prefix: `/api/v1/**` for students, `/api/v1/admin/**` for admins.
+- Public endpoints (no JWT): `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/refresh`, `/api/v1/auth/google-login`.
 - OpenAPI docs available at `/swagger-ui.html` when running locally.
 
 ## Domain Rules
@@ -205,3 +232,31 @@ seeder/              Database seeders (dev/local only)
 2. **Roles live in the database.** The `roles` table and `role_id` FK must not be replaced with a string enum field.
 3. **UTC internally, GMT+7 at presentation.** Never store or compare times in local timezone — use UTC throughout the service layer and convert only in response mappers.
 4. **Simple RBAC only.** No wildcard permissions, no dynamic permission system — keep it `ROLE_STUDENT` / `ROLE_ADMIN`.
+
+# Code Intelligence
+
+## Exploration (use graphify)
+
+For understanding architecture, tracing flows, and answering "how does X work":
+
+```bash
+/graphify query "concept"           # find communities and paths related to a concept
+/graphify path "SymbolA" "SymbolB"  # shortest path between two nodes
+/graphify explain "SymbolName"      # plain-language explanation of one node
+```
+
+Graph outputs live in `graphify-out/`:
+- `graph.html` — open in browser for interactive exploration
+- `GRAPH_REPORT.md` — community map, god nodes, surprising connections
+- `graph.json` — raw data for programmatic queries
+
+Keep the graph fresh after significant changes: `/graphify --update`
+
+> See `ARCHITECTURE.md` for the community map, god nodes, and key cross-cutting flows derived from the graph.
+
+## Before Editing Code (gitnexus required)
+
+The GitNexus rules above (`<!-- gitnexus:start -->` block) still apply for all code modifications:
+- MUST run `gitnexus_impact` before editing any symbol
+- MUST run `gitnexus_detect_changes` before committing
+- NEVER ignore HIGH or CRITICAL risk warnings
