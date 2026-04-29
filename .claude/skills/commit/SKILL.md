@@ -20,20 +20,11 @@ git diff --stat
 
 If there are no changes, stop and tell the user.
 
-### Step 2 — Run gitnexus detect_changes (required by CLAUDE.md)
-
-```
-gitnexus_detect_changes({scope: "staged", repo: "room-booking"})
-```
-
-If nothing is staged yet, run on unstaged:
-```
-gitnexus_detect_changes({scope: "all", repo: "room-booking"})
-```
+### Step 2 — Verify the changed scope
 
 Report:
-- Which **symbols** changed
-- Which **execution flows** are affected
+- Which **files** changed
+- Which **execution flows** are affected (if known from prior graph queries)
 - Whether any changes are outside the expected scope
 
 If unexpected files appear, stop and ask the user to confirm before committing.
@@ -41,7 +32,7 @@ If unexpected files appear, stop and ask the user to confirm before committing.
 ### Step 3 — Self-check (from CLAUDE.md)
 
 Confirm all of these are true before proceeding:
-- [ ] `gitnexus_impact` was run for all modified symbols earlier in this session
+- [ ] `graphify query` was run for all modified symbols earlier in this session
 - [ ] No HIGH/CRITICAL warnings were ignored
 - [ ] All d=1 (WILL BREAK) dependents were updated
 - [ ] i18n keys added in both EN and VI (if user-facing strings changed)

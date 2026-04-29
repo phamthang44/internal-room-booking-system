@@ -84,10 +84,10 @@ State clearly:
 
 For the symbol you plan to change:
 ```
-gitnexus_impact({target: "<symbolName>", direction: "upstream", repo: "room-booking"})
+/graphify query "<symbolName>" --dfs
 ```
 
-If risk is HIGH or CRITICAL, warn the user before applying the fix.
+Review the graph traversal to assess the blast radius. If modifying this symbol affects critical downstream nodes, warn the user before applying the fix.
 
 ### Step 7 — Apply fix and verify
 

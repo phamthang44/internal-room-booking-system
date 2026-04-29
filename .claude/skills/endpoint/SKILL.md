@@ -36,12 +36,12 @@ Read `.claude/docs/conventions.md` sections:
 
 ### Step 4 — Check impact on service layer
 
-If adding a method to an **existing** service:
+If adding a method to an **existing** service, check its impact using graphify:
 ```
-gitnexus_impact({target: "<ExistingServiceImpl>", direction: "upstream", repo: "room-booking"})
+/graphify query "<ExistingServiceImpl>" --dfs
 ```
 
-Proceed only if risk is LOW or MEDIUM.
+Proceed only if the blast radius is small and doesn't heavily impact distant communities.
 
 ### Step 5 — Implement in order
 

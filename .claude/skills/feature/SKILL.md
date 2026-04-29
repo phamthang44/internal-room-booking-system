@@ -53,12 +53,12 @@ Based on the graph and ARCHITECTURE.md, list:
 
 ### Step 4 — Check god node risk
 
-For each **existing** symbol you plan to modify:
+For each **existing** symbol you plan to modify, trace its impact to ensure it won't break things downstream:
 ```
-gitnexus_impact({target: "<symbolName>", direction: "upstream", repo: "room-booking"})
+/graphify query "<symbolName>" --dfs
 ```
 
-Report the risk level. If HIGH or CRITICAL: stop and warn the user before proceeding.
+Review the graph traversal to assess the blast radius. If modifying this symbol affects critical downstream nodes: stop and warn the user before proceeding.
 
 ### Step 5 — Produce the implementation plan
 
