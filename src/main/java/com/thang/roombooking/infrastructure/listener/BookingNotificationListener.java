@@ -34,7 +34,7 @@ public class BookingNotificationListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void handleBookingStatusChanged(BookingStatusChangedEvent event) {
         log.info("Received BookingStatusChangedEvent | id={} | status={}", 
                 event.booking().getId(), event.statusAfter());
