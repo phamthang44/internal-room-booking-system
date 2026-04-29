@@ -37,6 +37,6 @@ public class PenaltyRecord extends BaseAuditEntity<Long> {
     @Column(name = "start_date", nullable = false)
     private Instant startDate;
 
-    @Column(name = "end_date", nullable = false)
+    @Column(name = "end_date")
     private Instant endDate;
 }

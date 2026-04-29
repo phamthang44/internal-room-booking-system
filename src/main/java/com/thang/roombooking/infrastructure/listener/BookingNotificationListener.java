@@ -12,10 +12,11 @@ import com.thang.roombooking.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
@@ -31,7 +32,7 @@ public class BookingNotificationListener {
     private final RoomBookingRabbitMQProperties rabbitMQProperties;
     private final BookingRepository bookingRepository;
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
     @Transactional
     public void handleBookingStatusChanged(BookingStatusChangedEvent event) {
