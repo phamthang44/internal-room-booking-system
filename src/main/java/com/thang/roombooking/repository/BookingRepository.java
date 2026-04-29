@@ -50,6 +50,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                 @Param("today") LocalDate today,
                                 @Param("currentTime") LocalTime currentTime);
 
+    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Booking b " +
+           "WHERE b.classroom.building.id = :buildingId " +
+           "AND b.status IN :statuses " +
+           "AND (b.bookingDate > :today OR (b.bookingDate = :today AND b.endTime > :currentTime))")
+    boolean hasUpcomingBookingsForBuilding(@Param("buildingId") Long buildingId,
+                                           @Param("statuses") List<BookingStatus> statuses,
+                                           @Param("today") LocalDate today,
+                                           @Param("currentTime") LocalTime currentTime);
+
     long countByUserIdAndBookingDateAndStatusNot(Long userId, LocalDate date, BookingStatus bookingStatus);
 
     long countByUserIdAndBookingDateAndStatusIn(Long userId, LocalDate date, List<BookingStatus> bookingStatuses);

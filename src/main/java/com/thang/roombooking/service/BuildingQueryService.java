@@ -8,4 +8,6 @@ public interface BuildingQueryService {
 
     List<AdminBuildingResponse> retrieveAllBuildings();
 
+    AdminBuildingResponse getBuildingById(Long id);
+
 }
