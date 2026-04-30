@@ -28,6 +28,7 @@ public class BehaviorTrackingServiceImpl implements BehaviorTrackingService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordEvent(Long userId, BehaviorEventType eventType, String entityType, Long entityId) {
         recordEvent(userId, eventType, entityType, entityId, null);
     }

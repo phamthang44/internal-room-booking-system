@@ -1,8 +1,8 @@
 package com.thang.roombooking.service.policy.impl;
 
 import com.thang.roombooking.common.enums.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thang.roombooking.common.utils.DateUtils;
+import com.thang.roombooking.common.utils.PenaltyReasonUtils;
 import com.thang.roombooking.common.event.ViolationCreatedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.*;
 import java.util.List;
-import java.util.Map;
 
 import static com.thang.roombooking.common.constant.SystemConstant.SYSTEM_REGION_TIMEZONE;
 import static com.thang.roombooking.common.constant.TimeConstant.CLOSING_TIME;
@@ -37,7 +36,7 @@ public class BookingPolicyImpl implements BookingPolicy {
     private final BookingViolationRepository violationRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PenaltyProperties penaltyProperties;
-    private final ObjectMapper objectMapper;
+    private final PenaltyReasonUtils penaltyReasonUtils;
 
     @Override
     public void validatePenalty(Long userId) {
@@ -51,11 +50,10 @@ public class BookingPolicyImpl implements BookingPolicy {
             }
 
             if (penalty.getPenaltyAction() == PenaltyAction.BAN_TEMP ||
-                penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN ||
-                penalty.getPenaltyAction() == PenaltyAction.REQUIRE_APPROVAL) {
+                penalty.getPenaltyAction() == PenaltyAction.PERMANENT_BAN) {
 
                 String reason = penalty.getReason();
-                String translatedReason = translateReason(reason);
+                String translatedReason = penaltyReasonUtils.translate(reason);
                 String translatedAction = I18nUtils.get("penalty.action." + penalty.getPenaltyAction().name().toLowerCase());
 
                 String startDateStr = DateUtils.formatDateToString(penalty.getStartDate());
@@ -65,24 +63,6 @@ public class BookingPolicyImpl implements BookingPolicy {
                 throw new AppException(BookingErrorCode.USER_SUSPENDED, translatedAction, translatedReason, startDateStr, endDateStr);
             }
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private String translateReason(String reason) {
-        if (reason == null || !reason.startsWith("{")) {
-            return reason;
-        }
-        try {
-            Map<String, Object> map = objectMapper.readValue(reason, Map.class);
-            String key = (String) map.get("key");
-            List<Object> args = (List<Object>) map.get("args");
-            if (key != null) {
-                return I18nUtils.get(key, args != null ? args.toArray() : new Object[0]);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse/translate penalty reason: {}", reason);
-        }
-        return reason;
     }
 
     // @Override
