@@ -28,5 +28,8 @@ public class RoomBookingRabbitMQProperties {
         private String patternEmailNormal;
         private String patternEmailBooking;
         private String patternNotificationInApp;
+        // Publish routing keys for security emails
+        private String emailSecurityOtp;
+        private String emailSecurityReset;
     }
 }

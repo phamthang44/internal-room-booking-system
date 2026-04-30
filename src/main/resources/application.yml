@@ -35,6 +35,9 @@ roombooking:
       pattern-email-booking: "notification.email.booking.*"
       # In-App: persistent notifications (Bell Icon)
       pattern-notification-in-app: "notification.in-app.*"
+      # Publish keys for auth security emails (matched by pattern-email-priority)
+      email-security-otp: "notification.email.security.otp"
+      email-security-reset: "notification.email.security.reset"
 
     # 3. Queues: Work mailboxes (Defined by consumers)
     # Pattern: <module>.<action>.queue

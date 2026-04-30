@@ -2,6 +2,7 @@ package com.thang.roombooking.service;
 
 import com.thang.roombooking.common.dto.request.LoginRequest;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
+import com.thang.roombooking.common.dto.request.ResetPasswordRequest;
 import com.thang.roombooking.common.dto.response.AuthResponse;
 
 public interface AuthService {
@@ -11,4 +12,7 @@ public interface AuthService {
     void logout(String refreshToken);
     void logout(String accessToken, String refreshToken);
     AuthResponse loginWithGoogle(String idToken);
+    void requestOtp(String email);
+    void forgotPassword(String email);
+    void resetPassword(ResetPasswordRequest req);
 }

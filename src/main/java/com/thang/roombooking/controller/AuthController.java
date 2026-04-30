@@ -2,7 +2,9 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.request.GoogleLoginRequest;
 import com.thang.roombooking.common.dto.request.LoginRequest;
+import com.thang.roombooking.common.dto.request.OtpRequest;
 import com.thang.roombooking.common.dto.request.RegisterRequest;
+import com.thang.roombooking.common.dto.request.ResetPasswordRequest;
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.AuthResponse;
 import com.thang.roombooking.common.exception.AppException;
@@ -100,6 +102,24 @@ public class AuthController {
                 .sameSite("None")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    @PostMapping("/otp/request")
+    public ResponseEntity<ApiResult<String>> requestOtp(@Valid @RequestBody OtpRequest request) {
+        authService.requestOtp(request.getEmail());
+        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("message.otp_sent")));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResult<String>> forgotPassword(@Valid @RequestBody OtpRequest request) {
+        authService.forgotPassword(request.getEmail());
+        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("message.otp_sent")));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResult<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResult.success(I18nUtils.get("message.password_reset_success")));
     }
 
     @PostMapping("/google-login")
