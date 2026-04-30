@@ -71,6 +71,11 @@ room-booking-backup.sql
 .room-booking-backup.sql
 
 
+# graphify generated outputs — large, not useful to track
+graphify-out/graph.html
+graphify-out/graph.json
+graphify-out/GRAPH_REPORT.md
+
 # keep graph outputs, skip heavy/local-only files
 
 # optional: commit for shared extraction speed, skip to keep repo small
