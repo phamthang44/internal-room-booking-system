@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,39 +47,29 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public List<CreateBookingResponse> createBooking(CreateBookingRequest request, UserAccount currentUser) {
         log.info("{} | Create Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
-        try {
-            // 1. Validate các lớp (Lớp 1 & Lớp 2)
-            bookingValidatorService.validateClassroom(request.classroomId(), request.attendees());
-            bookingValidatorService.validateBookingDate(request.bookingDate());
-            bookingValidatorService.validatePurpose(request.purpose());
-            bookingPolicyManager.validateBookingTimeWorkingHours(request.bookingDate(), request.timeBooking());
+        // 1. Validate các lớp (Lớp 1 & Lớp 2)
+        bookingValidatorService.validateClassroom(request.classroomId(), request.attendees());
+        bookingValidatorService.validateBookingDate(request.bookingDate());
+        bookingValidatorService.validatePurpose(request.purpose());
+        bookingPolicyManager.validateBookingTimeWorkingHours(request.bookingDate(), request.timeBooking());
 
-            // 2. Policy Quota & Penalty
-            bookingPolicyManager.validatePenalty(currentUser.getId());
-            bookingPolicyManager.validatePendingQuota(currentUser.getId());
-            bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
-            bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
+        // 2. Policy Quota & Penalty
+        bookingPolicyManager.validatePenalty(currentUser.getId());
+        bookingPolicyManager.validatePendingQuota(currentUser.getId());
+        bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
+        bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
 
-            // 3. Fetch TimeSlot entities
-            List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
+        // 3. Fetch TimeSlot entities
+        List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
 
-            bookingValidatorService.validateTimeSlots(request.bookingDate(), timeSlots);
+        bookingValidatorService.validateTimeSlots(request.bookingDate(), timeSlots);
 
-            // Always produce exactly ONE booking regardless of whether the selected
-            // slots are time-adjacent or not.  The user consciously chose these slots
-            // together, so we merge them into a single record whose startTime = min
-            // of all selected slots' startTimes and endTime = max of all endTimes.
-            // The individual slot associations are preserved via BookingTimeSlot rows.
-            return createSplitBookingResponses(request, currentUser, timeSlots);
-        } catch (AppException e) {
-            log.warn("{}: Failed to create booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
-                    currentUser.getId(), e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{}: Unexpected error during booking creation for User: {}", LogConstant.SYS_ERROR,
-                    currentUser.getId(), e);
-            throw e;
-        }
+        // Always produce exactly ONE booking regardless of whether the selected
+        // slots are time-adjacent or not.  The user consciously chose these slots
+        // together, so we merge them into a single record whose startTime = min
+        // of all selected slots' startTimes and endTime = max of all endTimes.
+        // The individual slot associations are preserved via BookingTimeSlot rows.
+        return createSplitBookingResponses(request, currentUser, timeSlots);
     }
 
     @Override
@@ -88,66 +77,56 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public void checkIn(Long id, CheckInRequest request, UserAccount currentUser) {
         log.info("{} | Check in Booking | ID: {} | User: {} | Data: {}",
                 LogConstant.ACTION_START, id, currentUser.getId(), request);
-        try {
-            // 1) Load booking WITH time slots in one query (source of truth for start time)
-            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        // 1) Load booking WITH time slots in one query (source of truth for start time)
+        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        bookingPolicyManager.validateCheckInStatus(booking.getStatus());
+
+        // Check quyền sở hữu
+        if (!booking.getUser().getId().equals(currentUser.getId())) {
+            throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+        }
+
+        // 1.5) Ban check: Even if booking was approved, a banned user cannot check in.
+        bookingPolicyManager.validatePenalty(currentUser.getId());
+
+        // 2) Derive the booking's effective start time
+        Instant startInstant = getBookingStartInstant(booking);
+        bookingPolicyManager.validateCheckInTimePolicy(startInstant);
+
+        // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
+        Instant checkinTime = request.checkInTime() != null ? request.checkInTime() : Instant.now();
+        int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), checkinTime, booking.getVersion());
+
+        if (updatedRows == 0) {
+            // Determine actual reason for failure
+            Booking currentBooking = bookingRepository.findById(booking.getId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            bookingPolicyManager.validateCheckInStatus(booking.getStatus());
-
-            // Check quyền sở hữu
-            if (!booking.getUser().getId().equals(currentUser.getId())) {
-                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+            if (currentBooking.getStatus() == BookingStatus.CHECKED_IN || currentBooking.getStatus() == BookingStatus.COMPLETED) {
+                throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_IN);
+            } else if (currentBooking.getStatus() != BookingStatus.APPROVED) {
+                throw new AppException(BookingErrorCode.BOOKING_NOT_APPROVED);
             }
-
-            // 1.5) Ban check: Even if booking was approved, a banned user cannot check in.
-            bookingPolicyManager.validatePenalty(currentUser.getId());
-
-            // 2) Derive the booking's effective start time
-            Instant startInstant = getBookingStartInstant(booking);
-            bookingPolicyManager.validateCheckInTimePolicy(startInstant);
-
-            // 3. ATOMIC UPDATE: Chặn đứng mọi nỗ lực duplicate request
-            Instant checkinTime = request.checkInTime() != null ? request.checkInTime() : Instant.now();
-            int updatedRows = bookingRepository.atomicCheckIn(booking.getId(), checkinTime, booking.getVersion());
-
-            if (updatedRows == 0) {
-                // Determine actual reason for failure
-                Booking currentBooking = bookingRepository.findById(booking.getId())
-                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                if (currentBooking.getStatus() == BookingStatus.CHECKED_IN || currentBooking.getStatus() == BookingStatus.COMPLETED) {
-                    throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_IN);
-                } else if (currentBooking.getStatus() != BookingStatus.APPROVED) {
-                    throw new AppException(BookingErrorCode.BOOKING_NOT_APPROVED);
-                }
-                throw new AppException(BookingErrorCode.BOOKING_STATUS_ALREADY_CANCELLED);
-            }
-
-            if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(id)
-                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        updated,
-                        BookingStatus.CHECKED_IN,
-                        BookingAction.CHECK_IN.name(),
-                        currentUser.getEmail(),
-                        "booking.checkin.reason.success",
-                        LocaleContextHolder.getLocale().toString()
-                ));
-            }
-
-            log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, id, currentUser.getId());
-        } catch (AppException e) {
-            log.warn("{}: Failed to checkin booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
-                    currentUser.getId(), e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Unexpected error during booking checkin for User: {}", LogConstant.SYS_ERROR,
-                    currentUser.getId(), e);
-            throw e;
+            throw new AppException(BookingErrorCode.BOOKING_STATUS_ALREADY_CANCELLED);
         }
+
+        if (updatedRows > 0) {
+            Booking updated = bookingRepository.findById(id)
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    updated,
+                    BookingStatus.CHECKED_IN,
+                    BookingAction.CHECK_IN.name(),
+                    currentUser.getEmail(),
+                    "booking.checkin.reason.success",
+                    LocaleContextHolder.getLocale().toString()
+            ));
+        }
+
+        log.info("{}: Booking checkin with ID: {} for User: {}",LogConstant.ACTION_SUCCESS, id, currentUser.getId());
     }
 
     @Override
@@ -155,166 +134,133 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public void checkout(Long id, CheckoutRequest request, UserAccount currentUser) {
         log.info("{} | Checkout Booking | ID: {} | User: {} | Data: {}",
                 LogConstant.ACTION_START, id, currentUser.getId(), request);
-        try {
-            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        if (!booking.getUser().getId().equals(currentUser.getId())) {
+            throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+        }
+
+        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+            throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
+        }
+
+        // 2. Policy: Chặn trả phòng quá sớm
+        Instant startInstant = getBookingStartInstant(booking);
+        bookingPolicyManager.validateCheckOutTimePolicy(startInstant);
+
+        Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
+        int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, request.actualAttendees(), booking.getVersion());
+        if (updatedRows == 0) {
+            // Determine actual reason for failure
+            Booking currentBooking = bookingRepository.findById(booking.getId())
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            if (!booking.getUser().getId().equals(currentUser.getId())) {
-                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+            if (currentBooking.getCheckoutTime() != null || currentBooking.getStatus() == BookingStatus.COMPLETED) {
+                throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_OUT);
             }
-
-            if (booking.getStatus() != BookingStatus.CHECKED_IN) {
-                throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
-            }
-
-            // 2. Policy: Chặn trả phòng quá sớm
-            Instant startInstant = getBookingStartInstant(booking);
-            bookingPolicyManager.validateCheckOutTimePolicy(startInstant);
-
-            Instant checkoutTime = request.checkoutTime() != null ? request.checkoutTime() : Instant.now();
-            int updatedRows = bookingRepository.atomicCheckoutToCompleted(booking.getId(), checkoutTime, request.actualAttendees(), booking.getVersion());
-            if (updatedRows == 0) {
-                // Determine actual reason for failure
-                Booking currentBooking = bookingRepository.findById(booking.getId())
-                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                if (currentBooking.getCheckoutTime() != null || currentBooking.getStatus() == BookingStatus.COMPLETED) {
-                    throw new AppException(BookingErrorCode.BOOKING_ALREADY_CHECKED_OUT);
-                }
-                throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
-            }
-
-            if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(id)
-                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        updated,
-                        BookingStatus.COMPLETED,
-                        BookingAction.CHECK_OUT.name(),
-                        currentUser.getEmail(),
-                        "booking.checkout.reason.success",
-                        LocaleContextHolder.getLocale().toString()
-                ));
-            }
-
-            log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, id, currentUser.getId());
-        } catch (AppException e) {
-            log.warn("{}: Failed to checkout booking for User: {}. Reason: {}", LogConstant.BIZ_ERROR,
-                    currentUser.getId(), e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Unexpected error during booking checkout for User: {}", LogConstant.SYS_ERROR,
-                    currentUser.getId(), e);
-            throw e;
+            throw new AppException(BookingErrorCode.BOOKING_NOT_CHECKED_IN);
         }
+
+        if (updatedRows > 0) {
+            Booking updated = bookingRepository.findById(id)
+                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    updated,
+                    BookingStatus.COMPLETED,
+                    BookingAction.CHECK_OUT.name(),
+                    currentUser.getEmail(),
+                    "booking.checkout.reason.success",
+                    LocaleContextHolder.getLocale().toString()
+            ));
+        }
+
+        log.info("{}: Booking checkout with ID: {} for User: {}", LogConstant.ACTION_SUCCESS, id, currentUser.getId());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long approveBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
         log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_START, id, currentUser.getId());
-        try {
-            // lấy booking
-            Booking booking = bookingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+        // lấy booking
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            bookingPolicyManager.validateApproveStatus(booking.getStatus());
+        bookingPolicyManager.validateApproveStatus(booking.getStatus());
 
-            if (request.action() != ApprovalAction.APPROVE) {
-                throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
-            }
-
-            // 3. Thực hiện Atomic Update
-            int updatedRows = bookingRepository.atomicApprove(
-                    id,
-                    BookingStatus.APPROVED,
-                    booking.getVersion()
-            );
-            if (updatedRows == 0) {
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
-            }
-
-            Booking approvedBooking = bookingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-            log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, id);
-            bookingApprovalCommandService.saveApprovalBooking(approvedBooking, currentUser);
-            eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    approvedBooking,
-                    BookingStatus.APPROVED,
-                    BookingAction.APPROVE_BOOKING.name(),
-                    currentUser.getEmail(),
-                    "booking.approve.reason.staff",
-                    LocaleContextHolder.getLocale().toString()
-            ));
-            return approvedBooking.getId();
-        } catch (AppException e) {
-            log.warn("{}: Failed to approve | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (ObjectOptimisticLockingFailureException e) {
-            log.error("{} | Conflict Error |", LogConstant.SYS_ERROR, e.getCause());
-            throw e;
+        if (request.action() != ApprovalAction.APPROVE) {
+            throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
         }
-        catch (Exception e) {
-            log.error("{} | Unexpected System Error |", LogConstant.SYS_ERROR, e);
-            throw e;
+
+        // 3. Thực hiện Atomic Update
+        int updatedRows = bookingRepository.atomicApprove(
+                id,
+                BookingStatus.APPROVED,
+                booking.getVersion()
+        );
+        if (updatedRows == 0) {
+            throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
         }
+
+        Booking approvedBooking = bookingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        log.info("{} | Booking ID: {} approved successfully", LogConstant.ACTION_SUCCESS, id);
+        bookingApprovalCommandService.saveApprovalBooking(approvedBooking, currentUser);
+        eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                approvedBooking,
+                BookingStatus.APPROVED,
+                BookingAction.APPROVE_BOOKING.name(),
+                currentUser.getEmail(),
+                "booking.approve.reason.staff",
+                LocaleContextHolder.getLocale().toString()
+        ));
+        return approvedBooking.getId();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void rejectBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
         log.info("{}: Booking reject with ID: {} by STAFF: {}", LogConstant.ACTION_START, id, currentUser.getId());
-        try {
-            Booking booking = bookingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            bookingPolicyManager.validateRejectStatus(booking.getStatus());
+        bookingPolicyManager.validateRejectStatus(booking.getStatus());
 
-            if (request.action() != ApprovalAction.REJECT) {
-                throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
-            }
-
-            String cleanReason = cleanString(request.reason());
-            if (cleanReason == null || cleanReason.isBlank()) {
-                throw new AppException(BookingErrorCode.BOOKING_REJECTION_REASON_REQUIRED);
-            }
-
-            // Perform Atomic Update
-            int updatedRows = bookingRepository.atomicRejectPending(
-                    id,
-                    BookingStatus.REJECTED,
-                    cleanReason,
-                    booking.getVersion()
-            );
-
-            if (updatedRows == 0) {
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
-            }
-            Booking updated = bookingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-            // Update entity in memory for events
-            log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, id);
-            bookingApprovalCommandService.saveApprovalBooking(updated, currentUser);
-            eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                    updated,
-                    BookingStatus.REJECTED,
-                    BookingAction.REJECT_BOOKING.name(),
-                    currentUser.getEmail(),
-                    cleanReason.isBlank() ? "booking.reject.reason.staff" : cleanReason,
-                    LocaleContextHolder.getLocale().toString()
-            ));
-        } catch (AppException e) {
-            log.warn("{}: Failed to reject | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (ObjectOptimisticLockingFailureException e) {
-            log.error("{} | Conflict Error |", LogConstant.SYS_ERROR, e.getCause());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Unexpected System Error during rejection |", LogConstant.SYS_ERROR, e);
-            throw e;
+        if (request.action() != ApprovalAction.REJECT) {
+            throw new AppException(CommonErrorCode.INVALID_REQUEST, request.action().name());
         }
+
+        String cleanReason = cleanString(request.reason());
+        if (cleanReason == null || cleanReason.isBlank()) {
+            throw new AppException(BookingErrorCode.BOOKING_REJECTION_REASON_REQUIRED);
+        }
+
+        // Perform Atomic Update
+        int updatedRows = bookingRepository.atomicRejectPending(
+                id,
+                BookingStatus.REJECTED,
+                cleanReason,
+                booking.getVersion()
+        );
+
+        if (updatedRows == 0) {
+            throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+        }
+        Booking updated = bookingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+        // Update entity in memory for events
+        log.info("{} | Booking ID: {} rejected successfully", LogConstant.ACTION_SUCCESS, id);
+        bookingApprovalCommandService.saveApprovalBooking(updated, currentUser);
+        eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                updated,
+                BookingStatus.REJECTED,
+                BookingAction.REJECT_BOOKING.name(),
+                currentUser.getEmail(),
+                cleanReason.isBlank() ? "booking.reject.reason.staff" : cleanReason,
+                LocaleContextHolder.getLocale().toString()
+        ));
     }
 
     @Transactional
@@ -407,60 +353,51 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Transactional
     public void cancelBooking(Long id, CancelBookingRequest req, UserAccount userAccount) {
         log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_START, id);
-        try {
-            // lấy booking
-            String cleanCancelReason = cleanString(req.cancelReason());
+        // lấy booking
+        String cleanCancelReason = cleanString(req.cancelReason());
 
-            bookingValidatorService.validatePurpose(cleanCancelReason);
+        bookingValidatorService.validatePurpose(cleanCancelReason);
 
-            Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+                .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+        // 1. Check quyền sở hữu
+        if (!booking.getUser().getId().equals(userAccount.getId())) {
+            throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
+        }
+
+        // 2. Policy
+        Instant startInstant = getBookingStartInstant(booking);
+
+        bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startInstant);
+
+        int updatedRows = bookingRepository.atomicCancelByStudent(
+                booking.getId(),
+                BookingStatus.CANCELLED,
+                userAccount.getUsername(),
+                userAccount.getUsername(),
+                booking.getVersion()
+        );
+
+        if (updatedRows == 0) {
+            throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
+        }
+        log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, id);
+        if (updatedRows > 0) {
+            Booking updated = bookingRepository.findById(id)
                     .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-            // 1. Check quyền sở hữu
-            if (!booking.getUser().getId().equals(userAccount.getId())) {
-                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
-            }
-
-            // 2. Policy
-            Instant startInstant = getBookingStartInstant(booking);
-
-            bookingPolicyManager.validateCancelConditionPolicy(booking.getCreatedAt(), booking.getStatus(), startInstant);
-
-            int updatedRows = bookingRepository.atomicCancelByStudent(
-                    booking.getId(),
+            eventPublisher.publishEvent(new BookingStatusChangedEvent(
+                    updated,
                     BookingStatus.CANCELLED,
-                    userAccount.getUsername(),
-                    userAccount.getUsername(),
-                    booking.getVersion()
-            );
+                    BookingAction.CANCEL_BOOKING.name(),
+                    updated.getUser().getEmail(),
+                    cleanCancelReason,
+                    LocaleContextHolder.getLocale().toString()
+            ));
 
-            if (updatedRows == 0) {
-                throw new AppException(BookingErrorCode.BOOKING_ALREADY_PROCESSED);
-            }
-            log.info("{} | cancelBooking | booking id : {}", LogConstant.ACTION_SUCCESS, id);
-            if (updatedRows > 0) {
-                Booking updated = bookingRepository.findById(id)
-                        .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-
-                eventPublisher.publishEvent(new BookingStatusChangedEvent(
-                        updated,
-                        BookingStatus.CANCELLED,
-                        BookingAction.CANCEL_BOOKING.name(),
-                        updated.getUser().getEmail(),
-                        cleanCancelReason,
-                        LocaleContextHolder.getLocale().toString()
-                ));
-
-                // 3. Spam Prevention
-                bookingPolicyManager.checkCancellationSpam(updated);
-            }
-        } catch (AppException e) {
-            log.warn("{} | cancelBooking | Reason: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        }
-        catch (Exception e) {
-            log.error("{} | cancelBooking | Unexpected Error System", LogConstant.SYS_ERROR, e);
-            throw e;
+            // 3. Spam Prevention
+            bookingPolicyManager.checkCancellationSpam(updated);
         }
     }
 

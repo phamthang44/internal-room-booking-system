@@ -131,38 +131,30 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(String rawRefreshToken) {
         log.info("{} | Refresh token : {}", LogConstant.ACTION_START, rawRefreshToken);
-        try {
-            if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-                throw new AppException(AuthErrorCode.TOKEN_INVALID);
-            }
-
-            RefreshToken currentToken = refreshTokenService.verifyRefreshToken(rawRefreshToken);
-            UserAccount user = currentToken.getUser();
-
-            log.debug("user: {}", user.getUsername());
-
-            // Always generate a new access token
-            String newAccessToken = tokenService.generateAccessToken(user);
-
-            // Rotate refresh token if it's close to expiry (< 3 days remaining)
-            String finalRefreshToken = rawRefreshToken;
-            long daysUntilExpiry = Duration.between(Instant.now(), currentToken.getExpiryDate()).toDays();
-
-            if (daysUntilExpiry <= 3) {
-                String newRefreshToken = tokenService.generateRefreshToken();
-                refreshTokenService.revokeRefreshToken(rawRefreshToken);
-                refreshTokenService.saveRefreshToken(user, newRefreshToken);
-                finalRefreshToken = newRefreshToken;
-            }
-
-            return buildAuthResponse(newAccessToken, finalRefreshToken, user);
-        } catch (AppException e) {
-            log.warn("{} | Refresh token failed | Error : {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Refresh token failed | System Error.", LogConstant.BIZ_ERROR, e);
-            throw e;
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+            throw new AppException(AuthErrorCode.TOKEN_INVALID);
         }
+
+        RefreshToken currentToken = refreshTokenService.verifyRefreshToken(rawRefreshToken);
+        UserAccount user = currentToken.getUser();
+
+        log.debug("user: {}", user.getUsername());
+
+        // Always generate a new access token
+        String newAccessToken = tokenService.generateAccessToken(user);
+
+        // Rotate refresh token if it's close to expiry (< 3 days remaining)
+        String finalRefreshToken = rawRefreshToken;
+        long daysUntilExpiry = Duration.between(Instant.now(), currentToken.getExpiryDate()).toDays();
+
+        if (daysUntilExpiry <= 3) {
+            String newRefreshToken = tokenService.generateRefreshToken();
+            refreshTokenService.revokeRefreshToken(rawRefreshToken);
+            refreshTokenService.saveRefreshToken(user, newRefreshToken);
+            finalRefreshToken = newRefreshToken;
+        }
+
+        return buildAuthResponse(newAccessToken, finalRefreshToken, user);
     }
 
     @Override
@@ -228,10 +220,8 @@ public class AuthServiceImpl implements AuthService {
             log.info("{} | Google identity verified.", LogConstant.ACTION_SUCCESS);
             return buildAuthResponse(accessToken, refreshToken, user);
         } catch (AppException e) {
-            log.warn("{} | Google login failed: | Error : {}", LogConstant.ACTION_FAILED, e.getErrorCode());
             throw e;
         } catch (Exception e) {
-            log.error("{} | Error in login with google | System Error. ", LogConstant.SYS_ERROR, e);
             throw new AppException(CommonErrorCode.INTERNAL_ERROR, "Google login failed");
         }
     }

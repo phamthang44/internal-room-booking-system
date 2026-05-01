@@ -23,15 +23,10 @@ public class GoogleOAuth2AuthenticationService {
 
     public ExternalIdentity getUserInfo(String idToken) {
         log.info("{} | Verifying Google ID token.", LogConstant.ACTION_START);
-        try {
-            // 1. Xác thực ID Token trực tiếp
-            ExternalIdentity identity = identityProvider.verify(idToken);
-            log.info("{} | Successfully verified Google identity. Email: {}", LogConstant.ACTION_SUCCESS, identity.email());
-            return identity;
-        } catch (Exception e) {
-            log.error("{} | Failed to verify Google ID token: ", LogConstant.SYS_ERROR, e);
-            throw e;
-        }
+        // 1. Xác thực ID Token trực tiếp
+        ExternalIdentity identity = identityProvider.verify(idToken);
+        log.info("{} | Successfully verified Google identity. Email: {}", LogConstant.ACTION_SUCCESS, identity.email());
+        return identity;
         // HẾT. Không Save DB, Không tạo Token ở đây.
     }
 }

@@ -32,118 +32,86 @@ public class EquipmentCommandServiceImpl implements EquipmentCommandService {
     @Transactional
     public AdminEquipmentDetailResponse createEquipment(CreateEquipmentRequest req) {
         log.info("{} | Create Equipment | nameEn: {}", LogConstant.ACTION_START, req.nameEn());
-        try {
-            String base = toNameKey(req.nameEn());
-            String nameKey = base;
-            int counter = 2;
-            while (equipmentRepository.existsByNameKey(nameKey)) {
-                nameKey = base + "_" + counter++;
-            }
-
-            Equipment equipment = Equipment.builder()
-                    .nameKey(nameKey)
-                    .descriptionKey(nameKey + ".desc")
-                    .build();
-
-            Equipment saved = equipmentRepository.save(equipment);
-
-            translationService.saveTranslations(
-                    TranslatableEntityType.EQUIPMENT,
-                    Long.valueOf(saved.getId()),
-                    List.of(
-                            new TranslationService.TranslationInput("vi", "name", req.nameVi()),
-                            new TranslationService.TranslationInput("en", "name", req.nameEn()),
-                            new TranslationService.TranslationInput("vi", "description", req.descVi()),
-                            new TranslationService.TranslationInput("en", "description", req.descEn())
-                    )
-            );
-
-            log.info("{} | Created Equipment ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
-            return equipmentQueryService.getEquipment(saved.getId());
-        } catch (AppException e) {
-            log.warn("{} | Failed to create equipment | Error: {}", LogConstant.ACTION_FAILED, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Error creating equipment | System Error.", LogConstant.SYS_ERROR, e);
-            throw e;
+        String base = toNameKey(req.nameEn());
+        String nameKey = base;
+        int counter = 2;
+        while (equipmentRepository.existsByNameKey(nameKey)) {
+            nameKey = base + "_" + counter++;
         }
+
+        Equipment equipment = Equipment.builder()
+                .nameKey(nameKey)
+                .descriptionKey(nameKey + ".desc")
+                .build();
+
+        Equipment saved = equipmentRepository.save(equipment);
+
+        translationService.saveTranslations(
+                TranslatableEntityType.EQUIPMENT,
+                Long.valueOf(saved.getId()),
+                List.of(
+                        new TranslationService.TranslationInput("vi", "name", req.nameVi()),
+                        new TranslationService.TranslationInput("en", "name", req.nameEn()),
+                        new TranslationService.TranslationInput("vi", "description", req.descVi()),
+                        new TranslationService.TranslationInput("en", "description", req.descEn())
+                )
+        );
+
+        log.info("{} | Created Equipment ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
+        return equipmentQueryService.getEquipment(saved.getId());
     }
 
     @Override
     @Transactional
     public AdminEquipmentDetailResponse updateEquipment(Integer id, UpdateEquipmentRequest req) {
         log.info("{} | Update Equipment | ID: {}", LogConstant.ACTION_START, id);
-        try {
-            equipmentRepository.findById(id.longValue())
-                    .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
+        equipmentRepository.findById(id.longValue())
+                .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
 
-            translationService.saveTranslations(
-                    TranslatableEntityType.EQUIPMENT,
-                    Long.valueOf(id),
-                    List.of(
-                            new TranslationService.TranslationInput("vi", "name", req.nameVi()),
-                            new TranslationService.TranslationInput("en", "name", req.nameEn()),
-                            new TranslationService.TranslationInput("vi", "description", req.descVi()),
-                            new TranslationService.TranslationInput("en", "description", req.descEn())
-                    )
-            );
+        translationService.saveTranslations(
+                TranslatableEntityType.EQUIPMENT,
+                Long.valueOf(id),
+                List.of(
+                        new TranslationService.TranslationInput("vi", "name", req.nameVi()),
+                        new TranslationService.TranslationInput("en", "name", req.nameEn()),
+                        new TranslationService.TranslationInput("vi", "description", req.descVi()),
+                        new TranslationService.TranslationInput("en", "description", req.descEn())
+                )
+        );
 
-            log.info("{} | Updated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
-            return equipmentQueryService.getEquipment(id);
-        } catch (AppException e) {
-            log.warn("{} | Failed to update equipment | Error: {}", LogConstant.ACTION_FAILED, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Error updating equipment | System Error.", LogConstant.SYS_ERROR, e);
-            throw e;
-        }
+        log.info("{} | Updated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
+        return equipmentQueryService.getEquipment(id);
     }
 
     @Override
     @Transactional
     public void deactivateEquipment(Integer id) {
         log.info("{} | Deactivate Equipment | ID: {}", LogConstant.ACTION_START, id);
-        try {
-            Equipment equipment = equipmentRepository.findById(id.longValue())
-                    .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
+        Equipment equipment = equipmentRepository.findById(id.longValue())
+                .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
 
-            if (equipmentRepository.isAssignedToAnyClassroom(id)) {
-                throw new AppException(EquipmentErrorCode.EQUIPMENT_IN_USE);
-            }
-
-            equipmentRepository.delete(equipment);
-            log.info("{} | Deactivated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
-        } catch (AppException e) {
-            log.warn("{} | Failed to deactivate equipment | Error: {}", LogConstant.ACTION_FAILED, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Error deactivating equipment | System Error.", LogConstant.SYS_ERROR, e);
-            throw e;
+        if (equipmentRepository.isAssignedToAnyClassroom(id)) {
+            throw new AppException(EquipmentErrorCode.EQUIPMENT_IN_USE);
         }
+
+        equipmentRepository.delete(equipment);
+        log.info("{} | Deactivated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
     }
 
     @Override
     @Transactional
     public void reactivateEquipment(Integer id) {
         log.info("{} | Reactivate Equipment | ID: {}", LogConstant.ACTION_START, id);
-        try {
-            Equipment equipment = equipmentRepository.findByIdIncludingDeleted(id)
-                    .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
+        Equipment equipment = equipmentRepository.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new AppException(EquipmentErrorCode.EQUIPMENT_NOT_FOUND));
 
-            if (equipment.getDeletedAt() == null) {
-                log.info("{} | Equipment ID: {} is already active — no-op", LogConstant.ACTION_SUCCESS, id);
-                return;
-            }
-
-            equipmentRepository.reactivateById(id);
-            log.info("{} | Reactivated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
-        } catch (AppException e) {
-            log.warn("{} | Failed to reactivate equipment | Error: {}", LogConstant.ACTION_FAILED, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Error reactivating equipment | System Error.", LogConstant.SYS_ERROR, e);
-            throw e;
+        if (equipment.getDeletedAt() == null) {
+            log.info("{} | Equipment ID: {} is already active — no-op", LogConstant.ACTION_SUCCESS, id);
+            return;
         }
+
+        equipmentRepository.reactivateById(id);
+        log.info("{} | Reactivated Equipment ID: {}", LogConstant.ACTION_SUCCESS, id);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────

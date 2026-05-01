@@ -6,7 +6,6 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.thang.roombooking.common.constant.LogConstant;
 import com.thang.roombooking.common.exception.TokenErrorException;
 import com.thang.roombooking.common.exception.TokenExpiredException;
 import com.thang.roombooking.common.utils.KeyUtils;
@@ -77,7 +76,6 @@ public class TokenServiceImpl implements TokenService {
         } catch (TokenExpiredException | TokenErrorException e) {
             throw e;
         } catch (Exception ex) {
-            log.error("{} | Unexpected error", LogConstant.SYS_ERROR, ex);
             throw new TokenErrorException(I18nUtils.get("error.unexpected_error_occurred"));
         }
     }

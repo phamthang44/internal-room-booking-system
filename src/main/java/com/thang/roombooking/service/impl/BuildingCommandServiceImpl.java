@@ -39,122 +39,90 @@ public class BuildingCommandServiceImpl implements BuildingCommandService {
     @Transactional(rollbackFor = Exception.class)
     public AdminBuildingResponse createBuilding(CreateBuildingRequest req) {
         log.info("{} | Create Building | nameKey: {}", LogConstant.ACTION_START, req.nameKey());
-        try {
-            if (buildingRepository.existsByNameKey(req.nameKey())) {
-                throw new AppException(BuildingErrorCode.BUILDING_NAME_EXISTS);
-            }
-
-            Building building = Building.builder()
-                    .nameKey(req.nameKey())
-                    .address(req.address())
-                    .isActive(req.isActive())
-                    .build();
-
-            Building saved = buildingRepository.save(building);
-
-            translationService.saveTranslations(
-                    TranslatableEntityType.BUILDING,
-                    saved.getId(),
-                    List.of(
-                            new TranslationService.TranslationInput("en", "name", req.nameEn()),
-                            new TranslationService.TranslationInput("vi", "name", req.nameVi())
-                    )
-            );
-
-            log.info("{} | Created Building ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
-            return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
-        } catch (AppException e) {
-            log.warn("{} | Failed to create building | Error: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Failed to create building", LogConstant.SYS_ERROR, e);
-            throw e;
+        if (buildingRepository.existsByNameKey(req.nameKey())) {
+            throw new AppException(BuildingErrorCode.BUILDING_NAME_EXISTS);
         }
+
+        Building building = Building.builder()
+                .nameKey(req.nameKey())
+                .address(req.address())
+                .isActive(req.isActive())
+                .build();
+
+        Building saved = buildingRepository.save(building);
+
+        translationService.saveTranslations(
+                TranslatableEntityType.BUILDING,
+                saved.getId(),
+                List.of(
+                        new TranslationService.TranslationInput("en", "name", req.nameEn()),
+                        new TranslationService.TranslationInput("vi", "name", req.nameVi())
+                )
+        );
+
+        log.info("{} | Created Building ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
+        return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AdminBuildingResponse updateBuilding(Long id, UpdateBuildingRequest req) {
         log.info("{} | Update Building | ID: {}", LogConstant.ACTION_START, id);
-        try {
-            Building building = buildingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
+        Building building = buildingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
 
-            if (req.address() != null) building.setAddress(req.address());
+        if (req.address() != null) building.setAddress(req.address());
 
-            Building saved = buildingRepository.save(building);
+        Building saved = buildingRepository.save(building);
 
-            List<TranslationService.TranslationInput> inputs = buildTranslationInputs(req.nameEn(), req.nameVi());
-            if (!inputs.isEmpty()) {
-                translationService.saveTranslations(TranslatableEntityType.BUILDING, saved.getId(), inputs);
-            }
-
-            log.info("{} | Updated Building ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
-            return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
-        } catch (AppException e) {
-            log.warn("{} | Failed to update building | Error: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Failed to update building", LogConstant.SYS_ERROR, e);
-            throw e;
+        List<TranslationService.TranslationInput> inputs = buildTranslationInputs(req.nameEn(), req.nameVi());
+        if (!inputs.isEmpty()) {
+            translationService.saveTranslations(TranslatableEntityType.BUILDING, saved.getId(), inputs);
         }
+
+        log.info("{} | Updated Building ID: {}", LogConstant.ACTION_SUCCESS, saved.getId());
+        return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteBuilding(Long id) {
         log.info("{} | Delete Building | ID: {}", LogConstant.ACTION_START, id);
-        try {
-            Building building = buildingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
+        Building building = buildingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
 
-            BuildingPolicy policy = policyFactory.getPolicy(BuildingAction.DELETE);
-            policy.validate(BuildingContext.builder()
-                    .buildingId(id)
-                    .currentIsActive(Boolean.TRUE.equals(building.getIsActive()))
-                    .action(BuildingAction.DELETE)
-                    .build());
+        BuildingPolicy policy = policyFactory.getPolicy(BuildingAction.DELETE);
+        policy.validate(BuildingContext.builder()
+                .buildingId(id)
+                .currentIsActive(Boolean.TRUE.equals(building.getIsActive()))
+                .action(BuildingAction.DELETE)
+                .build());
 
-            buildingRepository.delete(building);
-            log.info("{} | Deleted Building ID: {}", LogConstant.ACTION_SUCCESS, id);
-        } catch (AppException e) {
-            log.warn("{} | Failed to delete building | Error: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Failed to delete building", LogConstant.SYS_ERROR, e);
-            throw e;
-        }
+        buildingRepository.delete(building);
+        log.info("{} | Deleted Building ID: {}", LogConstant.ACTION_SUCCESS, id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AdminBuildingResponse toggleStatus(Long id, boolean isActive) {
         log.info("{} | Toggle Building Status | ID: {}, isActive: {}", LogConstant.ACTION_START, id, isActive);
-        try {
-            Building building = buildingRepository.findById(id)
-                    .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
+        Building building = buildingRepository.findById(id)
+                .orElseThrow(() -> new AppException(BuildingErrorCode.BUILDING_NOT_FOUND));
 
-            if (!isActive) {
-                BuildingPolicy policy = policyFactory.getPolicy(BuildingAction.DEACTIVATE);
-                policy.validate(BuildingContext.builder()
-                        .buildingId(id)
-                        .currentIsActive(Boolean.TRUE.equals(building.getIsActive()))
-                        .action(BuildingAction.DEACTIVATE)
-                        .build());
-            }
-
-            building.setIsActive(isActive);
-            Building saved = buildingRepository.save(building);
-
-            log.info("{} | Building ID: {} status set to: {}", LogConstant.ACTION_SUCCESS, id, isActive);
-            return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
-        } catch (AppException e) {
-            log.warn("{} | Failed to toggle building status | Error: {}", LogConstant.BIZ_ERROR, e.getErrorCode());
-            throw e;
-        } catch (Exception e) {
-            log.error("{} | Failed to toggle building status", LogConstant.SYS_ERROR, e);
-            throw e;
+        if (!isActive) {
+            BuildingPolicy policy = policyFactory.getPolicy(BuildingAction.DEACTIVATE);
+            policy.validate(BuildingContext.builder()
+                    .buildingId(id)
+                    .currentIsActive(Boolean.TRUE.equals(building.getIsActive()))
+                    .action(BuildingAction.DEACTIVATE)
+                    .build());
         }
+
+        building.setIsActive(isActive);
+        Building saved = buildingRepository.save(building);
+
+        log.info("{} | Building ID: {} status set to: {}", LogConstant.ACTION_SUCCESS, id, isActive);
+        return buildingMapper.toAdminBuildingResponse(saved, fetchTranslations(saved.getId()));
     }
 
     private Map<String, String> fetchTranslations(Long buildingId) {

@@ -64,10 +64,7 @@ public class GoogleOAuth2Client {
                 throw new AppException(CommonErrorCode.OAUTH_ERROR, "Invalid or expired Google Token");
             }
 
-        } catch (AppException e) {
-            throw e;
         } catch (Exception e) {
-            log.error("Critical error during Google Token verification: ", e);
             throw new AppException(CommonErrorCode.INTERNAL_ERROR, "Error verifying Google Token: " + e.getMessage());
         }
     }
@@ -98,10 +95,7 @@ public class GoogleOAuth2Client {
 
             log.info("Successfully verified ID token. Email: {}", userInfo.get("email"));
             return userInfo;
-        } catch (AppException e) {
-            throw e;
         } catch (Exception e) {
-            log.error("Error verifying ID token from Google: ", e);
             throw new AppException(CommonErrorCode.OAUTH_ERROR, "Failed to verify ID token: " + e.getMessage());
         }
     }

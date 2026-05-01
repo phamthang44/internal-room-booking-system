@@ -53,7 +53,6 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Upload failed", e);
             throw new AppException(
                     StorageErrorCode.UPLOAD_FAILED
             );
@@ -68,7 +67,6 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Delete failed", e);
             throw new AppException(
                     StorageErrorCode.DELETE_FAILED
             );
@@ -102,7 +100,6 @@ public class CloudinaryStorageServiceImpl implements FileStorageService {
             } catch (AppException e) {
                 throw e;
             } catch (Exception e) {
-                log.error("Upload failed", e);
                 throw new AppException(
                         StorageErrorCode.UPLOAD_FAILED
                 );
