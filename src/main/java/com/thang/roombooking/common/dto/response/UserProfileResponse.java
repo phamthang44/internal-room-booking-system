@@ -15,7 +15,5 @@ public class UserProfileResponse {
     private String roleName;
     private String email;
     private String studentCode;
-
-
-    //TODO : future fields image url avatar, phone number,
+    private String phoneNumber;
 }
