@@ -1,7 +1,7 @@
 package com.thang.roombooking.common.validator;
 
 
-import com.thang.roombooking.common.constant.BlockWords;
+import com.thang.roombooking.infrastructure.configuration.ContentFilterProperties;
 import com.thang.roombooking.common.constant.CommonConfig;
 import org.springframework.util.StringUtils;
 
@@ -29,7 +29,7 @@ public class AccountAuthenticationValidator {
             return false;
         }
         String lowerName = fullName.toLowerCase(Locale.ROOT);
-        for (String badWord : BlockWords.getBadWords()) {
+        for (String badWord : ContentFilterProperties.getStaticBadWords()) {
             if (lowerName.contains(badWord)) {
                 return false;
             }

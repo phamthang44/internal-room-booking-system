@@ -1,10 +1,9 @@
 package com.thang.roombooking.common.utils;
 
 
-import com.thang.roombooking.common.constant.BlockWords;
+import com.thang.roombooking.infrastructure.configuration.ContentFilterProperties;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
 import java.util.regex.Pattern;
 
 /**
@@ -53,7 +52,7 @@ public final class TextValidationUtils {
         }
 
         String normalizedText = text.toLowerCase().trim();
-        return Arrays.stream(BlockWords.getBadWords())
+        return ContentFilterProperties.getStaticBadWords().stream()
                 .anyMatch(badWord -> normalizedText.contains(badWord.toLowerCase()));
     }
 
@@ -69,7 +68,7 @@ public final class TextValidationUtils {
         }
 
         String normalizedText = text.toLowerCase().trim();
-        return Arrays.stream(BlockWords.getBadWords())
+        return ContentFilterProperties.getStaticBadWords().stream()
                 .filter(badWord -> normalizedText.contains(badWord.toLowerCase()))
                 .findFirst()
                 .orElse(null);

@@ -91,3 +91,6 @@ graphify-out/cost.json
 graphify-out/*.py
 graphify-out/.graphify_*
 raw/
+
+# AI agent temporary directories
+.claude/
