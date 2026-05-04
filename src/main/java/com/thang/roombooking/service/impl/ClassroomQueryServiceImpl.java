@@ -281,21 +281,12 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
         if (classroom.getRoomAssets() == null || classroom.getRoomAssets().isEmpty()) return List.of();
 
         return classroom.getRoomAssets().stream()
-                .map(this::toRoomAssetResponse)
+                .map(classroomMapper::toRoomAssetResponse)
                 .sorted(Comparator
                         .comparing((RoomAssetResponse a) -> a.isPrimary() != null && a.isPrimary())
                         .reversed()
                         .thenComparing(a -> a.id() == null ? Long.MAX_VALUE : a.id()))
                 .toList();
-    }
-
-    private RoomAssetResponse toRoomAssetResponse(RoomAsset asset) {
-        return RoomAssetResponse.builder()
-                .id(asset.getId())
-                .url(asset.getUrl())
-                .assetType(asset.getAssetType())
-                .isPrimary(asset.getIsPrimary())
-                .build();
     }
 
     private List<String> deriveImageUrls(List<RoomAssetResponse> roomAssets) {

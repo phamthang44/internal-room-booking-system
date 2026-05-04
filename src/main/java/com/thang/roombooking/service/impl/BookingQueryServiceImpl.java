@@ -211,7 +211,11 @@ public class BookingQueryServiceImpl implements BookingQueryService {
         Map<String, String> translations = buildPageTranslations(bookingsPage.getContent());
 
         List<AdminBookingListResponse> items = bookingsPage.getContent().stream()
-                .map(b -> toAdminBookingListResponse(b, translations))
+                .map(b -> {
+                    AdminBookingListResponse r = bookingMapper.toAdminBookingListResponse(b);
+                    r.setTimeSlots(buildTranslatedTimeSlots(b, translations));
+                    return r;
+                })
                 .toList();
 
         return ApiResult.success(
@@ -234,23 +238,6 @@ public class BookingQueryServiceImpl implements BookingQueryService {
         AdminBookingDetailResponse response = bookingMapper.toAdminBookingDetailResponse(booking, translations);
         response.setTimeSlots(buildTranslatedTimeSlots(booking, translations));
         return response;
-    }
-
-    /**
-     * List row uses the first time slot by start time when a booking spans multiple slots; full slots are on the detail endpoint.
-     */
-    private AdminBookingListResponse toAdminBookingListResponse(Booking booking, Map<String, String> translations) {
-        List<TimeSlotResponse> slots = buildTranslatedTimeSlots(booking, translations);
-
-        return AdminBookingListResponse.builder()
-                .id(booking.getId())
-                .studentName(booking.getUser() != null ? booking.getUser().getFullName() : null)
-                .room(bookingMapper.toAdminBookingRoomRequestedResponse(booking))
-                .purpose(booking.getPurpose())
-                .date(booking.getBookingDate())
-                .timeSlots(slots)
-                .status(booking.getStatus())
-                .build();
     }
 
     private Specification<Booking> buildAdminSpecification(AdminBookingSearchRequest req) {

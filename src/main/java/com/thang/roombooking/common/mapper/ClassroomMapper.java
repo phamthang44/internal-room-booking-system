@@ -61,6 +61,8 @@ public interface ClassroomMapper {
     @Mapping(target = "classroomEquipments", ignore = true)
     void updateEntityFromRequest(UpdateClassroomRequest request, @MappingTarget Classroom classroom);
 
+    RoomAssetResponse toRoomAssetResponse(RoomAsset asset);
+
     CreateClassroomResponse toCreateClassroomResponse(Classroom classroom);
 
     UpdateClassroomResponse toUpdateClassroomResponse(Classroom classroom);

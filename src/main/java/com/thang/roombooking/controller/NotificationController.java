@@ -2,6 +2,7 @@ package com.thang.roombooking.controller;
 
 import com.thang.roombooking.common.dto.response.ApiResult;
 import com.thang.roombooking.common.dto.response.NotificationResponse;
+import com.thang.roombooking.common.mapper.NotificationMapper;
 import com.thang.roombooking.entity.Notification;
 import com.thang.roombooking.infrastructure.security.SecurityUserDetails;
 import com.thang.roombooking.service.NotificationService;
@@ -16,7 +17,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationMapper notificationMapper;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -40,8 +41,8 @@ public class NotificationController {
         Page<Notification> notificationPage = notificationService.getNotificationsByUser(userId, isRead, pageable);
         
         List<NotificationResponse> content = notificationPage.getContent().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .map(notificationMapper::toNotificationResponse)
+                .toList();
 
         return ResponseEntity.ok(ApiResult.success(
                 content,
@@ -120,16 +121,4 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResult.success());
     }
 
-    private NotificationResponse mapToResponse(Notification notification) {
-        return NotificationResponse.builder()
-                .id(notification.getId())
-                .title(notification.getTitle())
-                .message(notification.getMessage())
-                .type(notification.getType())
-                .isRead(notification.isRead())
-                .readStatus(notification.isRead() ? "READ" : "UNREAD")
-                .relatedId(notification.getRelatedId())
-                .createdAt(notification.getCreatedAt())
-                .build();
-    }
 }

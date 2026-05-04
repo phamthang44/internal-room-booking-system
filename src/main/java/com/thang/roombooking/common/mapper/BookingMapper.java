@@ -120,4 +120,12 @@ public interface BookingMapper {
     @Mapping(target = "createdBy", source = "createdBy")
     @Mapping(target = "updatedBy", source = "updatedBy")
     AuditResponse toAuditResponse(Booking booking);
+
+    // ── AdminBookingListResponse ──────────────────────────────────────────────
+
+    @Mapping(target = "studentName", source = "user.fullName")
+    @Mapping(target = "date", source = "bookingDate")
+    @Mapping(target = "room", expression = "java(toAdminBookingRoomRequestedResponse(booking))")
+    @Mapping(target = "timeSlots", ignore = true)
+    AdminBookingListResponse toAdminBookingListResponse(Booking booking);
 }
