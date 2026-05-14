@@ -3,9 +3,11 @@ package com.thang.roombooking.repository;
 import com.thang.roombooking.common.enums.AttendanceStatus;
 import com.thang.roombooking.common.enums.BookingStatus;
 import com.thang.roombooking.entity.Booking;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,6 +31,19 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
         WHERE b.id = :id
     """)
     Optional<Booking> findByIdWithTimeSlots(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Booking b WHERE b.id = :id")
+    Optional<Booking> findByIdWithLock(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT DISTINCT b FROM Booking b
+        JOIN FETCH b.bookingTimeSlots bts
+        JOIN FETCH bts.timeSlot ts
+        WHERE b.id = :id
+    """)
+    Optional<Booking> findByIdWithTimeSlotsAndLock(@Param("id") Long id);
 
     @Query("""
         SELECT DISTINCT b FROM Booking b

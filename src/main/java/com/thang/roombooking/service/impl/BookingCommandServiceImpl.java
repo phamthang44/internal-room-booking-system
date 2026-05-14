@@ -7,6 +7,7 @@ import com.thang.roombooking.common.enums.*;
 import com.thang.roombooking.common.event.BookingStatusChangedEvent;
 import com.thang.roombooking.common.exception.AppException;
 import com.thang.roombooking.common.exception.errorcode.BookingErrorCode;
+import com.thang.roombooking.common.exception.errorcode.ClassroomErrorCode;
 import com.thang.roombooking.common.exception.errorcode.CommonErrorCode;
 import com.thang.roombooking.common.mapper.BookingMapper;
 import com.thang.roombooking.entity.*;
@@ -47,6 +48,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public List<CreateBookingResponse> createBooking(CreateBookingRequest request, UserAccount currentUser) {
         log.info("{} | Create Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
+        // Acquire a row-level write lock on the classroom before any check-then-act reads.
+        // This serializes concurrent booking creation for the same room so that the
+        // overlap check and quota check see a consistent snapshot through to the INSERT.
+        Classroom classroom = classroomRepository.findByIdWithLock(request.classroomId())
+                .orElseThrow(() -> new AppException(ClassroomErrorCode.CLASSROOM_NOT_FOUND));
+
         // 1. Validate các lớp (Lớp 1 & Lớp 2)
         bookingValidatorService.validateClassroom(request.classroomId(), request.attendees());
         bookingValidatorService.validateBookingDate(request.bookingDate());
@@ -69,7 +76,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         // together, so we merge them into a single record whose startTime = min
         // of all selected slots' startTimes and endTime = max of all endTimes.
         // The individual slot associations are preserved via BookingTimeSlot rows.
-        return createSplitBookingResponses(request, currentUser, timeSlots);
+        return createSplitBookingResponses(request, currentUser, classroom, timeSlots);
     }
 
     @Override
@@ -77,8 +84,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public void checkIn(Long id, CheckInRequest request, UserAccount currentUser) {
         log.info("{} | Check in Booking | ID: {} | User: {} | Data: {}",
                 LogConstant.ACTION_START, id, currentUser.getId(), request);
-        // 1) Load booking WITH time slots in one query (source of truth for start time)
-        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        // 1) Lock the booking row + fetch time slots atomically.
+        // Prevents duplicate check-in if two requests arrive simultaneously.
+        Booking booking = bookingRepository.findByIdWithTimeSlotsAndLock(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         bookingPolicyManager.validateCheckInStatus(booking.getStatus());
@@ -134,7 +142,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public void checkout(Long id, CheckoutRequest request, UserAccount currentUser) {
         log.info("{} | Checkout Booking | ID: {} | User: {} | Data: {}",
                 LogConstant.ACTION_START, id, currentUser.getId(), request);
-        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        Booking booking = bookingRepository.findByIdWithTimeSlotsAndLock(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         if (!booking.getUser().getId().equals(currentUser.getId())) {
@@ -183,8 +191,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Transactional(rollbackFor = Exception.class)
     public Long approveBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
         log.info("{}: Booking approve with ID: {} by STAFF: {}",LogConstant.ACTION_START, id, currentUser.getId());
-        // lấy booking
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findByIdWithLock(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         bookingPolicyManager.validateApproveStatus(booking.getStatus());
@@ -223,7 +230,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Transactional(rollbackFor = Exception.class)
     public void rejectBooking(Long id, BookingApprovalRequest request, UserAccount currentUser) {
         log.info("{}: Booking reject with ID: {} by STAFF: {}", LogConstant.ACTION_START, id, currentUser.getId());
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findByIdWithLock(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         bookingPolicyManager.validateRejectStatus(booking.getStatus());
@@ -358,7 +365,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
         bookingValidatorService.validatePurpose(cleanCancelReason);
 
-        Booking booking = bookingRepository.findByIdWithTimeSlots(id)
+        Booking booking = bookingRepository.findByIdWithTimeSlotsAndLock(id)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
 
         // 1. Check quyền sở hữu
@@ -463,9 +470,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
      */
     private List<CreateBookingResponse> createSplitBookingResponses(CreateBookingRequest request,
                                                                     UserAccount currentUser,
+                                                                    Classroom classroom,
                                                                     List<TimeSlot> timeSlots) {
         List<List<TimeSlot>> groupedTimeSlots = splitIntoContiguousGroups(timeSlots);
-        Classroom classroom = classroomRepository.getReferenceById(request.classroomId());
 
         Map<String, String> timeSlotTranslations = translationService.getAllTimeSlotTranslations();
         Map<String, String> buildingTranslations = translationService.getTranslations(getBuildingTranslationIds(classroom.getBuilding()));
