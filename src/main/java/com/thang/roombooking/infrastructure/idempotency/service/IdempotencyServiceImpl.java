@@ -73,6 +73,12 @@ public class IdempotencyServiceImpl implements IdempotencyService {
         });
     }
 
+    @Override
+    @Transactional
+    public void deleteKey(String key) {
+        repository.deleteByKeyHash(key);
+    }
+
     private void saveInitialKey(String key, String path, String fingerprint) {
         IdempotencyKey entity = IdempotencyKey.builder()
                 .keyHash(key)

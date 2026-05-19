@@ -52,8 +52,14 @@ public class IdempotencyAspect {
             return objectMapper.readValue(dto.body(), signature.getReturnType());
         }
 
-        // 2. Thực thi Business Logic chính — exceptions propagate normally to GlobalHandlerError
-        Object result = joinPoint.proceed();
+        // 2. Thực thi Business Logic chính — on failure, remove the PROCESSING record so retries work
+        Object result;
+        try {
+            result = joinPoint.proceed();
+        } catch (Throwable t) {
+            service.deleteKey(key);
+            throw t;
+        }
 
         // 3. Lưu Snapshot thành công
         service.saveResponse(key, 200, result);

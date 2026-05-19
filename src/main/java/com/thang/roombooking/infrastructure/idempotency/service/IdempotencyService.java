@@ -11,4 +11,6 @@ public interface IdempotencyService {
     // Cập nhật kết quả sau khi xử lý thành công (COMPLETED)
     void saveResponse(String key, int statusCode, Object response);
 
+    // Xóa bản ghi PROCESSING khi business logic thất bại, cho phép retry
+    void deleteKey(String key);
 }

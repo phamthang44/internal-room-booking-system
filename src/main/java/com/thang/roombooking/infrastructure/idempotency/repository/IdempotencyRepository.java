@@ -14,4 +14,6 @@ public interface IdempotencyRepository extends JpaRepository<IdempotencyKey, Int
     Optional<IdempotencyKey> findByKeyHash(String keyHash);
 
     void deleteByExpiresAtBefore(Instant now);
+
+    void deleteByKeyHash(String keyHash);
 }
