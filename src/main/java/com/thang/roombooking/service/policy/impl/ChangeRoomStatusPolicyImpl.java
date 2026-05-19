@@ -12,7 +12,9 @@ import com.thang.roombooking.service.policy.context.RoomContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -62,8 +64,8 @@ public class ChangeRoomStatusPolicyImpl implements RoomPolicy {
         boolean hasBookings = bookingRepository.hasUpcomingBookings(
                 roomId,
                 List.of(BookingStatus.APPROVED, BookingStatus.PENDING),
-                LocalDate.now(),
-                LocalTime.now()
+                LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)),
+                LocalTime.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE))
         );
         if (hasBookings) {
             throw new AppException(ClassroomErrorCode.CANNOT_DEACTIVATE_ROOM_WITH_UPCOMING_BOOKINGS);

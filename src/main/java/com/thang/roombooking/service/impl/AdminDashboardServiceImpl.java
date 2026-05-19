@@ -14,9 +14,13 @@ import com.thang.roombooking.repository.PenaltyRecordRepository;
 import com.thang.roombooking.service.AdminDashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.thang.roombooking.common.constant.SystemConstant;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -76,7 +80,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             }
         }
 
-        long bookingsToday = bookingRepository.countByBookingDate(LocalDate.now());
+        long bookingsToday = bookingRepository.countByBookingDate(LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)));
         long activeRooms = classroomRepository.countActiveByStatus(RoomStatus.AVAILABLE);
         long activePenalties = penaltyRecordRepository.countActivePenalties();
 

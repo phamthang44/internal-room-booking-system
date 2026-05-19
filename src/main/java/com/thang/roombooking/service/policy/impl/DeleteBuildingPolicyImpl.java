@@ -10,8 +10,10 @@ import com.thang.roombooking.service.policy.context.BuildingContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Component
@@ -30,8 +32,8 @@ public class DeleteBuildingPolicyImpl implements BuildingPolicy {
         boolean hasActiveBookings = bookingRepository.hasUpcomingBookingsForBuilding(
                 context.getBuildingId(),
                 List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN),
-                LocalDate.now(),
-                LocalTime.now()
+                LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)),
+                LocalTime.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE))
         );
         if (hasActiveBookings) {
             throw new AppException(BuildingErrorCode.CANNOT_DELETE_BUILDING_WITH_ACTIVE_CLASSROOMS);

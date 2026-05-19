@@ -12,6 +12,7 @@ import com.thang.roombooking.service.policy.BookingPolicyManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -33,7 +34,7 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
         if (date == null) return;
 
         // Rule 1: Không được đặt ngày quá khứ
-        if (date.isBefore(LocalDate.now())) {
+        if (date.isBefore(LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)))) {
             throw new AppException(BookingErrorCode.BOOKING_DATE_IN_PAST);
         }
 

@@ -10,8 +10,10 @@ import com.thang.roombooking.service.policy.context.BuildingContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Component
@@ -32,8 +34,8 @@ public class DeactivateBuildingPolicyImpl implements BuildingPolicy {
         boolean hasUpcoming = bookingRepository.hasUpcomingBookingsForBuilding(
                 context.getBuildingId(),
                 List.of(BookingStatus.PENDING, BookingStatus.APPROVED),
-                LocalDate.now(),
-                LocalTime.now()
+                LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)),
+                LocalTime.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE))
         );
         if (hasUpcoming) {
             throw new AppException(BuildingErrorCode.CANNOT_DEACTIVATE_BUILDING_WITH_UPCOMING_BOOKINGS);

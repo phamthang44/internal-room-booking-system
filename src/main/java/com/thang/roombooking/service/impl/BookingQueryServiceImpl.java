@@ -30,8 +30,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Comparator;
@@ -141,7 +143,7 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     @Override
     @Transactional(readOnly = true)
     public StudentDashboardResponse getStudentDashboard(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE));
         Pageable top5 = PageRequest.of(0, 5);
 
         List<Booking> upcomingEntities = bookingRepository.findUpcomingBookings(userId, today, top5);

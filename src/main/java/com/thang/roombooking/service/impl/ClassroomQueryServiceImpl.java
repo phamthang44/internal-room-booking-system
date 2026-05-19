@@ -34,8 +34,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.thang.roombooking.common.constant.SystemConstant;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -78,7 +80,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
     public Page<ClassroomListResponse> searchPublic(RoomSearchRequest req) {
         //req.setRoomStatus(RoomStatus.AVAILABLE);
 
-        if (req.getBookingDate() == null) req.setBookingDate(LocalDate.now());
+        if (req.getBookingDate() == null) req.setBookingDate(LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE)));
         // Note: no default slot injection — null timeSlotIds means "show all slots, no filter"
 
         Specification<Classroom> spec = buildSpecification(req);
@@ -141,7 +143,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
                 .orElseThrow(() -> new AppException(CommonErrorCode.RESOURCE_NOT_FOUND, "Classroom ID: " + id));
 
         Map<String, String> translations = buildTranslations(classroom);
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE));
         LocalDate endDate = startDate.plusDays(30);
         ClassroomAvailabilityResponse schedule = availabilityService.getClassroomAvailability(id, startDate, endDate);
 
@@ -157,7 +159,7 @@ public class ClassroomQueryServiceImpl implements ClassroomQueryService {
 
         Map<String, String> translations = buildTranslations(classroom);
 
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = LocalDate.now(ZoneId.of(SystemConstant.SYSTEM_REGION_TIMEZONE));
         LocalDate endDate = startDate.plusDays(6);
         ClassroomAvailabilityResponse schedule = availabilityService.getClassroomAvailability(id, startDate, endDate);
 
