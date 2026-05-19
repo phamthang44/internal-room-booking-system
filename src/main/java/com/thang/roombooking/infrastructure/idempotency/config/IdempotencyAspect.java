@@ -37,28 +37,26 @@ public class IdempotencyAspect {
         String path = request.getRequestURI();
         Object requestBody = joinPoint.getArgs().length > 0 ? joinPoint.getArgs()[0] : null;
 
+        Optional<IdempotencyResponseDTO> storedResponse;
         try {
-            // 1. Kiểm tra/Tạo bản ghi nháp
-            Optional<IdempotencyResponseDTO> storedResponse = service.validate(key, path, requestBody);
-
-            if (storedResponse.isPresent()) {
-                IdempotencyResponseDTO dto = storedResponse.get();
-                MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-
-                // Trả về kết quả cũ từ Snapshot
-                return objectMapper.readValue(dto.body(), signature.getReturnType());
-            }
-
-            // 2. Thực thi Business Logic chính (Đặt phòng, v.v.)
-            Object result = joinPoint.proceed();
-
-            // 3. Lưu Snapshot thành công
-            service.saveResponse(key, 200, result);
-            return result;
-
+            // 1. Kiểm tra/Tạo bản ghi nháp — only this insert can race on the unique key hash
+            storedResponse = service.validate(key, path, requestBody);
         } catch (DataIntegrityViolationException _) {
-            // Bắt lỗi khi 2 request cùng insert 1 Key Hash đồng thời
+            // Two concurrent requests raced to insert the same key hash simultaneously
             throw new AppException(CommonErrorCode.INVALID_REQUEST, I18nUtils.get("error.idempotency_request_processing"));
         }
+
+        if (storedResponse.isPresent()) {
+            IdempotencyResponseDTO dto = storedResponse.get();
+            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            return objectMapper.readValue(dto.body(), signature.getReturnType());
+        }
+
+        // 2. Thực thi Business Logic chính — exceptions propagate normally to GlobalHandlerError
+        Object result = joinPoint.proceed();
+
+        // 3. Lưu Snapshot thành công
+        service.saveResponse(key, 200, result);
+        return result;
     }
 }
