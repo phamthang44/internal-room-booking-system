@@ -31,7 +31,15 @@ public class IdempotencyServiceImpl implements IdempotencyService {
     public Optional<IdempotencyResponseDTO> validate(String key, String path, Object requestBody) {
         String fingerprint = generateFingerprint(requestBody);
 
-        return repository.findByKeyHash(key).map(existing -> {
+        Optional<IdempotencyKey> found = repository.findByKeyHash(key);
+
+        // 0. Expired PROCESSING record → recycle so the retry can proceed cleanly
+        if (found.isPresent() && found.get().getExpiresAt().isBefore(Instant.now())) {
+            repository.delete(found.get());
+            found = Optional.empty();
+        }
+
+        return found.map(existing -> {
             // 1. Kiểm tra Resource Path: Chống việc dùng 1 Key cho nhiều API khác nhau
             if (!existing.getResourcePath().equals(path)) {
                 throw new AppException(CommonErrorCode.INVALID_REQUEST, I18nUtils.get("error.idempotency_key_mismatch_path"));
