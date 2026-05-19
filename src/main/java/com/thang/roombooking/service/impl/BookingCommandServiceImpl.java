@@ -64,6 +64,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         bookingPolicyManager.validatePenalty(currentUser.getId());
         bookingPolicyManager.validatePendingQuota(currentUser.getId());
         bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
+        bookingPolicyManager.validateNoRoomConflict(classroom.getId(), request.bookingDate(), request.timeSlotIds());
         bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
 
         // 3. Fetch TimeSlot entities

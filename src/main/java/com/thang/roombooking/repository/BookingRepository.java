@@ -105,6 +105,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
                                          @Param("requestedSlotIds") List<Integer> requestedSlotIds);
 
     @Query("""
+        SELECT DISTINCT b.id
+        FROM Booking b
+        JOIN b.bookingTimeSlots bts
+        WHERE b.classroom.id = :roomId
+          AND b.bookingDate = :date
+          AND b.status IN :statuses
+          AND bts.timeSlot.id IN :requestedSlotIds
+    """)
+    List<Long> findConflictingRoomBookingIds(@Param("roomId") Long roomId,
+                                              @Param("date") LocalDate date,
+                                              @Param("statuses") List<BookingStatus> statuses,
+                                              @Param("requestedSlotIds") List<Integer> requestedSlotIds);
+
+    @Query("""
         SELECT DISTINCT ts.id
         FROM Booking b
         JOIN b.bookingTimeSlots bts

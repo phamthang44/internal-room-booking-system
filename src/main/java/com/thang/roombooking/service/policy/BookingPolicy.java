@@ -18,7 +18,9 @@ public interface BookingPolicy {
     void validateBookingTimeWorkingHours(LocalDate bookingDate, Instant bookingTime);
 
     void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
-    
+
+    void validateNoRoomConflict(Long roomId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
+
     void checkCancellationSpam(Booking booking);
 
     void handleNoShowViolation(Booking booking);

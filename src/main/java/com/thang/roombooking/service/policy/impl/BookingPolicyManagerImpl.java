@@ -46,6 +46,11 @@ public class BookingPolicyManagerImpl implements BookingPolicyManager {
     }
 
     @Override
+    public void validateNoRoomConflict(Long roomId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds) {
+        bookingPolicy.validateNoRoomConflict(roomId, bookingDate, requestedTimeSlotIds);
+    }
+
+    @Override
     public void validateCheckInTimePolicy(Instant bookingStartTime) {
         bookingFlowPolicy.validateCheckInTimePolicy(bookingStartTime);
     }

@@ -61,6 +61,15 @@ public enum BookingErrorCode implements BaseErrorCode {
 
     USER_SUSPENDED(HttpStatus.FORBIDDEN, "BK_027", "error.booking.user_suspended"),
     TOO_MANY_PENDING_BOOKINGS(HttpStatus.TOO_MANY_REQUESTS, "BK_028", "error.booking.too_many_pending"),
+
+    // Nhóm Purpose content violations (Nội dung mục đích đặt phòng)
+    BOOKING_PURPOSE_HTML_TAGS(HttpStatus.BAD_REQUEST, "BK_029", "error.booking.purpose.html_not_allowed"),
+    BOOKING_PURPOSE_SCRIPT_CODE(HttpStatus.BAD_REQUEST, "BK_030", "error.booking.purpose.script_not_allowed"),
+    BOOKING_PURPOSE_SQL_INJECTION(HttpStatus.BAD_REQUEST, "BK_031", "error.booking.purpose.sql_not_allowed"),
+    BOOKING_PURPOSE_BAD_WORDS(HttpStatus.BAD_REQUEST, "BK_032", "error.booking.purpose.bad_words"),
+
+    // Nhóm Approval/rejection action mismatch
+    BOOKING_WRONG_APPROVAL_ACTION(HttpStatus.BAD_REQUEST, "BK_033", "error.booking.wrong_approval_action"),
     ;
 
 

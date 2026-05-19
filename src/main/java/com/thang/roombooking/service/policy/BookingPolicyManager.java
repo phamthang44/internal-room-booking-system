@@ -21,6 +21,8 @@ public interface BookingPolicyManager {
 
     void validateNoOverlappingActiveBookings(Long userId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
 
+    void validateNoRoomConflict(Long roomId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds);
+
     void validateCheckInTimePolicy(Instant bookingStartTime);
 
     void validateCheckOutTimePolicy(Instant bookingStartTime);

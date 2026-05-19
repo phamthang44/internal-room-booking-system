@@ -34,7 +34,14 @@ public enum ClassroomErrorCode implements BaseErrorCode {
     CLASSROOM_IS_DELETED_OR_INACTIVE(HttpStatus.BAD_REQUEST, "CR_007", "error.classroom.deleted_or_inactive"),
 
     // Lỗi logic nghiệp vụ khác
-    CAPACITY_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "CR_008", "error.classroom.capacity_not_enough");
+    CAPACITY_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "CR_008", "error.classroom.capacity_not_enough"),
+
+    // Nhóm Room status transition (Chuyển đổi trạng thái phòng)
+    ROOM_STATUS_SAME_AS_CURRENT(HttpStatus.CONFLICT, "CR_009", "error.classroom.status.same_as_current"),
+    ROOM_STATUS_TRANSITION_INVALID(HttpStatus.BAD_REQUEST, "CR_010", "error.classroom.status.transition_invalid"),
+
+    // Nhóm Equipment assignment (Gán thiết bị)
+    EQUIPMENT_IDS_NOT_FOUND(HttpStatus.BAD_REQUEST, "CR_011", "error.classroom.equipment.ids_not_found");
 
     private final HttpStatus httpStatus;
     private final String code;

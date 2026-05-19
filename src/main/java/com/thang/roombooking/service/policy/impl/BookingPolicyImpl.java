@@ -146,6 +146,22 @@ public class BookingPolicyImpl implements BookingPolicy {
     }
 
     @Override
+    public void validateNoRoomConflict(Long roomId, LocalDate bookingDate, List<Integer> requestedTimeSlotIds) {
+        if (requestedTimeSlotIds == null || requestedTimeSlotIds.isEmpty()) return;
+
+        List<Long> conflictingIds = bookingRepository.findConflictingRoomBookingIds(
+                roomId,
+                bookingDate,
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CHECKED_IN),
+                requestedTimeSlotIds
+        );
+
+        if (conflictingIds != null && !conflictingIds.isEmpty()) {
+            throw new AppException(BookingErrorCode.BOOKING_SLOT_OVERLAP);
+        }
+    }
+
+    @Override
     public void checkCancellationSpam(Booking booking) {
         Instant startOfDay = LocalDate.now(ZoneId.of(SYSTEM_REGION_TIMEZONE)).atStartOfDay(ZoneId.of(SYSTEM_REGION_TIMEZONE)).toInstant();
         long cancelledToday = bookingRepository.countCancelledBookingsByUserToday(booking.getUser().getId(), startOfDay);
