@@ -90,13 +90,23 @@ public class NotificationServiceImpl implements NotificationService {
         int updated = notificationRepository.markAsRead(notificationId, userId);
         if (updated == 0) {
             log.warn("Notification {} not found or not owned by user {}", notificationId, userId);
+            return;
         }
+        // Push WebSocket event so the frontend updates its local read-state in real-time
+        notificationRepository.findById(notificationId).ifPresent(notification -> {
+            resolveI18n(notification);
+            notifyUser(String.valueOf(userId),
+                    NotificationPayload.fromNotification(notification, notification.getTitle(), notification.getMessage()));
+        });
     }
 
     @Override
     @Transactional
     public void markAllAsRead(Long userId) {
         notificationRepository.markAllAsRead(userId);
+        // Signal the frontend to clear all unread badges in one shot
+        notifyUser(String.valueOf(userId),
+                new NotificationPayload("ALL_READ", null, null, null, null, Instant.now()));
     }
 
     @Override
