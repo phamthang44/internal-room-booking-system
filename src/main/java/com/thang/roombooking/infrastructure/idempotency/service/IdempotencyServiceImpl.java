@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -99,7 +100,12 @@ public class IdempotencyServiceImpl implements IdempotencyService {
 
     private String generateFingerprint(Object body) {
         try {
-            return DigestUtils.md5DigestAsHex(objectMapper.writeValueAsBytes(body));
+            // Strip volatile submission-time fields before hashing so that retries
+            // with a refreshed timeBooking still match the original fingerprint.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> fields = objectMapper.convertValue(body, Map.class);
+            fields.remove("timeBooking");
+            return DigestUtils.md5DigestAsHex(objectMapper.writeValueAsBytes(fields));
         } catch (Exception _) {
             return "empty_fingerprint";
         }

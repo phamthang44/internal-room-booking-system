@@ -48,35 +48,58 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     public List<CreateBookingResponse> createBooking(CreateBookingRequest request, UserAccount currentUser) {
         log.info("{} | Create Booking | User: {} | Data: {}",
                 LogConstant.ACTION_START, currentUser.getId(), request);
-        // Acquire a row-level write lock on the classroom before any check-then-act reads.
-        // This serializes concurrent booking creation for the same room so that the
-        // overlap check and quota check see a consistent snapshot through to the INSERT.
+
+        log.debug("[createBooking] Step 0 — acquiring row lock on classroomId={}", request.classroomId());
         Classroom classroom = classroomRepository.findByIdWithLock(request.classroomId())
                 .orElseThrow(() -> new AppException(ClassroomErrorCode.CLASSROOM_NOT_FOUND));
+        log.debug("[createBooking] Step 0 PASSED — classroom '{}' locked", classroom.getRoomName());
 
-        // 1. Validate các lớp (Lớp 1 & Lớp 2)
+        log.debug("[createBooking] Step 1a — validateClassroom (id={}, attendees={})", request.classroomId(), request.attendees());
         bookingValidatorService.validateClassroom(request.classroomId(), request.attendees());
+        log.debug("[createBooking] Step 1a PASSED");
+
+        log.debug("[createBooking] Step 1b — validateBookingDate ({})", request.bookingDate());
         bookingValidatorService.validateBookingDate(request.bookingDate());
+        log.debug("[createBooking] Step 1b PASSED");
+
+        log.debug("[createBooking] Step 1c — validatePurpose ('{}')", request.purpose());
         bookingValidatorService.validatePurpose(request.purpose());
+        log.debug("[createBooking] Step 1c PASSED");
+
+        log.debug("[createBooking] Step 1d — validateBookingTimeWorkingHours (date={}, timeBooking={})", request.bookingDate(), request.timeBooking());
         bookingPolicyManager.validateBookingTimeWorkingHours(request.bookingDate(), request.timeBooking());
+        log.debug("[createBooking] Step 1d PASSED");
 
-        // 2. Policy Quota & Penalty
+        log.debug("[createBooking] Step 2a — validatePenalty (userId={})", currentUser.getId());
         bookingPolicyManager.validatePenalty(currentUser.getId());
+        log.debug("[createBooking] Step 2a PASSED");
+
+        log.debug("[createBooking] Step 2b — validatePendingQuota (userId={})", currentUser.getId());
         bookingPolicyManager.validatePendingQuota(currentUser.getId());
+        log.debug("[createBooking] Step 2b PASSED");
+
+        log.debug("[createBooking] Step 2c — validateNoOverlappingActiveBookings (userId={}, date={}, slots={})", currentUser.getId(), request.bookingDate(), request.timeSlotIds());
         bookingPolicyManager.validateNoOverlappingActiveBookings(currentUser.getId(), request.bookingDate(), request.timeSlotIds());
+        log.debug("[createBooking] Step 2c PASSED");
+
+        log.debug("[createBooking] Step 2d — validateNoRoomConflict (roomId={}, date={}, slots={})", classroom.getId(), request.bookingDate(), request.timeSlotIds());
         bookingPolicyManager.validateNoRoomConflict(classroom.getId(), request.bookingDate(), request.timeSlotIds());
+        log.debug("[createBooking] Step 2d PASSED");
+
+        log.debug("[createBooking] Step 2e — validateQuotaPolicy (userId={}, date={}, requestedSlots={})", currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
         bookingPolicyManager.validateQuotaPolicy(currentUser.getId(), request.bookingDate(), request.timeSlotIds().size());
+        log.debug("[createBooking] Step 2e PASSED");
 
-        // 3. Fetch TimeSlot entities
+        log.debug("[createBooking] Step 3a — getTimeSlotsByIds {}", request.timeSlotIds());
         List<TimeSlot> timeSlots = timeSlotService.getTimeSlotsByIds(request.timeSlotIds());
+        log.debug("[createBooking] Step 3a PASSED — resolved {} slot(s): {}", timeSlots.size(),
+                timeSlots.stream().map(s -> s.getId() + "(" + s.getStartTime() + "-" + s.getEndTime() + ")").toList());
 
+        log.debug("[createBooking] Step 3b — validateTimeSlots (date={}, slots={})", request.bookingDate(), timeSlots.stream().map(TimeSlot::getId).toList());
         bookingValidatorService.validateTimeSlots(request.bookingDate(), timeSlots);
+        log.debug("[createBooking] Step 3b PASSED");
 
-        // Always produce exactly ONE booking regardless of whether the selected
-        // slots are time-adjacent or not.  The user consciously chose these slots
-        // together, so we merge them into a single record whose startTime = min
-        // of all selected slots' startTimes and endTime = max of all endTimes.
-        // The individual slot associations are preserved via BookingTimeSlot rows.
+        log.debug("[createBooking] Step 4 — creating booking records");
         return createSplitBookingResponses(request, currentUser, classroom, timeSlots);
     }
 

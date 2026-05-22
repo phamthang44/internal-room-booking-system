@@ -33,8 +33,23 @@ jobs:
       - name: Create dummy env files for Compose parser
         run: touch .env.prod .env
 
-      - name: Build Production Images
-        run: make prod-build
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ghcr.io/phamthang44/room-booking-be:latest
+          build-args: BUILD_PROFILE=prod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Push Production Images
-        run: make prod-push
+      - name: Build and push nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./nginx/Dockerfile
+          push: true
+          tags: ghcr.io/phamthang44/room-booking-nginx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
