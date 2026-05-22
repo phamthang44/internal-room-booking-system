@@ -10,6 +10,7 @@ import com.thang.roombooking.service.ClassroomValidatorService;
 import com.thang.roombooking.service.TimeSlotService;
 import com.thang.roombooking.service.policy.BookingPolicyManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.thang.roombooking.common.constant.SystemConstant;
@@ -22,6 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class BookingValidatorServiceImpl implements BookingValidatorService {
 
@@ -48,16 +50,27 @@ public class BookingValidatorServiceImpl implements BookingValidatorService {
     @Override
     public void validatePurpose(String purpose) {
         String cleanPurpose = TextValidationUtils.sanitize(purpose);
+        log.debug("[validatePurpose] cleanPurpose='{}'", cleanPurpose);
+
         if (TextValidationUtils.containsHtmlTags(cleanPurpose)) {
+            log.debug("[validatePurpose] REJECTED by html-tags check");
             throw new AppException(CommonErrorCode.INVALID_REQUEST, "html tags are not allowed in purpose");
         }
         if (TextValidationUtils.containsScriptTags(cleanPurpose) || TextValidationUtils.containsJavascript(cleanPurpose)) {
+            log.debug("[validatePurpose] REJECTED by script/js check");
             throw new AppException(CommonErrorCode.INVALID_REQUEST, "script or executable code are not allowed in purpose");
         }
         if (TextValidationUtils.containsSqlInjection(cleanPurpose)) {
+            log.debug("[validatePurpose] REJECTED by sql-injection check");
             throw new AppException(CommonErrorCode.INVALID_REQUEST, "SQL injection are not allowed in purpose");
         }
-        if (TextValidationUtils.containsBadWords(cleanPurpose)) throw new AppException(CommonErrorCode.INVALID_REQUEST, "bad words");
+        String matchedBadWord = TextValidationUtils.findBadWord(cleanPurpose);
+        if (matchedBadWord != null) {
+            log.debug("[validatePurpose] REJECTED by bad-words check — matched word: '{}' (list size: {})",
+                    matchedBadWord, com.thang.roombooking.infrastructure.configuration.ContentFilterProperties.getStaticBadWords().size());
+            throw new AppException(CommonErrorCode.INVALID_REQUEST, "bad words");
+        }
+        log.debug("[validatePurpose] PASSED all checks");
     }
 
     @Override

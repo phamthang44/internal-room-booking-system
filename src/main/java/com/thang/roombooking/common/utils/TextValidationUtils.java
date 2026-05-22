@@ -53,6 +53,7 @@ public final class TextValidationUtils {
 
         String normalizedText = text.toLowerCase().trim();
         return ContentFilterProperties.getStaticBadWords().stream()
+                .filter(StringUtils::hasText)
                 .anyMatch(badWord -> normalizedText.contains(badWord.toLowerCase()));
     }
 
@@ -69,6 +70,7 @@ public final class TextValidationUtils {
 
         String normalizedText = text.toLowerCase().trim();
         return ContentFilterProperties.getStaticBadWords().stream()
+                .filter(StringUtils::hasText)
                 .filter(badWord -> normalizedText.contains(badWord.toLowerCase()))
                 .findFirst()
                 .orElse(null);
