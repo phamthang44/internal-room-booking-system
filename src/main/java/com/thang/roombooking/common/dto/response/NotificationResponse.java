@@ -12,8 +12,13 @@ public record NotificationResponse(
         String message,
         NotificationType type,
         boolean isRead,
-        String readStatus, // "READ" or "UNREAD" - helps FE design
+        String readStatus, // "READ" or "UNREAD" - always derived from isRead
         String relatedId,
         Instant createdAt
 ) {
+    // Compact constructor: readStatus is always derived from isRead,
+    // making it impossible for the two fields to be inconsistent.
+    public NotificationResponse {
+        readStatus = isRead ? "READ" : "UNREAD";
+    }
 }
