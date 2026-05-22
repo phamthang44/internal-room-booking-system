@@ -37,6 +37,7 @@ public interface UserBehaviorRepository extends JpaRepository<UserBehaviorEvent,
             SELECT e.user.id, e.entityId, e.eventType, COUNT(e.id)
             FROM UserBehaviorEvent e
             WHERE e.entityType = 'CLASSROOM'
+              AND e.entityId IS NOT NULL
               AND e.occurredAt >= :cutoff
             GROUP BY e.user.id, e.entityId, e.eventType
             """)
