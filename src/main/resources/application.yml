@@ -77,7 +77,7 @@ content-filter:
     - staff
     - root
     - system
-    - null
+    - "null"
     - undefined
     - test
     - user
