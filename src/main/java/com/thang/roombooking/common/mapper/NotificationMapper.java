@@ -10,5 +10,6 @@ import org.mapstruct.ReportingPolicy;
 public interface NotificationMapper {
 
     @Mapping(target = "readStatus", expression = "java(notification.isRead() ? \"READ\" : \"UNREAD\")")
+    @Mapping(target = "isRead", expression = "java(notification.isRead())")
     NotificationResponse toNotificationResponse(Notification notification);
 }
