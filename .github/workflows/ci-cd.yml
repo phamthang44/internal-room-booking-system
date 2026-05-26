@@ -10,7 +10,37 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── Job 1: Unit Tests ────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests (JDK 25)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'          # caches ~/.m2 keyed on pom.xml hash
+
+      - name: Run unit tests
+        run: chmod +x mvnw && ./mvnw -B test
+
+      - name: Upload Surefire reports
+        if: always()              # upload even when tests fail so you can read the results
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7
+
+  # ── Job 2: Build & Push Docker Image (only if tests pass) ───────────────────
   build-and-push:
+    name: Build & Push Docker Image
+    needs: test                   # blocked until test job succeeds
     runs-on: ubuntu-latest
     permissions:
       contents: read
