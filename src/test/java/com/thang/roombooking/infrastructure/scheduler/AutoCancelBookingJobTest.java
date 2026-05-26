@@ -17,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +25,11 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AutoCancelBookingJobTest {
+
+    // Must match the appTimeZone injected via ReflectionTestUtils so time comparisons align
+    // with the job's ZonedDateTime.now(appZone) — using the JVM default (UTC in CI) would
+    // make LocalTime.now() return a different wall-clock value than the job's "now".
+    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Mock private BookingRepository bookingRepository;
     @Mock private BookingCommandService bookingCommandService;
@@ -38,8 +44,8 @@ class AutoCancelBookingJobTest {
 
     @Test
     void should_cancel_bookings_past_no_show_window() {
-        // Booking started 20 minutes ago (past the 15-min no-show window)
-        LocalTime pastStartTime = LocalTime.now().minusMinutes(20);
+        // Booking started 20 minutes ago in ICT — well past the 15-min no-show window
+        LocalTime pastStartTime = LocalTime.now(APP_ZONE).minusMinutes(20);
         Booking expiredBooking = buildApprovedBookingWithStartTime(pastStartTime);
 
         when(bookingRepository.findApprovedBookingsForAutoCancel(eq(BookingStatus.APPROVED), any(LocalDate.class)))
@@ -52,8 +58,8 @@ class AutoCancelBookingJobTest {
 
     @Test
     void should_not_cancel_bookings_within_no_show_window() {
-        // Booking starting in 5 minutes (still within window)
-        LocalTime futureStartTime = LocalTime.now().plusMinutes(5);
+        // Booking starting in 30 minutes ICT — comfortably within the 15-min no-show window
+        LocalTime futureStartTime = LocalTime.now(APP_ZONE).plusMinutes(30);
         Booking futureBooking = buildApprovedBookingWithStartTime(futureStartTime);
 
         when(bookingRepository.findApprovedBookingsForAutoCancel(eq(BookingStatus.APPROVED), any(LocalDate.class)))
@@ -75,7 +81,7 @@ class AutoCancelBookingJobTest {
 
     @Test
     void should_continue_processing_other_bookings_when_one_cancel_fails() {
-        LocalTime pastStartTime = LocalTime.now().minusMinutes(20);
+        LocalTime pastStartTime = LocalTime.now(APP_ZONE).minusMinutes(20);
         Booking booking1 = buildApprovedBookingWithStartTime(pastStartTime);
         booking1.setId(1L);
         Booking booking2 = buildApprovedBookingWithStartTime(pastStartTime);
@@ -98,7 +104,7 @@ class AutoCancelBookingJobTest {
         BookingTimeSlot bts = BookingTimeSlot.builder().timeSlot(timeSlot).build();
 
         Booking booking = BookingFixtures.approvedBooking();
-        booking.setBookingDate(LocalDate.now());
+        booking.setBookingDate(LocalDate.now(APP_ZONE)); // match job's date in ICT, not UTC
         booking.setBookingTimeSlots(new ArrayList<>(List.of(bts)));
         return booking;
     }
