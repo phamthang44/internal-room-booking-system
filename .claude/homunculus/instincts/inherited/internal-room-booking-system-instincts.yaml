@@ -1,0 +1,299 @@
+# Instincts generated from https://github.com/phamthang44/internal-room-booking-system
+# Generated: 2026-05-22T03:21:11.640Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: internal-room-booking-system-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix(validation): bad-words null YAML entry blocks all purposes + add debug tracing
+
+---
+id: internal-room-booking-system-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Commit Length
+
+## Action
+
+Write moderate-length commit messages (~82 characters)
+
+## Evidence
+
+- Average commit message length: 82 chars
+- Based on 1 commits
+
+---
+id: internal-room-booking-system-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: internal-room-booking-system-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: internal-room-booking-system-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: internal-room-booking-system-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: internal-room-booking-system-instinct-class-naming
+trigger: "When creating a new Java class file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Class Naming
+
+## Action
+
+Name the class and file using PascalCase
+
+## Evidence
+
+- Pattern: classes and files use PascalCase as per codeStyle.namingConventions
+
+---
+id: internal-room-booking-system-instinct-function-naming
+trigger: "When defining a new Java function/method"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern: functions use camelCase as per codeStyle.namingConventions
+
+---
+id: internal-room-booking-system-instinct-constant-naming
+trigger: "When declaring a constant in Java"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern: constants use SCREAMING_SNAKE_CASE as per codeStyle.namingConventions
+
+---
+id: internal-room-booking-system-instinct-import-style
+trigger: "When importing modules in Java source files"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Import Style
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern: importStyle is relative in codeStyle
+
+---
+id: internal-room-booking-system-instinct-export-style
+trigger: "When exporting modules or classes"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern: exportStyle is named in codeStyle
+
+---
+id: internal-room-booking-system-instinct-git-commit-format
+trigger: "When writing a git commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Git Commit Format
+
+## Action
+
+Use the conventional commit format with a 'fix' prefix for bug fixes (e.g., fix(scope): message)
+
+## Evidence
+
+- Pattern: commits use conventional format with 'fix' prefix
+- Example: fix(validation): bad-words null YAML entry blocks all purposes + add debug tracing
+
+---
+id: internal-room-booking-system-instinct-commit-length
+trigger: "When composing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Commit Length
+
+## Action
+
+Write a descriptive message with an average length of about 82 characters
+
+## Evidence
+
+- Pattern: average commit message length is 82
+
+---
+id: internal-room-booking-system-instinct-test-location
+trigger: "When adding or organizing test files"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Test Location
+
+## Action
+
+Place tests in a separate directory from the main source code
+
+## Evidence
+
+- Pattern: testLocation is 'separate' in architecture.folderStructure
+
+---
+id: internal-room-booking-system-instinct-src-folder
+trigger: "When adding new source code files"
+confidence: 0.9
+domain: architecture
+source: repo-analysis
+source_repo: phamthang44/internal-room-booking-system
+---
+
+# Internal Room Booking System Instinct Src Folder
+
+## Action
+
+Place them under the 'src' folder
+
+## Evidence
+
+- Pattern: 'src' is a common folder in architecture.folderStructure
+
