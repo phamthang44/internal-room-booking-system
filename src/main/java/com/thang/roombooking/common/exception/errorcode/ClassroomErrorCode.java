@@ -13,7 +13,7 @@ public enum ClassroomErrorCode implements BaseErrorCode {
     ROOM_NAME_EXISTED(HttpStatus.BAD_REQUEST, "CR_001", "error.classroom.name.existed"),
     CAPACITY_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "CR_002", "validation.classroom.capacity.out_of_range"),
     ROOM_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "CR_003", "validation.classroom.room_type.not_found"),
-    BUILDING_NOT_ACTIVE(HttpStatus.FORBIDDEN, "CR_004", "error.classroom.building.not_active"),
+    BUILDING_NOT_ACTIVE(HttpStatus.CONFLICT, "CR_004", "error.classroom.building.not_active"),
 
 
     EQUIPMENT_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "CR_005", "error.classroom.equipment.not_supported"),

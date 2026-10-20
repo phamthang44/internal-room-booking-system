@@ -32,7 +32,7 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USER:?Set RABBITMQ_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
       FRONTEND_APP_BASE_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL}
-      BACKEND_APP_BASE_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL}
+      BACKEND_APP_BASE_URL: ${PUBLIC_API_URL:?Set PUBLIC_API_URL}
       JWT_PRIVATE_KEY_PATH: file:/app/certs/private.pem
       JWT_PUBLIC_KEY_PATH: file:/app/certs/public.pem
     volumes:
@@ -55,28 +55,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  frontend:
-    build:
-      context: ../room-booking-frontend
-      args:
-        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID}
-        VITE_STOMP_BROKER_URL: ${PUBLIC_WS_URL:?Set PUBLIC_WS_URL}
-    depends_on:
-      - backend-app
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      frontend:
-        condition: service_healthy
+      backend-app:
+        condition: service_started
     restart: unless-stopped
     logging:
       driver: json-file

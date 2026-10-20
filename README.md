@@ -1,4 +1,4 @@
-> **Production deployment:** [Docker Compose + Cloudflare Tunnel](DEPLOYMENT.md). Đây là hướng dẫn hiện hành; các hướng dẫn EC2, Certbot, Watchtower bên dưới là cấu hình cũ.
+> **Production:** [Vercel frontend + Docker backend + Cloudflare Tunnel](DEPLOYMENT.md). Các hướng dẫn EC2/Watchtower cũ bên dưới không còn áp dụng.
 
 # Internal Room Booking System
 
