@@ -28,7 +28,11 @@ INSERT INTO translations (entity_type, entity_id, locale, field_name, content) V
 ('TIME_SLOT', 4, 'vi', 'name', 'Ca chiều 2'),
 ('TIME_SLOT', 4, 'en', 'name', 'Afternoon Shift 2');
 
-INSERT INTO bookings (user_id, classroom_id, start_time, end_time, status, purpose, idempotency_key, created_by, updated_by) VALUES
+-- V2 removes sample users. Skip demo bookings when their referenced user/room is absent.
+INSERT INTO bookings (user_id, classroom_id, start_time, end_time, status, purpose, idempotency_key, created_by, updated_by)
+SELECT seed.user_id, seed.classroom_id, seed.start_time::timestamptz, seed.end_time::timestamptz,
+       seed.status, seed.purpose, seed.idempotency_key, seed.created_by, seed.updated_by
+FROM (VALUES
 -- CA 1: Đã duyệt (Trạng thái: OCCUPIED/BẬN)
 (6, 1, '2026-04-01 07:00:00+07', '2026-04-01 09:00:00+07', 'APPROVED', 'Học nhóm Java', 'key-slot-1-approved', 'SYSTEM', 'SYSTEM'),
 -- CA 2: Đang chờ duyệt (Trạng thái: PENDING/ĐANG CHỜ - Vẫn tính là OCCUPIED để chặn người khác đặt đè)
@@ -37,4 +41,6 @@ INSERT INTO bookings (user_id, classroom_id, start_time, end_time, status, purpo
 -- CA 3: Trống (Không có record nào trong DB cho slot này -> Trạng thái: AVAILABLE)
 
 -- CA 4: Đã bị từ chối hoặc hủy (Trạng thái: AVAILABLE - Vì đơn này không còn hiệu lực giữ chỗ)
-(6, 1, '2026-04-01 15:30:00+07', '2026-04-01 17:30:00+07', 'REJECTED', 'Dạy thêm Toán', 'key-slot-4-rejected', 'SYSTEM', 'SYSTEM');
+(6, 1, '2026-04-01 15:30:00+07', '2026-04-01 17:30:00+07', 'REJECTED', 'Dạy thêm Toán', 'key-slot-4-rejected', 'SYSTEM', 'SYSTEM')) AS seed(user_id, classroom_id, start_time, end_time, status, purpose, idempotency_key, created_by, updated_by)
+WHERE EXISTS (SELECT 1 FROM users WHERE id = seed.user_id)
+  AND EXISTS (SELECT 1 FROM classrooms WHERE id = seed.classroom_id);

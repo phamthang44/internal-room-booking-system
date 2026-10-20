@@ -1,58 +1,47 @@
-# docker-compose.prod.yml  — PRODUCTION OVERRIDES
-# ─────────────────────────────────────────────────────────────────────────────
-# Analogous to Maven -Pprod
-#
-# Always used together with docker-compose.base.yml:
-#   docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
-#
-# Or use the convenience scripts:
-#   .\run.ps1 -Env prod
-#   make prod
-#
-# Secrets: copy .env.prod.example → .env.prod on the server.
-# NEVER commit .env.prod — it is gitignored.
-# ─────────────────────────────────────────────────────────────────────────────
-
+# Production overlay. Use --env-file .env.prod for interpolation.
+name: roomhub-prod
 services:
-  # ── Postgres: load production credentials (NO exposed ports — internal only)
   postgres:
-    env_file: .env.prod
-
-  # ── RabbitMQ: load production credentials (NO exposed ports)
+    container_name: !reset null
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-room_booking_db}
   rabbitmq:
-    env_file: .env.prod
-
-  # --- BACKEND APP ---
+    container_name: !reset null
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    volumes:
+      - room_booking_rabbitmq_data:/var/lib/rabbitmq
+  redis:
+    container_name: !reset null
   backend-app:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     build:
       context: .
-      dockerfile: Dockerfile
       args:
-        BUILD_PROFILE: prod   # ← Maven -Pprod
-    image: ghcr.io/phamthang44/room-booking-be:latest
-    container_name: room_booking_be
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+        BUILD_PROFILE: prod
     env_file: .env.prod
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      # ── Docker internal network hostnames
-      - DATABASE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-room_booking_db}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
-      - JWT_PRIVATE_KEY_PATH=file:/app/certs/private.pem
-      - JWT_PUBLIC_KEY_PATH=file:/app/certs/public.pem
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-room_booking_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+      FRONTEND_APP_BASE_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL}
+      BACKEND_APP_BASE_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL}
+      JWT_PRIVATE_KEY_PATH: file:/app/certs/private.pem
+      JWT_PUBLIC_KEY_PATH: file:/app/certs/public.pem
     volumes:
-      - ./certs:/app/certs:ro   # Read-only RSA key pair
+      - type: bind
+        source: ./certs
+        target: /app/certs
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,41 +50,38 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
-    # NO port exposure — Nginx is the only public entry point
-
-  # --- NGINX (reverse proxy + SSL termination) ---
-  nginx:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  frontend:
     build:
-      context: .
-      dockerfile: ./nginx/Dockerfile
-    image: ghcr.io/phamthang44/room-booking-nginx:latest
-    container_name: room_booking_nginx
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "5432:5432"  # PostgreSQL Stream Proxy
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      context: ../room-booking-frontend
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID}
+        VITE_STOMP_BROKER_URL: ${PUBLIC_WS_URL:?Set PUBLIC_WS_URL}
     depends_on:
       - backend-app
     restart: unless-stopped
-
-  # --- WATCHTOWER (automated deployment) ---
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOME}/.docker/config.json:/config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
     environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=300
-      - WATCHTOWER_LABEL_ENABLE=true
-      - WATCHTOWER_INCLUDE_STOPPED=true
-      - WATCHTOWER_REVIVE_STOPPED=true
-      - WATCHTOWER_DEBUG=true
-      - DOCKER_API_VERSION=1.41
-
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  room_booking_rabbitmq_data:

@@ -23,6 +23,7 @@ Dockerfile
 # Config files not needed in image
 nginx*.conf
 .env
+.env.*
 *.md
 HELP.md
 README.md

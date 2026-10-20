@@ -1,3 +1,5 @@
+> **Production deployment:** [Docker Compose + Cloudflare Tunnel](DEPLOYMENT.md). Đây là hướng dẫn hiện hành; các hướng dẫn EC2, Certbot, Watchtower bên dưới là cấu hình cũ.
+
 # Internal Room Booking System
 
 A robust, enterprise-grade Room Booking System built with Java and Spring Boot. This system powers the internal room booking logic for students and administrators, featuring strict concurrency controls, real-time notifications, and robust scheduling workflows.

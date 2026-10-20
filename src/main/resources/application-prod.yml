@@ -5,7 +5,7 @@ app:
   tagline: Room Booking System
   support:
     email: concierge@roomhub.com
-  url: https://room-booking.com
+  url: ${FRONTEND_APP_BASE_URL}
   mail:
     # Optional overrides for outbound email metadata
     from-email: ${MAIL_FROM_EMAIL:}
@@ -137,3 +137,4 @@ springdoc:
 
 server:
   port: 8080
+  forward-headers-strategy: framework

@@ -32,7 +32,7 @@ $PROD  = "docker-compose.prod.yml"
 
 # Full compose command prefixes
 $DevCmd  = "docker compose -f $BASE -f $DEV"
-$ProdCmd = "docker compose -f $BASE -f $PROD"
+$ProdCmd = "docker compose --env-file .env.prod -f $BASE -f $PROD"
 
 function Start-Infra {
     Write-Host "🚀 Starting dev infra (postgres, redis, rabbitmq, maildev)..." -ForegroundColor Cyan
@@ -78,7 +78,7 @@ switch ($Env) {
         switch ($Action) {
             "up" {
                 Write-Host "🚀 Starting PRODUCTION stack..." -ForegroundColor Yellow
-                Invoke-Expression "$ProdCmd up -d"
+                Invoke-Expression "$ProdCmd up -d --build"
             }
             "down"    { Invoke-Expression "$ProdCmd down" }
             "logs"    { Invoke-Expression "$ProdCmd logs -f backend-app" }
@@ -86,7 +86,7 @@ switch ($Env) {
             "build"   { Invoke-Expression "$ProdCmd build" }
             "pull"    { Invoke-Expression "$ProdCmd pull" }
             "restart" { Invoke-Expression "$ProdCmd restart backend-app" }
-            default   { Invoke-Expression "$ProdCmd up -d" }
+            default   { Invoke-Expression "$ProdCmd up -d --build" }
         }
     }
 }

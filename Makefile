@@ -49,30 +49,30 @@ dev-restart:
 ## ── PRODUCTION ───────────────────────────────────────────────────────────────
 prod:
 	@echo "🚀 Starting production stack..."
-	docker compose -f $(BASE) -f $(PROD) up -d
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) up -d --build
 
 prod-down:
-	docker compose -f $(BASE) -f $(PROD) down
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) down
 
 prod-logs:
-	docker compose -f $(BASE) -f $(PROD) logs -f backend-app
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) logs -f backend-app
 
 prod-build:
-	docker compose -f $(BASE) -f $(PROD) build
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) build
 
 prod-restart:
-	docker compose -f $(BASE) -f $(PROD) up -d
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) up -d --build
 
 prod-pull:
-	docker compose -f $(BASE) -f $(PROD) pull
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) pull
 
 prod-push:
-	docker compose -f $(BASE) -f $(PROD) push
+	docker compose --env-file .env.prod -f $(BASE) -f $(PROD) push
 
 ## ── UTILITIES ────────────────────────────────────────────────────────────────
 ps:
 	@echo "=== DEV ===" && docker compose -f $(BASE) -f $(DEV) ps 2>/dev/null || true
-	@echo "=== PROD ==="&& docker compose -f $(BASE) -f $(PROD) ps 2>/dev/null || true
+	@echo "=== PROD ==="&& docker compose --env-file .env.prod -f $(BASE) -f $(PROD) ps 2>/dev/null || true
 
 help:
 	@echo ""
